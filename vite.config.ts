@@ -6,5 +6,5 @@ export default defineConfig({
   plugins: [react()],
   // Используем точку и слэш. Это значит "ищи файлы в текущей папке".
   // Это работает везде: и на f1nal.me, и на f1nal-me, и локально.
-  base: './', 
+  base: '/f1nal.me/', 
 })
