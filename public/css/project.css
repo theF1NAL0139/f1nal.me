@@ -1,0 +1,1120 @@
+/* =========================================
+   1. FONTS & RESET
+   ========================================= */
+@font-face {
+    font-family: "FunnelDisplay-Regular";
+    src: url("../fonts/FunnelDisplay-Regular.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "FunnelDisplay-SemiBold";
+    src: url("../fonts/FunnelDisplay-SemiBold.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "FunnelDisplay-Medium";
+    src: url("../fonts/FunnelDisplay-Medium.ttf") format("truetype");
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    width: 100%;
+    /* Убраны все принудительные стили для скроллбара. 
+       Теперь браузер сам решает, когда его показывать. */
+}
+
+body {
+    width: 100%;
+    min-height: 100vh;
+    font-family: 'FunnelDisplay-Regular', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    background: #F7F7F7;
+    color: #000000;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    
+    /* Оставляем только скрытие горизонтальной прокрутки, 
+       чтобы анимации не ломали верстку */
+    overflow-x: hidden; 
+    position: relative;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+    position: relative;
+}
+
+/* =========================================
+   2. HEADER ANIMATION
+   ========================================= */
+.semplice-header {
+    position: relative;
+    width: 100%;
+    padding-top: 30px;
+    padding-bottom: 10px;
+    background: transparent;
+    z-index: 10005;
+    opacity: 0;
+    transform: translateY(-30px);
+}
+
+html.is-visited .semplice-header {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+    transition: none !important;
+}
+
+html.is-animating .semplice-header {
+    transition: opacity 1.5s cubic-bezier(0.19, 1, 0.22, 1),
+        transform 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+}
+
+html.is-animating .semplice-header.start-anim {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* =========================================
+   3. NAVIGATION & LOGO
+   ========================================= */
+.smp-nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px;
+}
+
+.image-link {
+    display: block;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    line-height: 0;
+}
+
+/* Логотип 1.5x (75px) */
+.image-link img {
+    height: 75px;
+    width: auto;
+    display: block;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Hover -7px */
+.image-link:hover {
+    transform: translateY(-7px);
+}
+
+.image-link:hover img {
+    transform: scale(1.05);
+}
+
+nav ul {
+    list-style: none;
+    display: flex;
+    gap: 40px;
+}
+
+nav ul li a {
+    font-size: 22px;
+    color: #777;
+    font-weight: 400;
+    display: inline-block;
+    position: relative;
+    transition: color 0.3s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+nav ul li a:hover,
+nav ul li.current-menu-item a {
+    color: #000;
+}
+
+nav ul li a:hover {
+    transform: translateY(-7px);
+}
+
+nav ul li a::after,
+.footer-links a::after,
+.project-navigation a::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 1px;
+    bottom: 0;
+    left: 0;
+    background-color: #000;
+    transform-origin: bottom right;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+nav ul li a:hover::after,
+.footer-links a:hover::after,
+.project-navigation a:hover::after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+}
+
+/* =========================================
+   4. LAYOUT CONTAINERS
+   ========================================= */
+#content-holder {
+    position: relative;
+    padding-top: 60px;
+    min-height: 100vh;
+}
+
+.smp-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px;
+    width: 100%;
+}
+
+/* =========================================
+   5. PROJECT PAGE STYLES (FIXED FONTS)
+   ========================================= */
+.project-content {
+    width: 100%;
+}
+
+.project-header-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 60px;
+    flex-wrap: wrap;
+    gap: 40px;
+}
+
+.project-header-block {
+    flex: 1;
+    min-width: 300px;
+}
+
+.project-title {
+    font-size: 48px;
+    font-family: 'FunnelDisplay-SemiBold', sans-serif;
+    line-height: 1.1;
+    margin-bottom: 10px;
+    letter-spacing: -0.02em;
+    color: #000;
+}
+
+.project-meta {
+    font-size: 16px;
+    color: #888;
+    margin-top: 10px;
+}
+
+.project-description-block {
+    flex: 0 0 45%;
+    min-width: 300px;
+}
+
+.project-description {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #000;
+    letter-spacing: 0;
+}
+
+/* Gallery Grid */
+.project-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 18px;
+    margin-bottom: 100px;
+}
+
+.project-media-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+}
+
+.project-media-item img,
+.project-media-item video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 18px;
+}
+
+.p-grid-full {
+    grid-column: 1 / -1;
+}
+
+.p-grid-half {
+    grid-column: span 1;
+}
+
+/* Animations */
+.project-anim-item {
+    opacity: 0;
+    transform: translateY(60px);
+    transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.project-anim-item.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.project-credits {
+    font-size: 20px;
+    color: #555;
+    line-height: 1.8;
+    margin-bottom: 80px;
+    max-width: 700px;
+}
+
+.project-navigation {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 40px;
+    margin-bottom: 80px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 20px;
+    font-family: 'FunnelDisplay-Medium', sans-serif;
+}
+
+.project-navigation a {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    display: inline-block;
+}
+
+.project-navigation a:hover {
+    opacity: 0.6;
+    transform: translateY(-2px);
+}
+
+/* =========================================
+   6. FOOTER & MASONRY (MAIN PAGE)
+   ========================================= */
+.masonry {
+    position: relative;
+    width: 100%;
+    margin-bottom: 120px;
+}
+
+.masonry-item {
+    position: absolute;
+    width: calc(50% - 11px);
+    opacity: 0;
+    transform: translateY(-60px);
+    transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+    margin-bottom: 22px;
+}
+
+.masonry-item.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Карточка на главной */
+.thumb-inner {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;
+    min-height: 300px;
+    transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), box-shadow 0.4s ease;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+.thumb-inner img {
+    width: 100%;
+    height: auto;
+    display: block;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+    position: relative;
+    z-index: 2;
+}
+
+.thumb-inner:hover img {
+    opacity: 0;
+}
+
+.thumb-inner:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+}
+
+.thumb-hover {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    opacity: 1;
+}
+
+.thumb-hover video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+    opacity: 0.5;
+}
+
+.thumb-hover-meta {
+    position: absolute;
+    bottom: 30px;
+    left: 30px;
+    color: #fff;
+    pointer-events: none;
+    z-index: 10;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+}
+
+.thumb-hover-meta .title {
+    font-family: 'FunnelDisplay-Bold', sans-serif;
+    font-size: 38px;
+    display: block;
+    margin-bottom: 4px;
+    line-height: 1;
+}
+
+.thumb-hover-meta .category {
+    font-size: 16px;
+    opacity: 0.9;
+    font-weight: 400;
+}
+
+/* Footer */
+.footer-section {
+    padding: 80px 0 40px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.footer-section.animate-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.footer-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 30px;
+}
+
+.footer-links {
+    display: flex;
+    gap: 30px;
+}
+
+.footer-links a,
+.footer-email a {
+    font-size: 20px;
+    color: #000;
+    position: relative;
+    padding-bottom: 2px;
+    display: inline-block;
+    transition: color 0.3s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.footer-links a:hover,
+.footer-email a:hover {
+    transform: translateY(-7px);
+}
+
+.footer-divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.15);
+    margin-bottom: 30px;
+}
+
+.footer-bottom-row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.footer-copy {
+    font-size: 20px;
+    color: #000;
+    opacity: 0.5;
+}
+
+/* =========================================
+   7. MOBILE & RESPONSIVE
+   ========================================= */
+.mobile-menu-btn {
+    display: none;
+}
+
+.mobile-menu-overlay {
+    display: none;
+}
+
+@media (min-width: 1025px) {
+    .mobile-menu-overlay {
+        display: none !important;
+    }
+
+    .mobile-menu-btn {
+        display: none !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .mobile-menu-btn {
+        display: block;
+        background: none;
+        border: none;
+        cursor: pointer;
+        z-index: 10010;
+    }
+
+    .mobile-menu-btn span {
+        display: block;
+        width: 25px;
+        height: 2px;
+        background: #000;
+        margin: 6px 0;
+    }
+
+    .mobile-menu-overlay {
+        display: flex;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #F7F7F7;
+        z-index: 10000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: 0.3s ease;
+    }
+
+    .mobile-menu-overlay.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+
+    .mobile-menu-overlay ul {
+        display: flex;
+        flex-direction: column;
+        gap: 40px;
+        text-align: center;
+        list-style: none;
+    }
+
+    .mobile-menu-overlay a {
+        font-size: 32px;
+        color: #000;
+        text-decoration: none;
+    }
+
+    .masonry-item {
+        width: 100% !important;
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        margin-bottom: 22px !important;
+        transform: none !important;
+        opacity: 1 !important;
+    }
+
+    .masonry {
+        height: auto !important;
+    }
+
+    nav ul {
+        display: none;
+    }
+
+    .smp-nav-row,
+    .smp-container {
+        padding: 0 20px;
+    }
+
+    /* Mobile Cards Logic */
+    .thumb-inner img {
+        opacity: 0 !important;
+    }
+
+    .thumb-inner {
+        height: 300px;
+    }
+
+    .thumb-hover video {
+        opacity: 0.5 !important;
+    }
+
+    .thumb-inner:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    .project-header-wrapper {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 20px;
+    }
+
+    .project-title {
+        font-size: 36px;
+    }
+
+    .project-description-block {
+        flex: 1;
+        width: 100%;
+    }
+
+    .project-gallery {
+        grid-template-columns: 1fr;
+    }
+
+    .p-grid-half {
+        grid-column: span 1;
+    }
+
+    .footer-top-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 30px;
+    }
+}
+
+/* =========================================
+   8. CUSTOM VIDEO PLAYER (REEL) - FIXED
+   ========================================= */
+.reel-wrapper {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 40px;
+    box-sizing: border-box;
+    margin-bottom: 100px;
+}
+
+.reel-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    position: relative;
+    background-color: #000;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    cursor: default;
+}
+
+.reel-container.ui-hidden {
+    cursor: none;
+}
+
+.reel-container.ui-hidden .player-controls {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.custom-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0.3;
+    filter: blur(10px);
+    transition: opacity 0.8s ease, filter 0.8s ease;
+}
+
+.reel-container.is-playing .custom-video {
+    opacity: 1;
+    filter: blur(0);
+}
+
+.player-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+    z-index: 5;
+    overflow: hidden;
+}
+
+.reel-container.is-playing .player-overlay {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Кнопка Play: Белый круг */
+.player-logo-btn {
+    width: 150px;
+    height: 150px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+    border: none;
+    position: relative;
+    z-index: 10;
+    animation: playPulse 2s infinite;
+}
+
+@keyframes playPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 25px rgba(255, 255, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+    }
+}
+
+.reel-container:hover .player-logo-btn {
+    transform: scale(1.1);
+    box-shadow: 0 0 50px rgba(255, 255, 255, 0.6);
+    animation: none;
+}
+
+/* Иконка внутри */
+.play-icon-wrap {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    margin-left: 6px;
+}
+
+.play-icon-wrap svg {
+    width: 100% !important;
+    height: auto !important;
+    display: block;
+    fill: #000000 !important;
+}
+
+.play-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.8);
+    pointer-events: none;
+    z-index: 6;
+    animation: floatParticle 3s linear infinite;
+}
+
+@keyframes floatParticle {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+    }
+
+    20% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-120px) translateX(var(--tx)) scale(0);
+        opacity: 0;
+    }
+}
+
+/* Controls */
+.player-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px 30px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 6;
+}
+
+.reel-container:not(.ui-hidden):hover .player-controls {
+    opacity: 1;
+}
+
+.progress-container {
+    flex-grow: 1;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.progress-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    position: relative;
+    transition: height 0.2s ease;
+}
+
+.progress-container:hover .progress-track {
+    height: 6px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #fff;
+    border-radius: 2px;
+    position: relative;
+}
+
+.progress-fill::after {
+    content: '';
+    position: absolute;
+    right: -6px;
+    top: 50%;
+    transform: translateY(-50%) scale(0);
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+}
+
+.progress-container:hover .progress-fill::after {
+    transform: translateY(-50%) scale(1);
+}
+
+.player-buttons-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.control-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.control-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.control-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+}
+
+@media (max-width: 768px) {
+    .reel-wrapper {
+        padding: 0 20px;
+    }
+
+    .reel-container {
+        border-radius: 12px;
+    }
+
+    .player-logo-btn {
+        width: 100px;
+        height: 100px;
+    }
+
+    .play-icon-wrap {
+        width: 30px;
+        height: 30px;
+    }
+
+    .player-controls {
+        padding: 15px 20px;
+    }
+}
+
+/* =========================================
+   9. SCROLL TO TOP BUTTON (UPDATED)
+   ========================================= */
+.back-to-top {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 50px;
+    height: 50px;
+    background: #000;
+    /* Черный круг */
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    /* Скрыто по умолчанию */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px) scale(0.8);
+
+    /* Плавная анимация появления */
+    transition: opacity 0.4s ease,
+        transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        visibility 0.4s ease,
+        background-color 0.3s ease,
+        box-shadow 0.3s ease;
+
+    z-index: 9999;
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Класс видимости (добавляется JS) */
+.back-to-top.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* Иконка стрелки */
+.back-to-top svg {
+    width: 24px;
+    height: 24px;
+    fill: #fff;
+    transition: transform 0.3s ease;
+}
+
+/* Hover эффекты */
+.back-to-top:hover {
+    transform: translateY(-5px) scale(1.1);
+    /* Подпрыгивает и увеличивается */
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25);
+    background: #1a1a1a;
+    /* Чуть светлее при наведении */
+}
+
+.back-to-top:hover svg {
+    transform: translateY(-3px);
+    /* Стрелка внутри тоже подпрыгивает */
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 768px) {
+    .back-to-top {
+        bottom: 20px;
+        right: 20px;
+        width: 40px;
+        height: 40px;
+    }
+
+    .back-to-top svg {
+        width: 20px;
+        height: 20px;
+    }
+}
+
+/* =========================================
+   10. PLAY PAGE STYLES
+   ========================================= */
+.play-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+    margin-bottom: 100px;
+}
+
+.play-item {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;
+    /* Начальное состояние для анимации загрузки */
+    opacity: 0;
+    transform: translateY(80px) scale(0.9);
+    transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+    will-change: transform, opacity;
+}
+
+/* Класс для загруженных карточек */
+.play-item.loaded {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+
+.play-item img,
+.play-item video {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 18px;
+    transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        filter 0.4s ease;
+}
+
+/* Overlay при hover */
+.play-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1));
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* Hover эффекты */
+.play-item.loaded:hover {
+    transform: translateY(-15px) scale(1.03);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+}
+
+.play-item.loaded:hover::before {
+    opacity: 1;
+}
+
+.play-item.loaded:hover img,
+.play-item.loaded:hover video {
+    transform: scale(1.08);
+    filter: brightness(1.1);
+}
+
+/* =========================================
+   11. INFO (ABOUT) PAGE STYLES
+   ========================================= */
+.info-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 60px;
+    margin-bottom: 100px;
+}
+
+.info-image-col {
+    flex: 0 0 40%;
+    max-width: 500px;
+}
+
+.info-photo {
+    width: 100%;
+    height: auto;
+    border-radius: 18px;
+    display: block;
+    filter: grayscale(100%);
+    transition: filter 0.5s ease;
+}
+
+.info-photo:hover {
+    filter: grayscale(0%);
+}
+
+.info-text-col {
+    flex: 1;
+    padding-top: 20px;
+}
+
+.info-bio {
+    font-size: 24px;
+    line-height: 1.5;
+    margin-bottom: 60px;
+}
+
+.info-bio p {
+    margin-bottom: 30px;
+}
+
+.info-links-block {
+    margin-top: 60px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 40px;
+}
+
+.info-links-title {
+    font-size: 16px;
+    color: #888;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.info-link-row a {
+    font-size: 24px;
+    color: #000;
+    text-decoration: none;
+    display: inline-block;
+    margin-right: 30px;
+    position: relative;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), color 0.3s ease;
+}
+
+.info-link-row a:hover {
+    transform: translateY(-7px);
+    color: #555;
+}
+
+/* =========================================
+   UPDATED RESPONSIVE
+   ========================================= */
+@media (max-width: 1024px) {
+    .play-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .info-wrapper {
+        flex-direction: column;
+    }
+
+    .info-image-col {
+        flex: 1;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 40px;
+    }
+
+    .info-bio {
+        font-size: 20px;
+    }
+
+    .info-link-row a {
+        display: block;
+        margin-bottom: 15px;
+        margin-right: 0;
+    }
+}
+
+
+
+
+
