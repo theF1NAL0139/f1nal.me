@@ -635,11 +635,11 @@ const AboutPage = () => {
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[60px] mb-[60px]">
             <div className="flex-none w-full lg:w-[40%] max-w-[500px] js-anim-item">
-                <img src="img/me.png" alt="Vladimir Politov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = '\public\img\me.png'} />
+                <img src="img/me.png" alt="Vladimir Politov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'https://placehold.co/500x600/ccc/000?text=Vladimir'} />
             </div>
             <div className="flex-1 pt-5 js-anim-item">
                 <div className="text-[18px] lg:text-[24px] leading-[1.5]">
-                    <p className="mb-6">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
+                    <p className="mb-6">Hi! My name is Vladimir Politov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
                     <p className="mb-6">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
                     <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
                 </div>
@@ -674,7 +674,7 @@ const AboutPage = () => {
                 </div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">For work inquiries, please contact at:</h3>
-                    <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com" className="hover:opacity-60 transition-opacity">politovcg@gmail.com</a></p>
+                    <p className="text-[18px]"><a href="mailto:politovcg@gmail.com" className="hover:opacity-60 transition-opacity">politovcg@gmail.com</a></p>
                 </div>
             </div>
         </div>
