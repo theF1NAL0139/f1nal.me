@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
 
 // =========================================
-// GLOBAL STYLES & ANIMATIONS (Minimal custom CSS needed for JS animations)
+// GLOBAL STYLES
 // =========================================
 const GLOBAL_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
@@ -14,11 +14,9 @@ body {
   overflow-x: hidden;
 }
 
-/* HTML State Animations (Managed by JS on <html> tag) */
 html.is-animating body { opacity: 0; }
 html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 
-/* Utility class for JS-triggered entry animations */
 .js-anim-item {
   opacity: 0;
   transform: translateY(60px);
@@ -29,14 +27,13 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
   transform: translateY(0);
 }
 
-/* Masonry Positioning Transition */
 .masonry-item-transition {
   transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
 `;
 
 // =========================================
-// UTILITIES & HOOKS
+// UTILITIES
 // =========================================
 
 const useIntroAnimation = () => {
@@ -81,10 +78,7 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
   const [menuActive, setMenuActive] = useState(false);
   const [animStart, setAnimStart] = useState(false);
 
-  useEffect(() => {
-    setTimeout(() => setAnimStart(true), 500);
-  }, []);
-
+  useEffect(() => { setTimeout(() => setAnimStart(true), 500); }, []);
   const handleNav = (page: string) => { setMenuActive(false); navigate(page); };
 
   const navLinkClasses = (page: string) => 
@@ -96,14 +90,11 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
     <>
       <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[100] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
         <div className="flex items-center justify-between max-w-[1400px] mx-auto px-5 lg:px-10">
-          {/* Logo */}
           <div className="block transition-transform duration-400 hover:-translate-y-1.5">
             <a onClick={() => handleNav('home')} className="cursor-pointer block">
               <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
             </a>
           </div>
-
-          {/* Desktop Nav */}
           <nav className="hidden lg:block">
             <ul className="flex gap-10 list-none m-0 p-0">
               <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
@@ -112,8 +103,6 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
               <li><a onClick={() => handleNav('info')} className={navLinkClasses('info')}>About</a></li>
             </ul>
           </nav>
-
-          {/* Mobile Hamburger */}
           <button className="block lg:hidden bg-none border-none cursor-pointer z-[110]" onClick={() => setMenuActive(!menuActive)}>
             <div className="w-[25px] h-[2px] bg-black my-1.5"></div>
             <div className="w-[25px] h-[2px] bg-black my-1.5"></div>
@@ -121,9 +110,7 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
           </button>
         </div>
       </header>
-
-      {/* Mobile Overlay */}
-      <div className={`fixed inset-0 bg-[#F7F7F7] z-[100] flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none opacity-0 ${menuActive ? 'opacity-100 pointer-events-auto' : ''}`}>
+      <div className={`fixed inset-0 bg-[#F7F7F7] z-[100] flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none opacity-0 lg:hidden ${menuActive ? 'opacity-100 pointer-events-auto' : ''}`}>
         <ul className="flex flex-col gap-10 text-center list-none p-0">
           {['home', 'reel', 'play', 'info'].map((item) => (
             <li key={item}>
@@ -230,8 +217,6 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
       >
         <source src={src} type="video/mp4" />
       </video>
-
-      {/* Play Button Overlay */}
       <div 
         className={`absolute inset-0 flex justify-center items-center bg-black/50 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
         onClick={togglePlay}
@@ -240,8 +225,6 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
           <div className="pl-1.5"><Play fill="black" stroke="none" size={32} /></div>
         </button>
       </div>
-
-      {/* Controls */}
       <div 
         className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`}
         onClick={(e) => e.stopPropagation()}
@@ -254,12 +237,8 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
           </div>
         </div>
         <div className="flex items-center gap-4 text-white">
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={toggleMute}>
-            {isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-          </button>
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}>
-            <Maximize size={24} />
-          </button>
+          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={toggleMute}>{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
+          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}><Maximize size={24} /></button>
         </div>
       </div>
     </div>
@@ -281,37 +260,53 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement[]>([]);
   
-  const [projects, setProjects] = useState<Project[]>([
+  const initialProjects: Project[] = [
     { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' }
-  ]);
+  ];
+
+  const [projects, setProjects] = useState<Project[]>(initialProjects);
 
   useEffect(() => {
-    // Auto-discovery simulation
     const discovered: Project[] = [];
+    const startId = 5;
+    const maxChecks = 10;
+
     const checkProject = async (id: number) => {
-        if (id > 15) {
+        if (id > startId + maxChecks) {
             if (discovered.length > 0) setProjects(prev => [...prev, ...discovered]);
             return;
         }
+
+        const htmlPath = `project_${id}.html`;
         try {
-            const res = await fetch(`project_${id}.html`);
-            if (res.ok) {
-                const text = await res.text();
-                const doc = new DOMParser().parseFromString(text, 'text/html');
+            const response = await fetch(htmlPath);
+            if (response.ok) {
+                const text = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const title = doc.title || `Project ${id}`;
+                const categoryMeta = doc.querySelector('meta[name="category"]');
+                const category = categoryMeta ? categoryMeta.getAttribute('content') || 'Work' : 'Work';
+
                 discovered.push({
                     id: `auto-${id}`,
-                    title: doc.title || `Project ${id}`,
-                    category: doc.querySelector('meta[name="category"]')?.getAttribute('content') || 'Work',
-                    img: `img/project_${id}.jpg`, video: `vid/project_${id}.mp4`, link: `project_${id}.html`, isExternal: true
+                    title: title,
+                    category: category,
+                    img: `img/project_${id}.jpg`,
+                    video: `vid/project_${id}.mp4`,
+                    link: htmlPath,
+                    isExternal: true
                 });
+                checkProject(id + 1);
+            } else {
+                if (discovered.length > 0) setProjects(prev => [...prev, ...discovered]);
             }
         } catch (e) {}
-        checkProject(id + 1);
     };
-    checkProject(5);
+    checkProject(startId);
   }, []);
 
   const calculateLayout = () => {
@@ -358,7 +353,12 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
             >
             <a 
                 href={p.isExternal ? p.link : undefined}
-                onClick={(e) => { if (!p.isExternal) { e.preventDefault(); navigate(p.link); }}} 
+                onClick={(e) => { 
+                    if (!p.isExternal) { 
+                        e.preventDefault(); 
+                        navigate(p.link); 
+                    }
+                }} 
                 className="block"
             >
                 <div className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer min-h-[300px] transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group hover:-translate-y-2.5 hover:shadow-xl transform-gpu">
@@ -541,23 +541,61 @@ const ReelPage = () => {
   );
 };
 
+// --- PLAY PAGE (OPTIMIZED LOADING) ---
 const PlayPage = () => {
   const [images, setImages] = useState<string[]>([]);
   const [modalSrc, setModalSrc] = useState<string | null>(null);
   
   useEffect(() => {
-    const discovered: string[] = [];
-    const checkImage = (idx: number) => {
-      if (idx > 30) { setImages([...discovered]); return; }
-      const src = `imgs/img_${idx}.jpg`;
-      const img = new Image();
-      img.onload = () => { discovered.push(src); checkImage(idx + 1); };
-      img.onerror = () => { checkImage(idx + 1); };
-      img.src = src;
+    // Запускаем проверку батчами: сначала 1-6, потом остальные
+    const checkBatch = (start: number, end: number) => {
+        for (let i = start; i <= end; i++) {
+            const src = `imgs/img_${i}.jpg`;
+            const img = new Image();
+            img.onload = () => {
+                setImages(prev => {
+                    // Добавляем в список и сортируем по номеру, чтобы порядок 1, 2, 3... сохранялся
+                    const unique = new Set([...prev, src]);
+                    return Array.from(unique).sort((a, b) => {
+                        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+                        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+                        return numA - numB;
+                    });
+                });
+            };
+            // Если картинки нет, просто игнорируем (можно добавить логику остановки, но для 30 штук это не критично)
+            img.src = src;
+        }
     };
-    checkImage(1);
+
+    // 1. Грузим первые 6 мгновенно (параллельно)
+    checkBatch(1, 4);
+
+    // 2. Грузим остальные (7-30) с небольшой задержкой, чтобы не забивать канал сразу
+    setTimeout(() => {
+        checkBatch(4, 30);
+    }, 400);
+
     setTimeout(() => document.querySelector('.js-header')?.classList.add('animate-in'), 200);
   }, []);
+
+  // Анимация появления карточек при обновлении списка
+  useEffect(() => {
+    if (images.length > 0) {
+        setTimeout(() => {
+            const cards = document.querySelectorAll('.play-card');
+            cards.forEach((card, i) => {
+                // Добавляем класс animate-in только если его еще нет
+                if (!card.classList.contains('animate-in')) {
+                    setTimeout(() => card.classList.add('animate-in'), i * 50); // Чуть быстрее анимация (50мс)
+                }
+            });
+            setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), images.length * 50 + 200);
+        }, 100);
+    } else {
+        setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), 500);
+    }
+  }, [images]);
 
   return (
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
@@ -570,8 +608,8 @@ const PlayPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[30px] mb-[100px]">
             {images.length === 0 && <p className="col-span-full text-center text-[#999]">Loading experiments...</p>}
             {images.map((src, i) => (
-                <div key={src} className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer js-anim-item opacity-0 translate-y-20 hover:-translate-y-4 hover:shadow-2xl transition-all duration-500"
-                     onClick={() => setModalSrc(src)} style={{ animationDelay: `${i * 100}ms` }}>
+                <div key={src} className="play-card relative rounded-[18px] overflow-hidden bg-black cursor-pointer js-anim-item opacity-0 translate-y-20 hover:-translate-y-4 hover:shadow-2xl transition-all duration-500"
+                     onClick={() => setModalSrc(src)}>
                     <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block transition-transform duration-500 hover:scale-105" />
                 </div>
             ))}
@@ -597,14 +635,12 @@ const AboutPage = () => {
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[60px] mb-[60px]">
             <div className="flex-none w-full lg:w-[40%] max-w-[500px] js-anim-item">
-                <img src="img/me.png" alt="Vladimir Politov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'https://placehold.co/500x600/ccc/000?text=Vladimir'} />
+                <img src="img/me.png" alt="Vladimir Politov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = '\public\img\me.png'} />
             </div>
             <div className="flex-1 pt-5 js-anim-item">
-                <div className="text-[24px] leading-[1.5]">
-                    <p>Hi! My name is Vladimir Politov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
-                    <br/>
-                    <p>My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
-                    <br/>
+                <div className="text-[18px] lg:text-[24px] leading-[1.5]">
+                    <p className="mb-6">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
+                    <p className="mb-6">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
                     <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
                 </div>
             </div>
@@ -621,14 +657,16 @@ const AboutPage = () => {
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Social Media</h3>
                     <div className="flex gap-5">
-                        {['Instagram', 'Behance', 'LinkedIn'].map(l => <a key={l} href="#" className="text-[18px] hover:opacity-60 transition-opacity">{l}</a>)}
+                        {['Instagram', 'Behance', 'LinkedIn'].map(l => (
+                            <a key={l} href="#" className="text-[18px] hover:opacity-60 transition-opacity">{l}</a>
+                        ))}
                     </div>
                 </div>
             </div>
             <div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Awards</h3>
-                    <ul className="list-none p-0 space-y-2.5">
+                    <ul className="list-none p-0 space-y-4">
                         <li className="text-[18px] text-[#222]">Promax Awards 2021 - Best internal marketing - Gold // TNT Design Showreel</li>
                         <li className="text-[18px] text-[#222]">World Brand Design Awards 2023 / UK - Bronze // Gravix glue</li>
                         <li className="text-[18px] text-[#222]">Dieline Awards 2023 / USA - Silver // Gravix glue</li>
@@ -636,7 +674,7 @@ const AboutPage = () => {
                 </div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">For work inquiries, please contact at:</h3>
-                    <p className="text-[18px]"><a href="mailto:politovcg@gmail.com" className="hover:opacity-60 transition-opacity">politovcg@gmail.com</a></p>
+                    <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com" className="hover:opacity-60 transition-opacity">politovcg@gmail.com</a></p>
                 </div>
             </div>
         </div>
