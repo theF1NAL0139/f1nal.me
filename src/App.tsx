@@ -2,11 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
 
 // =========================================
-// GLOBAL STYLES
+// GLOBAL STYLES (Injected via <style> tag for preview compatibility)
 // =========================================
 const GLOBAL_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
 
+/* Basic Tailwind Reset for Preview */
+*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; tab-size: 4; font-family: ui-sans-serif, system-ui, sans-serif; }
+body { margin: 0; line-height: inherit; }
+
+/* Custom Styles */
 body {
   font-family: 'Funnel Display', sans-serif;
   background-color: #F7F7F7;
@@ -27,9 +33,20 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
   transform: translateY(0);
 }
 
+/* Masonry Transitions */
 .masonry-item-transition {
   transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
+
+/* Hover Video Logic Styles */
+.thumb-inner .thumb-hover {
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+.thumb-inner:hover .thumb-hover {
+    opacity: 1;
+}
+/* On mobile, allow video to be seen if needed or just keep consistent with desktop logic via JS */
 `;
 
 // =========================================
@@ -260,6 +277,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement[]>([]);
   
+  // Default projects
   const initialProjects: Project[] = [
     { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
@@ -269,6 +287,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
 
+  // --- AUTO DISCOVERY LOGIC ---
   useEffect(() => {
     const discovered: Project[] = [];
     const startId = 5;
@@ -281,12 +300,14 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
         }
 
         const htmlPath = `project_${id}.html`;
+        
         try {
             const response = await fetch(htmlPath);
             if (response.ok) {
                 const text = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(text, 'text/html');
+                
                 const title = doc.title || `Project ${id}`;
                 const categoryMeta = doc.querySelector('meta[name="category"]');
                 const category = categoryMeta ? categoryMeta.getAttribute('content') || 'Work' : 'Work';
@@ -300,12 +321,15 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                     link: htmlPath,
                     isExternal: true
                 });
+                
                 checkProject(id + 1);
             } else {
                 if (discovered.length > 0) setProjects(prev => [...prev, ...discovered]);
             }
-        } catch (e) {}
+        } catch (e) {
+        }
     };
+
     checkProject(startId);
   }, []);
 
@@ -334,13 +358,41 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   useEffect(() => {
     const timeout = setTimeout(() => {
         calculateLayout();
-        itemsRef.current.forEach((el, i) => el && setTimeout(() => el.classList.add('animate-in'), i * 150));
+        
+        // ANIMATION FIX: Sequential Delay
+        itemsRef.current.forEach((el, i) => {
+            if (el) {
+                // Reset opacity first just in case
+                el.classList.remove('animate-in');
+                // Add delay based on index
+                setTimeout(() => el.classList.add('animate-in'), i * 150);
+            }
+        });
+
         setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), projects.length * 150 + 200);
     }, 500);
+    
     window.addEventListener('resize', calculateLayout);
     document.querySelectorAll('.masonry-img').forEach(img => (img as HTMLImageElement).onload = calculateLayout);
     return () => { window.removeEventListener('resize', calculateLayout); clearTimeout(timeout); };
   }, [projects]);
+
+  // PREVIEW LOGIC: Mouse handlers
+  const handleCardMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    const video = e.currentTarget.querySelector('video');
+    if (video) {
+        video.currentTime = 0;
+        video.play().catch(err => console.log("Video play prevented", err));
+    }
+  };
+
+  const handleCardMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
+    const video = e.currentTarget.querySelector('video');
+    if (video) {
+        video.pause();
+        video.currentTime = 0;
+    }
+  };
 
   return (
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
@@ -361,12 +413,13 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                 }} 
                 className="block"
             >
-                <div className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer min-h-[300px] transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group hover:-translate-y-2.5 hover:shadow-xl transform-gpu">
-                    <div className="absolute inset-0 z-10">
-                        <video playsInline loop muted preload="none" className="w-full h-full object-cover rounded-[18px] opacity-50 transition-opacity group-hover:opacity-50 block"
-                            onMouseEnter={(e) => window.innerWidth > 1024 && e.currentTarget.play().catch(()=>{})} 
-                            onMouseLeave={(e) => window.innerWidth > 1024 && e.currentTarget.pause()}
-                        >
+                <div 
+                    className="thumb-inner relative rounded-[18px] overflow-hidden bg-black cursor-pointer min-h-[300px] transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group hover:-translate-y-2.5 hover:shadow-xl transform-gpu"
+                    onMouseEnter={handleCardMouseEnter}
+                    onMouseLeave={handleCardMouseLeave}
+                >
+                    <div className="absolute inset-0 z-10 thumb-hover">
+                        <video playsInline loop muted className="w-full h-full object-cover rounded-[18px] block">
                             <source src={p.video} type="video/mp4" />
                         </video>
                         <div className="absolute bottom-[30px] left-[30px] text-white pointer-events-none z-20 drop-shadow-lg">
