@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight, Menu, X } from 'lucide-react';
+import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // =========================================
@@ -50,6 +50,128 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 .masonry-item {
   will-change: transform, opacity;
   backface-visibility: hidden;
+}
+
+/* ========================================= */
+/* ИНТЕГРАЦИЯ СТИЛЕЙ ИЗ MobileMenu.css       */
+/* ========================================= */
+
+/* --- Кнопка-Гамбургер (Menu Toggle) --- */
+.menu-toggle {
+    /* Скрываем кнопку на широких экранах (Desktop First Approach) */
+    display: none; 
+    
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 44px; /* Чуть увеличил для удобства нажатия */
+    height: 44px;
+    z-index: 10001; /* Поверх меню */
+    position: relative;
+}
+
+.bar {
+    width: 30px;
+    height: 3px; /* Чуть толще для видимости */
+    background-color: #000; /* Изначально черный, так как сайт светлый */
+    transition: all 0.3s ease-in-out;
+    margin: 3px auto; /* Центрирование полосок */
+}
+
+/* Когда меню открыто, полоски становятся белыми (так как фон меню темный) */
+.menu-toggle.open .bar {
+    background-color: #fff;
+}
+
+/* Состояние OPEN: трансформация в 'X' */
+.menu-toggle.open .top-bar {
+    transform: translateY(9px) rotate(45deg);
+}
+
+.menu-toggle.open .middle-bar {
+    opacity: 0;
+}
+
+.menu-toggle.open .bottom-bar {
+    transform: translateY(-9px) rotate(-45deg);
+}
+
+/* --- Полноэкранное Мобильное Меню (Overlay) --- */
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100dvh; /* dynamic viewport height */
+    background-color: rgba(0, 0, 0, 0.95); /* Темный полупрозрачный фон */
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Скрытие по умолчанию */
+    opacity: 0;
+    pointer-events: none; /* Отключение взаимодействия, когда меню скрыто */
+    transition: opacity 0.4s ease-in-out;
+}
+
+/* Состояние ACTIVE: показ меню */
+.mobile-menu.active {
+    opacity: 1;
+    pointer-events: auto; /* Включение взаимодействия */
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.nav-item {
+    margin: 10px 0;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+/* Анимация появления пунктов при активном меню */
+.mobile-menu.active .nav-item {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Задержка для каждого пункта */
+.mobile-menu.active .nav-item:nth-child(1) { transition-delay: 0.1s; }
+.mobile-menu.active .nav-item:nth-child(2) { transition-delay: 0.2s; }
+.mobile-menu.active .nav-item:nth-child(3) { transition-delay: 0.3s; }
+.mobile-menu.active .nav-item:nth-child(4) { transition-delay: 0.4s; }
+
+.nav-item a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 2.5em; /* Крупный текст для оверлея */
+    font-weight: 500;
+    line-height: 1.2;
+    transition: color 0.2s;
+    cursor: pointer;
+}
+
+.nav-item a:hover {
+    color: #777;
+}
+
+/* --- Media Query: Mobile First (Показываем кнопку только на узких экранах) --- */
+@media (max-width: 1024px) {
+    .menu-toggle {
+        display: flex; /* Показать гамбургер на мобильных */
+    }
 }
 `;
 
@@ -106,7 +228,7 @@ const ScrollToTop = () => {
 // COMPONENTS
 // =========================================
 
-// UPDATED: Completely reworked Mobile Menu Component
+// UPDATED: Mobile Menu Implementation based on user files
 const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
     useEffect(() => {
         if (isOpen) {
@@ -122,45 +244,26 @@ const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: (
         onClose();
     };
 
-    return (
-        <AnimatePresence>
-            {isOpen && (
-                <motion.div 
-                    className="fixed inset-0 z-[9999] bg-white flex flex-col"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    style={{ height: '100dvh' }} // Используем dynamic viewport height для iOS
-                >
-                    {/* Header inside Menu for consistent layout */}
-                    <div className="flex items-center justify-between px-5 pt-[30px] pb-[10px]">
-                        <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto opacity-0" /> {/* Spacer to keep alignment if needed, or just justify-end */}
-                        <button onClick={onClose} className="p-2">
-                            <X size={32} color="black" />
-                        </button>
-                    </div>
+    // Mapping logic names to display names if needed
+    const navItems = [
+        { name: 'Work', page: 'home' },
+        { name: 'Reel', page: 'reel' },
+        { name: 'Play', page: 'play' },
+        { name: 'About', page: 'info' },
+    ];
 
-                    <div className="flex-grow flex flex-col items-center justify-center gap-10 pb-20">
-                         {['home', 'reel', 'play', 'info'].map((item, i) => (
-                            <motion.div
-                                key={item}
-                                initial={{ y: 20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                transition={{ delay: 0.1 + (i * 0.1), duration: 0.4 }}
-                            >
-                                <a 
-                                    onClick={() => handleLinkClick(item)} 
-                                    className="text-[42px] font-medium text-black capitalize cursor-pointer hover:text-gray-500 transition-colors"
-                                >
-                                    {item === 'info' ? 'About' : item === 'home' ? 'Work' : item}
-                                </a>
-                            </motion.div>
-                        ))}
-                    </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
+    return (
+        <nav className={`mobile-menu ${isOpen ? 'active' : ''}`}>
+            <ul className="nav-list">
+                {navItems.map((item) => (
+                    <li key={item.name} className="nav-item">
+                        <a onClick={() => handleLinkClick(item.page)}>
+                            {item.name}
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </nav>
     );
 };
 
@@ -200,17 +303,21 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
             </ul>
           </nav>
           
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="block lg:hidden bg-none border-none cursor-pointer z-[120] relative p-2" 
-            onClick={() => setMenuActive(true)}
+          {/* UPDATED: Mobile Menu Toggle using pure CSS animation */}
+          <button
+            className={`menu-toggle ${menuActive ? 'open' : ''}`}
+            onClick={() => setMenuActive(!menuActive)}
+            aria-label="Toggle menu"
           >
-            <Menu size={32} color="black" />
+            <div className="bar top-bar"></div>
+            <div className="bar middle-bar"></div>
+            <div className="bar bottom-bar"></div>
           </button>
+
         </div>
       </header>
 
-      {/* UPDATED: New Mobile Menu Component */}
+      {/* UPDATED: Mobile Menu Component */}
       <MobileMenu isOpen={menuActive} onClose={() => setMenuActive(false)} navigate={navigate} />
     </>
   );
@@ -621,7 +728,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <div className="relative w-full mb-[60px]" ref={gridRef}>
+        <div className="relative w-full mb-[80px]" ref={gridRef}>
             <AnimatePresence>
                 {projects.map((p, i) => (
                     <motion.div
@@ -697,14 +804,14 @@ const PlayPage = () => {
             {images.map((src, i) => (
                 <motion.div 
                     key={src} 
-                    className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer"
+                    className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer h-full"
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 + (i * 0.1) }}
                     whileHover={{ scale: 1.03 }}
                     onClick={() => setModalSrc(src)}
                 >
-                    <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block object-cover" />
+                    <img src={src} alt={`Experiment ${i}`} className="w-full h-full block object-cover" />
                 </motion.div>
             ))}
             </AnimatePresence>
@@ -731,7 +838,7 @@ const PlayPage = () => {
                             className="absolute -top-12 right-0 lg:-right-12 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-50"
                             onClick={(e) => { e.stopPropagation(); setModalSrc(null); }}
                         >
-                            <X size={24} />
+                            <ArrowLeft size={24} />
                         </button>
                         <img 
                             src={modalSrc} 
@@ -970,7 +1077,8 @@ export default function App() {
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
       <div className="min-h-screen w-full flex flex-col">
         <Header currentPage={currentPage} navigate={setCurrentPage} />
-        <main id="content-holder" className="flex-grow pt-[60px] relative">
+        {/* CHANGED: pt-[60px] -> pt-[20px] to lift content closer to header globally */}
+        <main id="content-holder" className="flex-grow pt-[20px] relative">
              {/* 3. Анимация переходов между страницами (0.25s) */}
             <AnimatePresence mode="wait">
                 <motion.div
