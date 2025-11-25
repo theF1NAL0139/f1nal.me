@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // GLOBAL STYLES (Встроены для превью)
 // =========================================
 const GLOBAL_STYLES = `
-@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap');
 
 /* Tailwind Base Reset */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
@@ -30,10 +30,21 @@ body::-webkit-scrollbar {
 }
 
 body {
-  font-family: 'Funnel Display', sans-serif;
+  /* UPDATED: Force font family globally to ensure consistency on mobile */
+  font-family: 'Funnel Display', sans-serif !important;
   background-color: #FFFFFF;
   color: #000;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Блокировка скролла для мобильного меню */
+body.menu-open {
+    overflow: hidden !important;
+    height: 100vh;
+    touch-action: none; /* Отключаем жесты браузера */
+    overscroll-behavior: none; /* Отключаем эффект резинки на iOS */
 }
 
 html.is-animating body { opacity: 0; }
@@ -98,6 +109,75 @@ const ScrollToTop = () => {
 // COMPONENTS
 // =========================================
 
+// UPDATED: Robust Mobile Menu for iOS
+const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
+    useEffect(() => {
+        if (isOpen) {
+            document.body.classList.add('menu-open');
+            // Prevent default touch actions to stop rubber-banding
+            document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        } else {
+            document.body.classList.remove('menu-open');
+            document.body.removeEventListener('touchmove', (e) => e.preventDefault());
+        }
+        return () => {
+            document.body.classList.remove('menu-open');
+            document.body.removeEventListener('touchmove', (e) => e.preventDefault());
+        };
+    }, [isOpen]);
+
+    const handleLinkClick = (page: string) => {
+        navigate(page);
+        onClose();
+    };
+
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div 
+                    className="fixed inset-0 z-[9999] bg-white flex flex-col"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    // UPDATED: 100dvh handles Safari address bar resizing correctly
+                    style={{ height: '100dvh', touchAction: 'none', overscrollBehavior: 'none' }} 
+                >
+                    {/* Header inside Menu */}
+                    <div className="flex items-center justify-between px-5 pt-[30px] pb-[10px] w-full max-w-[1440px] mx-auto">
+                        {/* UPDATED: Logo visible (opacity-100) */}
+                        <div className="block cursor-pointer" onClick={() => handleLinkClick('home')}>
+                             <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block opacity-100" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
+                        </div>
+                        
+                        <button onClick={onClose} className="p-2 relative z-50">
+                            <X size={32} color="black" />
+                        </button>
+                    </div>
+
+                    <div className="flex-grow flex flex-col items-center justify-center gap-10 pb-20 w-full">
+                         {['home', 'reel', 'play', 'info'].map((item, i) => (
+                            <motion.div
+                                key={item}
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.1 + (i * 0.1), duration: 0.4 }}
+                            >
+                                <a 
+                                    onClick={() => handleLinkClick(item)} 
+                                    className="text-[42px] font-medium text-black capitalize cursor-pointer hover:text-gray-500 transition-colors font-['Funnel_Display']"
+                                >
+                                    {item === 'info' ? 'About' : item === 'home' ? 'Work' : item}
+                                </a>
+                            </motion.div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
 const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (page: string) => void }) => {
   const [menuActive, setMenuActive] = useState(false);
   const [animStart, setAnimStart] = useState(false);
@@ -116,18 +196,15 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
 
   return (
     <>
-      {/* Z-Index: 110 для хедера. Элементы внутри получат z-120, чтобы быть выше оверлея */}
       <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[110] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
         <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
           
-          {/* ЛОГОТИП: z-[120] гарантирует, что он будет ПОВЕРХ белого оверлея меню (z-100) */}
           <div className="block transition-transform duration-400 hover:-translate-y-1.5 z-[120] relative">
             <a onClick={() => handleNav('home')} className="cursor-pointer block">
               <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
             </a>
           </div>
           
-          {/* Desktop Menu */}
           <nav className="hidden lg:block">
             <ul className="flex gap-10 list-none m-0 p-0">
               <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
@@ -137,42 +214,26 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
             </ul>
           </nav>
           
-          {/* Mobile Menu Button (Крестик / Бургер) - z-[120] чтобы быть поверх оверлея */}
+          {/* Mobile Menu Toggle */}
           <button 
             className="block lg:hidden bg-none border-none cursor-pointer z-[120] relative p-2" 
-            onClick={() => setMenuActive(!menuActive)}
+            onClick={() => setMenuActive(true)}
           >
-            {menuActive ? (
-                <X size={32} color="black" /> 
-            ) : (
-                <Menu size={32} color="black" />
-            )}
+            <Menu size={32} color="black" />
           </button>
         </div>
       </header>
 
-      {/* Mobile Overlay: fixed inset-0 + h-[100dvh] для идеального перекрытия на iOS */}
-      <div className={`fixed inset-0 h-[100dvh] bg-[#FFFFFF] z-[100] flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none opacity-0 lg:hidden ${menuActive ? 'opacity-100 pointer-events-auto' : ''}`}>
-        <ul className="flex flex-col gap-10 text-center list-none p-0">
-          {['home', 'reel', 'play', 'info'].map((item) => (
-            <li key={item}>
-              <a onClick={() => handleNav(item)} className="text-[32px] text-black capitalize cursor-pointer hover:text-gray-500 transition-colors">
-                {item === 'info' ? 'About' : item}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <MobileMenu isOpen={menuActive} onClose={() => setMenuActive(false)} navigate={navigate} />
     </>
   );
 };
 
 const Footer = () => (
-  // UPDATED: Increased padding-y to 20 (80px) to lift the footer visually
   <motion.footer 
     className="pt-20 pb-20" 
-    initial={{ opacity: 0, y: -20 }}	
-    animate={{ opacity: 1, y: -100 }}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
     transition={{ delay: 0.25, duration: 0.4 }}
   >
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-8 lg:gap-0">
@@ -251,7 +312,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     setUiHidden(false);
     if (isPlaying) {
       clearTimeout(inactivityTimeout);
-      inactivityTimeout = setTimeout(() => setUiHidden(true), 1500);
+      inactivityTimeout = setTimeout(() => setUiHidden(true), 3000);
     }
   };
 
@@ -268,7 +329,6 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
         <source src={src} type="video/mp4" />
       </video>
       
-      {/* OVERLAY WITH FIXED PLAY BUTTON AND PARTICLES */}
       <div 
         className={`absolute inset-0 flex justify-center items-center bg-black/50 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
         onClick={togglePlay}
@@ -276,13 +336,13 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
         <div className="relative flex items-center justify-center">
             {/* PARTICLES SYSTEM */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                 {[...Array(30)].map((_, i) => (
+                 {[...Array(12)].map((_, i) => (
                     <motion.div
                         key={i}
                         className="absolute w-2 h-2 bg-white rounded-full opacity-0"
                         animate={{
-                            x: [0, (Math.random() - 0.5) * 350],
-                            y: [0, (Math.random() - 0.5) * 350],
+                            x: [0, (Math.random() - 0.5) * 250],
+                            y: [0, (Math.random() - 0.5) * 250],
                             opacity: [0, 0.6, 0],
                             scale: [0.5, 0]
                         }}
@@ -298,12 +358,12 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
                     <motion.div
                         key={`ring-${i}`}
                         className="absolute rounded-full border border-white/20"
-                        initial={{ width: 200, height: 200, opacity: 0 }}
-                        animate={{ width: 300, height: 300, opacity: 0 }}
+                        initial={{ width: 100, height: 100, opacity: 0 }}
+                        animate={{ width: 200, height: 200, opacity: 0 }}
                         transition={{
-                            duration: 0.1,
+                            duration: 2,
                             repeat: Infinity,
-                            delay: i * 0.1,
+                            delay: i * 0.6,
                             ease: "easeOut",
                             times: [0, 1]
                         }}
@@ -312,8 +372,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
                  ))}
             </div>
 
-            {/* BUTTON */}
-            <button className="w-[100px] h-[100px] lg:w-[100px] lg:h-[100px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)] relative z-20">
+            <button className="w-[100px] h-[100px] lg:w-[150px] lg:h-[150px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-105 shadow-[0_0_50px_rgba(255,255,255,0.3)] relative z-20">
                 <div className="pl-1.5"><Play fill="black" stroke="none" size={32} /></div>
             </button>
         </div>
@@ -350,7 +409,6 @@ interface Project {
     isExternal?: boolean;
 }
 
-// --- КАРТОЧКА ПРОЕКТА ---
 const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: string) => void }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -421,19 +479,30 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 onMouseLeave={handleMouseLeave}
             >
                 <div className="absolute inset-0 z-0">
+                    <img 
+                        src={project.img} 
+                        alt="" 
+                        className="w-full h-full object-cover block opacity-100"
+                        loading="lazy"
+                    />
+                </div>
+
+                {/* UPDATED: Opacity 0.6 (60%) on hover */}
+                <div className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out" style={{ opacity: isHovered ? 0.6 : 0 }}>
                     <video 
                         ref={videoRef}
                         playsInline 
                         loop 
                         muted
-                        className="w-full h-full object-cover block opacity-80 transition-opacity duration-500"
+                        preload="auto"
+                        className="w-full h-full object-cover block"
                     >
                         <source src={project.video} type="video/mp4" />
                     </video>
                 </div>
 
                 <div 
-                    className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out"
+                    className="absolute inset-0 z-20 transition-opacity duration-500 ease-in-out"
                     style={{ opacity: isHovered ? 0 : 1 }}
                 >
                     <img 
@@ -445,7 +514,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     />
                 </div>
 
-                <div className="absolute bottom-0 left-0 p-8 z-20 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
+                <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
                     <h3 className="text-[32px] lg:text-[38px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
                     <p className="text-[16px] opacity-90 font-normal drop-shadow-md">{project.category}</p>
                 </div>
@@ -454,11 +523,9 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
     );
 };
 
-// --- WORK PAGE ---
 const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const initialProjects: Project[] = [
-    // UPDATED: Changed video link for Elf Bar
     { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'https://video.f1nal.me/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
@@ -586,7 +653,6 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   );
 };
 
-// --- PLAY PAGE ---
 const PlayPage = () => {
   const [images, setImages] = useState<string[]>([]);
   const [modalSrc, setModalSrc] = useState<string | null>(null);
@@ -651,7 +717,7 @@ const PlayPage = () => {
             </AnimatePresence>
         </div>
         
-        {/* 2. MODAL WITH ANIMATION */}
+        {/* UPDATED: Image close behavior (click on image to close, removed X button) */}
         <AnimatePresence>
             {modalSrc && (
                 <motion.div 
@@ -669,17 +735,11 @@ const PlayPage = () => {
                         exit={{ scale: 0.9, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
                     >
-                        <button 
-                            className="absolute -top-12 right-0 lg:-right-12 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-50"
-                            onClick={(e) => { e.stopPropagation(); setModalSrc(null); }}
-                        >
-                            <X size={24} />
-                        </button>
                         <img 
                             src={modalSrc} 
                             alt="Full size" 
-                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
+                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer" 
+                            onClick={() => setModalSrc(null)} 
                         />
                     </motion.div>
                 </motion.div>
@@ -691,7 +751,6 @@ const PlayPage = () => {
   );
 };
 
-// --- REEL PAGE ---
 const ReelPage = () => (
     <motion.div 
         className="w-full"
@@ -714,7 +773,6 @@ const ReelPage = () => (
     </motion.div>
 );
 
-// --- ABOUT PAGE ---
 const AboutPage = () => (
     <motion.div 
         className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"
@@ -769,7 +827,6 @@ const AboutPage = () => (
     </motion.div>
 );
 
-// --- OTHER PAGES ---
 const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate }: any) => {
     return (
         <motion.div 
@@ -830,8 +887,8 @@ const ElfBar = ({ navigate }: any) => (
         title="ELF BAR Promotion Video"
         meta="Commercial / 2022"
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
-        // UPDATED: Video Link
-        video={{ src: 'https://video.f1nal.me/elf_preview.mp4', poster: 'img/preview1.png' }}
+        // UPDATED: Video Link for inner project page
+        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'img/preview1.png' }}
         gallery={[{ img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }]}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
@@ -880,6 +937,18 @@ const Sber = ({ navigate }: any) => (
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
+
+  useEffect(() => {
+    // 2. ИЗМЕНЕНИЕ ЗАГОЛОВКА
+    document.title = "F1NAL EDITING - OLEG SHMAROV - 3D ARTIST";
+
+    // 3. ДОБАВЛЕНИЕ FAVICON
+    const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
+    (link as HTMLLinkElement).type = 'image/webp';
+    (link as HTMLLinkElement).rel = 'icon';
+    (link as HTMLLinkElement).href = 'img/favicon.webp';
+    document.getElementsByTagName('head')[0].appendChild(link);
+  }, []);
   
   const renderPage = () => {
     switch(currentPage) {
