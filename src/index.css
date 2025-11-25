@@ -1,3 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+body {
+  font-family: 'Funnel Display', sans-serif;
+  background-color: #F7F7F7;
+  color: #000;
+  overflow-x: hidden;
+}
+
+/* Анимации для body */
+html.is-animating body { opacity: 0; }
+html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
+
+/* Утилиты для JS-анимаций */
+.js-anim-item {
+  opacity: 0;
+  transform: translateY(60px);
+  transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+.js-anim-item.animate-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Плавность для Masonry сетки */
+.masonry-item-transition {
+  transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
+}

@@ -569,12 +569,12 @@ const PlayPage = () => {
     };
 
     // 1. Грузим первые 6 мгновенно (параллельно)
-    checkBatch(1, 4);
+    checkBatch(1, 6);
 
     // 2. Грузим остальные (7-30) с небольшой задержкой, чтобы не забивать канал сразу
     setTimeout(() => {
-        checkBatch(4, 30);
-    }, 400);
+        checkBatch(7, 30);
+    }, 500);
 
     setTimeout(() => document.querySelector('.js-header')?.classList.add('animate-in'), 200);
   }, []);
