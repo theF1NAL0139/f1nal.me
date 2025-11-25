@@ -1,11 +1,12 @@
-
+@import url('/fonts/fonts.css');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+
 html, body {
-  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -13,7 +14,6 @@ html, body {
 *, button, input, textarea, select, a {
   font-family: inherit !important;
 }
-
 
 html {
   overflow-y: scroll; /* Всегда показывать полосу прокрутки */

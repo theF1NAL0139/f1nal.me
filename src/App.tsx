@@ -41,11 +41,17 @@ body::-webkit-scrollbar {
 html, body {
   font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*, button, input, textarea, select, a {
+  font-family: inherit !important;
 }
 
 motion, .motion, [data-motion] {
   font-family: inherit !important;
 }
+
 
 
 /* Блокировка скролла для мобильного меню */
