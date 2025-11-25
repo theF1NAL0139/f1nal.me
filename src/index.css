@@ -1,8 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
+
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body {
+  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+*, button, input, textarea, select, a {
+  font-family: inherit !important;
+}
+
 
 html {
   overflow-y: scroll; /* Всегда показывать полосу прокрутки */

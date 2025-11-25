@@ -5,13 +5,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 // =========================================
 // GLOBAL STYLES (Встроены для превью)
 // =========================================
-// UPDATED: Added weight 700 to font import to fix mobile font rendering issues
 const GLOBAL_STYLES = `
-@import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap');
+
+
 
 /* Tailwind Base Reset */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; tab-size: 4; font-family: ui-sans-serif, system-ui, sans-serif; }
+html { 
+    line-height: 1.5; 
+    -webkit-text-size-adjust: 100%; 
+    tab-size: 4; 
+    font-family: 'Funnel Display', sans-serif; /* UPDATED: Added fallback */
+}
 body { margin: 0; line-height: inherit; }
 
 /* 1. ПОЛНОЕ СКРЫТИЕ ПОЛОСЫ ПРОКРУТКИ */
@@ -19,6 +24,9 @@ html {
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;  /* IE 10+ */
   overflow-y: scroll; /* Прокрутка остается */
+  /* UPDATED: Font smoothing for Safari/iOS */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 html::-webkit-scrollbar { 
     width: 0px;
@@ -30,18 +38,23 @@ body::-webkit-scrollbar {
     display: none;
 }
 
-body {
-  font-family: 'Funnel Display', sans-serif;
-  background-color: #FFFFFF;
-  color: #000;
-  overflow-x: hidden;
+html, body {
+  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  -webkit-font-smoothing: antialiased;
 }
+
+motion, .motion, [data-motion] {
+  font-family: inherit !important;
+}
+
 
 /* Блокировка скролла для мобильного меню */
 body.menu-open {
     overflow: hidden !important;
     height: 100vh;
     touch-action: none;
+    position: fixed; /* Fix for iOS Safari scroll lock */
+    width: 100%;
 }
 
 html.is-animating body { opacity: 0; }
@@ -50,128 +63,6 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 .masonry-item {
   will-change: transform, opacity;
   backface-visibility: hidden;
-}
-
-/* ========================================= */
-/* ИНТЕГРАЦИЯ СТИЛЕЙ ИЗ MobileMenu.css       */
-/* ========================================= */
-
-/* --- Кнопка-Гамбургер (Menu Toggle) --- */
-.menu-toggle {
-    /* Скрываем кнопку на широких экранах (Desktop First Approach) */
-    display: none; 
-    
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 10px;
-    flex-direction: column;
-    justify-content: space-around;
-    width: 44px; /* Чуть увеличил для удобства нажатия */
-    height: 44px;
-    z-index: 10001; /* Поверх меню */
-    position: relative;
-}
-
-.bar {
-    width: 30px;
-    height: 3px; /* Чуть толще для видимости */
-    background-color: #000; /* Изначально черный, так как сайт светлый */
-    transition: all 0.3s ease-in-out;
-    margin: 3px auto; /* Центрирование полосок */
-}
-
-/* Когда меню открыто, полоски становятся белыми (так как фон меню темный) */
-.menu-toggle.open .bar {
-    background-color: #fff;
-}
-
-/* Состояние OPEN: трансформация в 'X' */
-.menu-toggle.open .top-bar {
-    transform: translateY(9px) rotate(45deg);
-}
-
-.menu-toggle.open .middle-bar {
-    opacity: 0;
-}
-
-.menu-toggle.open .bottom-bar {
-    transform: translateY(-9px) rotate(-45deg);
-}
-
-/* --- Полноэкранное Мобильное Меню (Overlay) --- */
-.mobile-menu {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100dvh; /* dynamic viewport height */
-    background-color: rgba(0, 0, 0, 0.95); /* Темный полупрозрачный фон */
-    z-index: 9999;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    
-    /* Скрытие по умолчанию */
-    opacity: 0;
-    pointer-events: none; /* Отключение взаимодействия, когда меню скрыто */
-    transition: opacity 0.4s ease-in-out;
-}
-
-/* Состояние ACTIVE: показ меню */
-.mobile-menu.active {
-    opacity: 1;
-    pointer-events: auto; /* Включение взаимодействия */
-}
-
-.nav-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
-}
-
-.nav-item {
-    margin: 10px 0;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
-}
-
-/* Анимация появления пунктов при активном меню */
-.mobile-menu.active .nav-item {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Задержка для каждого пункта */
-.mobile-menu.active .nav-item:nth-child(1) { transition-delay: 0.1s; }
-.mobile-menu.active .nav-item:nth-child(2) { transition-delay: 0.2s; }
-.mobile-menu.active .nav-item:nth-child(3) { transition-delay: 0.3s; }
-.mobile-menu.active .nav-item:nth-child(4) { transition-delay: 0.4s; }
-
-.nav-item a {
-    color: #fff;
-    text-decoration: none;
-    font-size: 2.5em; /* Крупный текст для оверлея */
-    font-weight: 500;
-    line-height: 1.2;
-    transition: color 0.2s;
-    cursor: pointer;
-}
-
-.nav-item a:hover {
-    color: #777;
-}
-
-/* --- Media Query: Mobile First (Показываем кнопку только на узких экранах) --- */
-@media (max-width: 1024px) {
-    .menu-toggle {
-        display: flex; /* Показать гамбургер на мобильных */
-    }
 }
 `;
 
@@ -228,8 +119,11 @@ const ScrollToTop = () => {
 // COMPONENTS
 // =========================================
 
-// UPDATED: Mobile Menu Implementation based on user files
-const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
+// UPDATED: Mobile Menu Overlay
+const MobileMenuOverlay = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
+    // Lock scroll when open logic is handled via body class in App component or here
+    // But for iOS Safari specifically, 'position: fixed' on body in CSS helps (added above)
+    
     useEffect(() => {
         if (isOpen) {
             document.body.classList.add('menu-open');
@@ -239,42 +133,89 @@ const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: (
         return () => document.body.classList.remove('menu-open');
     }, [isOpen]);
 
-    const handleLinkClick = (page: string) => {
-        navigate(page);
-        onClose();
-    };
-
-    // Mapping logic names to display names if needed
-    const navItems = [
-        { name: 'Work', page: 'home' },
-        { name: 'Reel', page: 'reel' },
-        { name: 'Play', page: 'play' },
-        { name: 'About', page: 'info' },
+    const menuItems = [
+        { label: 'Work', href: 'home' },
+        { label: 'Reel', href: 'reel' },
+        { label: 'Play', href: 'play' },
+        { label: 'About', href: 'info' },
     ];
 
+    const menuVariants = {
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.3 } },
+        exit: { opacity: 0, transition: { duration: 0.3 } }
+    };
+
     return (
-        <nav className={`mobile-menu ${isOpen ? 'active' : ''}`}>
-            <ul className="nav-list">
-                {navItems.map((item) => (
-                    <li key={item.name} className="nav-item">
-                        <a onClick={() => handleLinkClick(item.page)}>
-                            {item.name}
-                        </a>
-                    </li>
-                ))}
-            </ul>
-        </nav>
+        <AnimatePresence>
+            {isOpen && (
+                <motion.nav
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    variants={menuVariants}
+                    // UPDATED: h-[100dvh] for Safari mobile bar support
+                    className="fixed inset-0 top-0 left-0 w-full h-[100dvh] flex flex-col items-center justify-center z-[9999]"
+                    style={{ 
+                        // UPDATED: Blur reduced to 4px
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)', // Increased opacity slightly for "white fill" feel
+                        backdropFilter: 'blur(4px)',
+                        WebkitBackdropFilter: 'blur(4px)',
+                        touchAction: 'none' // Prevent scrolling on the overlay itself
+                    }}
+                >
+                     {/* LOGO */}
+                    <div className="absolute top-0 left-0 w-full pt-[30px] px-5 flex justify-start z-[10000]">
+                         <div className="block cursor-pointer" onClick={() => { onClose(); navigate('home'); }}>
+                            <img 
+                                src="img/logo.svg" 
+                                alt="Logo" 
+                                className="h-[75px] w-auto block" 
+                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} 
+                            />
+                         </div>
+                    </div>
+
+                    {/* CLOSE BUTTON */}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-[30px] right-5 lg:hidden p-3 text-3xl bg-transparent border-none cursor-pointer z-[10000] outline-none flex items-center justify-center"
+                        style={{ transform: 'translateY(10px)' }}
+                    >
+                        ✕
+                    </button>
+
+                    <div className="flex flex-col items-center gap-6">
+                        {menuItems.map((item, index) => (
+                            <motion.a
+                                key={item.label}
+                                onClick={() => {
+                                    onClose();
+                                    navigate(item.href);
+                                }}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: 0.1 + (index * 0.1), duration: 0.4, ease: "easeOut" }}
+                                // UPDATED: Explicit fontFamily style to fix Safari rendering issues with fallback
+                                className="text-[40px] font-normal no-underline text-black cursor-pointer leading-tight"
+                                style={{ fontFamily: "'Funnel Display', sans-serif", fontWeight: 400 }}
+                            >
+                                {item.label}
+                            </motion.a>
+                        ))}
+                    </div>
+                </motion.nav>
+            )}
+        </AnimatePresence>
     );
 };
 
-const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (page: string) => void }) => {
-  const [menuActive, setMenuActive] = useState(false);
+const Header = ({ currentPage, navigate, onOpenMenu }: { currentPage: string, navigate: (page: string) => void, onOpenMenu: () => void }) => {
   const [animStart, setAnimStart] = useState(false);
 
   useEffect(() => { setTimeout(() => setAnimStart(true), 500); }, []);
   
   const handleNav = (page: string) => { 
-      setMenuActive(false); 
       navigate(page); 
   };
 
@@ -284,42 +225,34 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
     ${currentPage === page ? 'text-black' : ''}`;
 
   return (
-    <>
-      <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[110] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
-        <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
-          
-          <div className="block transition-transform duration-400 hover:-translate-y-1.5 z-[120] relative">
-            <a onClick={() => handleNav('home')} className="cursor-pointer block">
-              <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
-            </a>
-          </div>
-          
-          <nav className="hidden lg:block">
-            <ul className="flex gap-10 list-none m-0 p-0">
-              <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
-              <li><a onClick={() => handleNav('reel')} className={navLinkClasses('reel')}>Reel</a></li>
-              <li><a onClick={() => handleNav('play')} className={navLinkClasses('play')}>Play</a></li>
-              <li><a onClick={() => handleNav('info')} className={navLinkClasses('info')}>About</a></li>
-            </ul>
-          </nav>
-          
-          {/* UPDATED: Mobile Menu Toggle using pure CSS animation */}
-          <button
-            className={`menu-toggle ${menuActive ? 'open' : ''}`}
-            onClick={() => setMenuActive(!menuActive)}
-            aria-label="Toggle menu"
-          >
-            <div className="bar top-bar"></div>
-            <div className="bar middle-bar"></div>
-            <div className="bar bottom-bar"></div>
-          </button>
-
+    <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[110] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
+      <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
+        
+        <div className="block transition-transform duration-400 hover:-translate-y-1.5 z-[120] relative">
+          <a onClick={() => handleNav('home')} className="cursor-pointer block">
+            <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
+          </a>
         </div>
-      </header>
+        
+        <nav className="hidden lg:block">
+          <ul className="flex gap-10 list-none m-0 p-0">
+            <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
+            <li><a onClick={() => handleNav('reel')} className={navLinkClasses('reel')}>Reel</a></li>
+            <li><a onClick={() => handleNav('play')} className={navLinkClasses('play')}>Play</a></li>
+            <li><a onClick={() => handleNav('info')} className={navLinkClasses('info')}>About</a></li>
+          </ul>
+        </nav>
+        
+        <button
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+            className="lg:hidden p-3 text-3xl bg-transparent border-none cursor-pointer relative z-[120] outline-none flex items-center justify-center"
+        >
+            ☰
+        </button>
 
-      {/* UPDATED: Mobile Menu Component */}
-      <MobileMenu isOpen={menuActive} onClose={() => setMenuActive(false)} navigate={navigate} />
-    </>
+      </div>
+    </header>
   );
 };
 
@@ -1042,6 +975,8 @@ const Sber = ({ navigate }: any) => (
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
+  // ADDED: Global state for mobile menu to allow Overlay rendering at root level
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     // 2. ИЗМЕНЕНИЕ ЗАГОЛОВКА
@@ -1075,10 +1010,34 @@ export default function App() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
-      <div className="min-h-screen w-full flex flex-col">
-        <Header currentPage={currentPage} navigate={setCurrentPage} />
-        {/* CHANGED: pt-[60px] -> pt-[20px] to lift content closer to header globally */}
-        <main id="content-holder" className="flex-grow pt-[20px] relative">
+      {/* UPDATED: Mobile Menu Overlay rendered here, outside transformed Header */}
+      <MobileMenuOverlay 
+        isOpen={isMenuOpen} 
+        onClose={() => setIsMenuOpen(false)} 
+        navigate={setCurrentPage} 
+      />
+      
+      {/* UPDATED: "Crutch" implementation for blurred background content */}
+      <div 
+        className="min-h-screen w-full flex flex-col"
+        style={{
+            // Apply blur filter directly to content when menu is open
+            filter: isMenuOpen ? 'blur(4px)' : 'none',
+            // Also ensure white background is dominant
+            backgroundColor: isMenuOpen ? 'rgba(255, 255, 255, 1)' : 'transparent', 
+            transition: 'filter 0.3s ease, background-color 0.3s ease',
+            // Ensure pointer events are disabled on background content when menu open
+            pointerEvents: isMenuOpen ? 'none' : 'auto'
+        }}
+      >
+        {/* UPDATED: Header receives onOpenMenu prop */}
+        <Header 
+            currentPage={currentPage} 
+            navigate={setCurrentPage} 
+            onOpenMenu={() => setIsMenuOpen(true)} 
+        />
+        {/* CHANGED: pt-[20px] -> pt-[40px] to add +20px spacing as requested */}
+        <main id="content-holder" className="flex-grow pt-[40px] relative">
              {/* 3. Анимация переходов между страницами (0.25s) */}
             <AnimatePresence mode="wait">
                 <motion.div
