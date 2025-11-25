@@ -1,0 +1,112 @@
+/* --- Стили для Header (общая структура) --- */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    position: fixed; /* Закрепление шапки */
+    width: 100%;
+    top: 0;
+    z-index: 100;
+    background-color: #000; /* Фон шапки */
+    color: #fff;
+    box-sizing: border-box;
+}
+
+.logo {
+    font-weight: bold;
+    font-size: 1.2em;
+    z-index: 101; /* Поверх меню */
+}
+
+/* --- Кнопка-Гамбургер (Menu Toggle) --- */
+.menu-toggle {
+    /* Скрываем кнопку на широких экранах (Desktop First Approach) */
+    display: none; 
+    
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 30px; 
+    height: 25px;
+    z-index: 101;
+}
+
+.bar {
+    width: 100%;
+    height: 2px;
+    background-color: #fff;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Состояние OPEN: трансформация в 'X' */
+.menu-toggle.open .top-bar {
+    transform: translateY(10.5px) rotate(45deg);
+}
+
+.menu-toggle.open .middle-bar {
+    opacity: 0;
+}
+
+.menu-toggle.open .bottom-bar {
+    transform: translateY(-10.5px) rotate(-45deg);
+}
+
+/* --- Полноэкранное Мобильное Меню (Overlay) --- */
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh; 
+    background-color: rgba(0, 0, 0, 0.95); /* Темный полупрозрачный фон */
+    z-index: 99;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    /* Скрытие по умолчанию */
+    opacity: 0;
+    pointer-events: none; /* Отключение взаимодействия, когда меню скрыто */
+    transition: opacity 0.4s ease-in-out;
+}
+
+/* Состояние ACTIVE: показ меню */
+.mobile-menu.active {
+    opacity: 1;
+    pointer-events: auto; /* Включение взаимодействия */
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    text-align: center;
+}
+
+.nav-item {
+    margin: 30px 0;
+}
+
+.nav-item a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 2.5em; /* Крупный текст для оверлея */
+    font-weight: 500;
+    line-height: 1.2;
+    transition: color 0.2s;
+}
+
+.nav-item a:hover {
+    color: #777;
+}
+
+/* --- Media Query: Mobile First (Показываем кнопку только на узких экранах) --- */
+@media (max-width: 768px) {
+    .menu-toggle {
+        display: flex; /* Показать гамбургер на мобильных */
+    }
+}
