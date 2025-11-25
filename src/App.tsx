@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // =========================================
 // GLOBAL STYLES (Встроены для превью)
 // =========================================
+// UPDATED: Added weight 700 to font import to fix mobile font rendering issues
 const GLOBAL_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600;700&display=swap');
 
@@ -30,21 +31,17 @@ body::-webkit-scrollbar {
 }
 
 body {
-  /* UPDATED: Force font family globally to ensure consistency on mobile */
-  font-family: 'Funnel Display', sans-serif !important;
+  font-family: 'Funnel Display', sans-serif;
   background-color: #FFFFFF;
   color: #000;
   overflow-x: hidden;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Блокировка скролла для мобильного меню */
 body.menu-open {
     overflow: hidden !important;
     height: 100vh;
-    touch-action: none; /* Отключаем жесты браузера */
-    overscroll-behavior: none; /* Отключаем эффект резинки на iOS */
+    touch-action: none;
 }
 
 html.is-animating body { opacity: 0; }
@@ -109,21 +106,15 @@ const ScrollToTop = () => {
 // COMPONENTS
 // =========================================
 
-// UPDATED: Robust Mobile Menu for iOS
+// UPDATED: Completely reworked Mobile Menu Component
 const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
     useEffect(() => {
         if (isOpen) {
             document.body.classList.add('menu-open');
-            // Prevent default touch actions to stop rubber-banding
-            document.body.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
         } else {
             document.body.classList.remove('menu-open');
-            document.body.removeEventListener('touchmove', (e) => e.preventDefault());
         }
-        return () => {
-            document.body.classList.remove('menu-open');
-            document.body.removeEventListener('touchmove', (e) => e.preventDefault());
-        };
+        return () => document.body.classList.remove('menu-open');
     }, [isOpen]);
 
     const handleLinkClick = (page: string) => {
@@ -140,22 +131,17 @@ const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: (
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3, ease: "easeInOut" }}
-                    // UPDATED: 100dvh handles Safari address bar resizing correctly
-                    style={{ height: '100dvh', touchAction: 'none', overscrollBehavior: 'none' }} 
+                    style={{ height: '100dvh' }} // Используем dynamic viewport height для iOS
                 >
-                    {/* Header inside Menu */}
-                    <div className="flex items-center justify-between px-5 pt-[30px] pb-[10px] w-full max-w-[1440px] mx-auto">
-                        {/* UPDATED: Logo visible (opacity-100) */}
-                        <div className="block cursor-pointer" onClick={() => handleLinkClick('home')}>
-                             <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block opacity-100" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
-                        </div>
-                        
-                        <button onClick={onClose} className="p-2 relative z-50">
+                    {/* Header inside Menu for consistent layout */}
+                    <div className="flex items-center justify-between px-5 pt-[30px] pb-[10px]">
+                        <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto opacity-0" /> {/* Spacer to keep alignment if needed, or just justify-end */}
+                        <button onClick={onClose} className="p-2">
                             <X size={32} color="black" />
                         </button>
                     </div>
 
-                    <div className="flex-grow flex flex-col items-center justify-center gap-10 pb-20 w-full">
+                    <div className="flex-grow flex flex-col items-center justify-center gap-10 pb-20">
                          {['home', 'reel', 'play', 'info'].map((item, i) => (
                             <motion.div
                                 key={item}
@@ -165,7 +151,7 @@ const MobileMenu = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: (
                             >
                                 <a 
                                     onClick={() => handleLinkClick(item)} 
-                                    className="text-[42px] font-medium text-black capitalize cursor-pointer hover:text-gray-500 transition-colors font-['Funnel_Display']"
+                                    className="text-[42px] font-medium text-black capitalize cursor-pointer hover:text-gray-500 transition-colors"
                                 >
                                     {item === 'info' ? 'About' : item === 'home' ? 'Work' : item}
                                 </a>
@@ -224,6 +210,7 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
         </div>
       </header>
 
+      {/* UPDATED: New Mobile Menu Component */}
       <MobileMenu isOpen={menuActive} onClose={() => setMenuActive(false)} navigate={navigate} />
     </>
   );
@@ -232,8 +219,8 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
 const Footer = () => (
   <motion.footer 
     className="pt-20 pb-20" 
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: -100 }}
     transition={{ delay: 0.25, duration: 0.4 }}
   >
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-8 lg:gap-0">
@@ -478,6 +465,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
+                {/* 1. Background Image */}
                 <div className="absolute inset-0 z-0">
                     <img 
                         src={project.img} 
@@ -487,8 +475,8 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     />
                 </div>
 
-                {/* UPDATED: Opacity 0.6 (60%) on hover */}
-                <div className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out" style={{ opacity: isHovered ? 0.6 : 0 }}>
+                {/* 2. Video Layer */}
+                <div className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out" style={{ opacity: isHovered ? 1 : 0 }}>
                     <video 
                         ref={videoRef}
                         playsInline 
@@ -501,6 +489,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     </video>
                 </div>
 
+                {/* 3. Foreground Image (fades out on hover) */}
                 <div 
                     className="absolute inset-0 z-20 transition-opacity duration-500 ease-in-out"
                     style={{ opacity: isHovered ? 0 : 1 }}
@@ -514,9 +503,13 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     />
                 </div>
 
+                {/* 4. NEW: Black Overlay for Text Readability (z-25) */}
+                <div className="absolute inset-0 z-[25] bg-black/40 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
+
+                {/* 5. Text Content */}
                 <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
                     <h3 className="text-[32px] lg:text-[38px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
-                    <p className="text-[16px] opacity-90 font-normal drop-shadow-md">{project.category}</p>
+                    <p className="text-[16px] opacity-70 font-normal drop-shadow-md">{project.category}</p>
                 </div>
             </div>
         </a>
@@ -699,7 +692,7 @@ const PlayPage = () => {
             </div>
         </motion.div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[30px] mb-[100px]">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] mb-[100px]">
             <AnimatePresence>
             {images.map((src, i) => (
                 <motion.div 
@@ -708,7 +701,7 @@ const PlayPage = () => {
                     initial={{ opacity: 0, y: 50 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 + (i * 0.1) }}
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.03 }}
                     onClick={() => setModalSrc(src)}
                 >
                     <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block object-cover" />
@@ -717,7 +710,6 @@ const PlayPage = () => {
             </AnimatePresence>
         </div>
         
-        {/* UPDATED: Image close behavior (click on image to close, removed X button) */}
         <AnimatePresence>
             {modalSrc && (
                 <motion.div 
@@ -735,11 +727,17 @@ const PlayPage = () => {
                         exit={{ scale: 0.9, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
                     >
+                        <button 
+                            className="absolute -top-12 right-0 lg:-right-12 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-50"
+                            onClick={(e) => { e.stopPropagation(); setModalSrc(null); }}
+                        >
+                            <X size={24} />
+                        </button>
                         <img 
                             src={modalSrc} 
                             alt="Full size" 
-                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer" 
-                            onClick={() => setModalSrc(null)} 
+                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+                            onClick={(e) => e.stopPropagation()} 
                         />
                     </motion.div>
                 </motion.div>
@@ -784,7 +782,7 @@ const AboutPage = () => (
             <div className="flex-none w-full lg:w-[40%] max-w-[500px]">
                 <img src="img/me.png" alt="Oleg Shmarov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'img/me.png'} />
             </div>
-            <div className="flex-1 pt-5">
+            <div className="flex-0 pt-0">
                 <div className="text-[18px] lg:text-[24px] leading-[1.5]">
                     <p className="mb-6">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
                     <p className="mb-6">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
@@ -823,7 +821,7 @@ const AboutPage = () => (
                 </div>
             </div>
         </div>
-        <Footer />
+        
     </motion.div>
 );
 
@@ -837,7 +835,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
             className="w-full"
         >
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                <div className="flex flex-wrap justify-between items-end mb-[60px] gap-10">
+                <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10">
                     <div className="flex-1 min-w-[300px]">
                         <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight text-black">{title}</h1>
                         <div className="text-[16px] text-[#888] mt-2.5">{meta}</div>
