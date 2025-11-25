@@ -1,18 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // =========================================
-// GLOBAL STYLES (Injected via <style> tag for preview compatibility)
+// GLOBAL STYLES (Injected via <style> tag)
 // =========================================
 const GLOBAL_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
 
-/* Basic Tailwind Reset for Preview */
-*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; tab-size: 4; font-family: ui-sans-serif, system-ui, sans-serif; }
-body { margin: 0; line-height: inherit; }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-/* Custom Styles */
 body {
   font-family: 'Funnel Display', sans-serif;
   background-color: #F7F7F7;
@@ -33,20 +32,9 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
   transform: translateY(0);
 }
 
-/* Masonry Transitions */
 .masonry-item-transition {
   transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
-
-/* Hover Video Logic Styles */
-.thumb-inner .thumb-hover {
-    opacity: 0;
-    transition: opacity 0.4s ease;
-}
-.thumb-inner:hover .thumb-hover {
-    opacity: 1;
-}
-/* On mobile, allow video to be seen if needed or just keep consistent with desktop logic via JS */
 `;
 
 // =========================================
@@ -141,7 +129,7 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
 };
 
 const Footer = () => (
-  <footer className="pt-20 pb-10 js-anim-item">
+  <footer className="pt-20 pb-10 js-anim-item opacity-0 animate-[fadeIn_1s_ease-out_forwards]" style={{ animationDelay: '1s' }}>
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-8 lg:gap-0">
       <div className="flex gap-[30px]">
         {['Behance', 'LinkedIn', 'Instagram'].map((link) => (
@@ -262,7 +250,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   );
 };
 
-// --- PAGE: HOME ---
+// --- PAGE: HOME (WORK) ---
 interface Project {
     id: string | number;
     title: string;
@@ -273,11 +261,93 @@ interface Project {
     isExternal?: boolean;
 }
 
+// --- КАРТОЧКА ПРОЕКТА ---
+const ProjectCard = ({ project, navigate }: { project: Project, navigate: (page: string) => void }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const [isHovered, setIsHovered] = useState(false);
+
+    const handleMouseEnter = () => {
+        setIsHovered(true);
+        if (videoRef.current) {
+            // Сбрасываем и запускаем видео
+            videoRef.current.currentTime = 0;
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    // Игнорируем ошибки автоплея
+                });
+            }
+        }
+    };
+
+    const handleMouseLeave = () => {
+        setIsHovered(false);
+        if (videoRef.current) {
+            videoRef.current.pause();
+            videoRef.current.currentTime = 0;
+        }
+    };
+
+    const handleClick = (e: React.MouseEvent) => {
+        if (!project.isExternal) {
+            e.preventDefault();
+            navigate(project.link);
+        }
+    };
+
+    return (
+        <a 
+            href={project.isExternal ? project.link : undefined} 
+            onClick={handleClick} 
+            className="block w-full h-full"
+        >
+            <div 
+                className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu"
+                style={{ minHeight: '300px' }}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                {/* Видео слой (снизу) */}
+                <div className="absolute inset-0 z-0">
+                    <video 
+                        ref={videoRef}
+                        playsInline 
+                        loop 
+                        muted // Обязательно для автоплея
+                        className="w-full h-full object-cover block opacity-80 transition-opacity duration-500"
+                    >
+                        <source src={project.video} type="video/mp4" />
+                    </video>
+                </div>
+
+                {/* Картинка слой (сверху) - исчезает при ховере */}
+                <div 
+                    className="absolute inset-0 z-10 transition-opacity duration-500"
+                    style={{ opacity: isHovered ? 0 : 1 }}
+                >
+                    <img 
+                        src={project.img} 
+                        alt={project.title} 
+                        className="w-full h-full object-cover block"
+                        onError={(e) => e.currentTarget.style.display = 'none'}
+                    />
+                </div>
+
+                {/* Текст (всегда виден) */}
+                <div className="absolute bottom-0 left-0 p-8 z-20 text-white pointer-events-none">
+                    <h3 className="text-[32px] lg:text-[38px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
+                    <p className="text-[16px] opacity-90 font-normal drop-shadow-md">{project.category}</p>
+                </div>
+            </div>
+        </a>
+    );
+};
+
 const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const itemsRef = useRef<HTMLDivElement[]>([]);
   
-  // Default projects
+  // Начальные проекты
   const initialProjects: Project[] = [
     { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
@@ -287,7 +357,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
 
   const [projects, setProjects] = useState<Project[]>(initialProjects);
 
-  // --- AUTO DISCOVERY LOGIC ---
+  // Автопоиск проектов
   useEffect(() => {
     const discovered: Project[] = [];
     const startId = 5;
@@ -300,14 +370,12 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
         }
 
         const htmlPath = `project_${id}.html`;
-        
         try {
             const response = await fetch(htmlPath);
             if (response.ok) {
                 const text = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(text, 'text/html');
-                
                 const title = doc.title || `Project ${id}`;
                 const categoryMeta = doc.querySelector('meta[name="category"]');
                 const category = categoryMeta ? categoryMeta.getAttribute('content') || 'Work' : 'Work';
@@ -321,18 +389,16 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                     link: htmlPath,
                     isExternal: true
                 });
-                
                 checkProject(id + 1);
             } else {
                 if (discovered.length > 0) setProjects(prev => [...prev, ...discovered]);
             }
-        } catch (e) {
-        }
+        } catch (e) {}
     };
-
     checkProject(startId);
   }, []);
 
+  // Расчет Masonry сетки
   const calculateLayout = () => {
     if (!gridRef.current) return;
     const isDesktop = window.innerWidth > 1024;
@@ -345,10 +411,20 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
       if (isDesktop) {
         item.style.width = `${colWidth}px`;
         item.style.position = 'absolute';
-        if (leftH <= rightH) { item.style.left = '0px'; item.style.top = `${leftH}px`; leftH += item.offsetHeight + gap; }
-        else { item.style.left = `${colWidth + gap}px`; item.style.top = `${rightH}px`; rightH += item.offsetHeight + gap; }
+        if (leftH <= rightH) { 
+            item.style.left = '0px'; 
+            item.style.top = `${leftH}px`; 
+            leftH += item.offsetHeight + gap; 
+        } else { 
+            item.style.left = `${colWidth + gap}px`; 
+            item.style.top = `${rightH}px`; 
+            rightH += item.offsetHeight + gap; 
+        }
       } else {
-        item.style.position = 'relative'; item.style.top = 'auto'; item.style.left = 'auto'; item.style.width = '100%';
+        item.style.position = 'relative'; 
+        item.style.top = 'auto'; 
+        item.style.left = 'auto'; 
+        item.style.width = '100%';
       }
     });
     if (isDesktop) gridRef.current.style.height = `${Math.max(leftH, rightH)}px`;
@@ -356,82 +432,51 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   };
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-        calculateLayout();
-        
-        // ANIMATION FIX: Sequential Delay
-        itemsRef.current.forEach((el, i) => {
-            if (el) {
-                // Reset opacity first just in case
-                el.classList.remove('animate-in');
-                // Add delay based on index
-                setTimeout(() => el.classList.add('animate-in'), i * 150);
-            }
-        });
-
-        setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), projects.length * 150 + 200);
-    }, 500);
-    
+    const timer = setTimeout(calculateLayout, 500);
     window.addEventListener('resize', calculateLayout);
-    document.querySelectorAll('.masonry-img').forEach(img => (img as HTMLImageElement).onload = calculateLayout);
-    return () => { window.removeEventListener('resize', calculateLayout); clearTimeout(timeout); };
+    const imgs = document.querySelectorAll('.masonry img');
+    imgs.forEach(img => (img as HTMLImageElement).onload = calculateLayout);
+    
+    return () => {
+        window.removeEventListener('resize', calculateLayout);
+        clearTimeout(timer);
+    };
   }, [projects]);
 
-  // PREVIEW LOGIC: Mouse handlers
-  const handleCardMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
-    const video = e.currentTarget.querySelector('video');
-    if (video) {
-        video.currentTime = 0;
-        video.play().catch(err => console.log("Video play prevented", err));
-    }
-  };
-
-  const handleCardMouseLeave = (e: React.MouseEvent<HTMLDivElement>) => {
-    const video = e.currentTarget.querySelector('video');
-    if (video) {
-        video.pause();
-        video.currentTime = 0;
-    }
+  // Анимационные варианты для Framer Motion
+  const cardVariants = {
+    hidden: { opacity: 0, y: 60 }, // Начальное состояние (как в исходнике translateY(60px))
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: {
+        delay: i * 0.15, // Каскадная задержка
+        duration: 1.2,
+        ease: [0.165, 0.84, 0.44, 1], // Cubic-bezier из исходника (easeOutQuart)
+      }
+    })
   };
 
   return (
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
         <div className="relative w-full mb-[120px]" ref={gridRef}>
-        {projects.map((p, i) => (
-            <div 
-                key={p.id} 
-                className="masonry-item-transition js-anim-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
-                ref={el => { if (el) itemsRef.current[i] = el }}
-            >
-            <a 
-                href={p.isExternal ? p.link : undefined}
-                onClick={(e) => { 
-                    if (!p.isExternal) { 
-                        e.preventDefault(); 
-                        navigate(p.link); 
-                    }
-                }} 
-                className="block"
-            >
-                <div 
-                    className="thumb-inner relative rounded-[18px] overflow-hidden bg-black cursor-pointer min-h-[300px] transition-all duration-400 ease-[cubic-bezier(0.25,0.46,0.45,0.94)] group hover:-translate-y-2.5 hover:shadow-xl transform-gpu"
-                    onMouseEnter={handleCardMouseEnter}
-                    onMouseLeave={handleCardMouseLeave}
-                >
-                    <div className="absolute inset-0 z-10 thumb-hover">
-                        <video playsInline loop muted className="w-full h-full object-cover rounded-[18px] block">
-                            <source src={p.video} type="video/mp4" />
-                        </video>
-                        <div className="absolute bottom-[30px] left-[30px] text-white pointer-events-none z-20 drop-shadow-lg">
-                            <span className="block font-bold text-[38px] leading-none mb-1">{p.title}</span>
-                            <span className="text-[16px] opacity-90 font-normal">{p.category}</span>
-                        </div>
-                    </div>
-                    <img src={p.img} alt={p.title} className="masonry-img w-full h-auto block relative z-20 transition-opacity duration-500 group-hover:opacity-0" onError={(e) => e.currentTarget.style.display = 'block'} />
-                </div>
-            </a>
-            </div>
-        ))}
+            {/* Используем AnimatePresence для управления появлением */}
+            <AnimatePresence>
+                {projects.map((p, i) => (
+                    <motion.div
+                        key={p.id}
+                        ref={el => { if (el) itemsRef.current[i] = el }}
+                        className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
+                        custom={i} // Передаем индекс для задержки
+                        initial="hidden"
+                        animate="visible"
+                        variants={cardVariants}
+                        whileHover={{ scale: 1.02, transition: { duration: 0.4, ease: "easeOut" } }} // Легкий зум при наведении
+                    >
+                        <ProjectCard project={p} navigate={navigate} />
+                    </motion.div>
+                ))}
+            </AnimatePresence>
         </div>
         <Footer />
     </div>
@@ -600,14 +645,12 @@ const PlayPage = () => {
   const [modalSrc, setModalSrc] = useState<string | null>(null);
   
   useEffect(() => {
-    // Запускаем проверку батчами: сначала 1-6, потом остальные
     const checkBatch = (start: number, end: number) => {
         for (let i = start; i <= end; i++) {
             const src = `imgs/img_${i}.jpg`;
             const img = new Image();
             img.onload = () => {
                 setImages(prev => {
-                    // Добавляем в список и сортируем по номеру, чтобы порядок 1, 2, 3... сохранялся
                     const unique = new Set([...prev, src]);
                     return Array.from(unique).sort((a, b) => {
                         const numA = parseInt(a.match(/\d+/)?.[0] || '0');
@@ -616,40 +659,15 @@ const PlayPage = () => {
                     });
                 });
             };
-            // Если картинки нет, просто игнорируем (можно добавить логику остановки, но для 30 штук это не критично)
             img.src = src;
         }
     };
-
-    // 1. Грузим первые 6 мгновенно (параллельно)
     checkBatch(1, 6);
-
-    // 2. Грузим остальные (7-30) с небольшой задержкой, чтобы не забивать канал сразу
-    setTimeout(() => {
-        checkBatch(7, 30);
-    }, 500);
-
+    setTimeout(() => { checkBatch(7, 30); }, 500);
     setTimeout(() => document.querySelector('.js-header')?.classList.add('animate-in'), 200);
   }, []);
 
-  // Анимация появления карточек при обновлении списка
-  useEffect(() => {
-    if (images.length > 0) {
-        setTimeout(() => {
-            const cards = document.querySelectorAll('.play-card');
-            cards.forEach((card, i) => {
-                // Добавляем класс animate-in только если его еще нет
-                if (!card.classList.contains('animate-in')) {
-                    setTimeout(() => card.classList.add('animate-in'), i * 50); // Чуть быстрее анимация (50мс)
-                }
-            });
-            setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), images.length * 50 + 200);
-        }, 100);
-    } else {
-        setTimeout(() => document.querySelector('footer')?.classList.add('animate-in'), 500);
-    }
-  }, [images]);
-
+  // Use Framer Motion for Play cards too
   return (
     <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
         <div className="flex flex-wrap justify-between items-end mb-[60px] gap-10 js-anim-item js-header">
@@ -658,16 +676,26 @@ const PlayPage = () => {
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
         </div>
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[30px] mb-[100px]">
             {images.length === 0 && <p className="col-span-full text-center text-[#999]">Loading experiments...</p>}
+            <AnimatePresence>
             {images.map((src, i) => (
-                <div key={src} className="play-card relative rounded-[18px] overflow-hidden bg-black cursor-pointer js-anim-item opacity-0 translate-y-20 hover:-translate-y-4 hover:shadow-2xl transition-all duration-500"
-                     onClick={() => setModalSrc(src)}>
-                    <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block transition-transform duration-500 hover:scale-105" />
-                </div>
+                <motion.div 
+                    key={src} 
+                    className="play-card relative rounded-[18px] overflow-hidden bg-black cursor-pointer"
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: i * 0.05 }}
+                    whileHover={{ scale: 1.02 }}
+                    onClick={() => setModalSrc(src)}
+                >
+                    <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block" />
+                </motion.div>
             ))}
+            </AnimatePresence>
         </div>
-        {/* Modal */}
+
         <div className={`fixed inset-0 bg-black/95 backdrop-blur-sm z-[10000] flex items-center justify-center transition-opacity duration-300 ${modalSrc ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'}`} onClick={() => setModalSrc(null)}>
             <button className="absolute top-[30px] right-[30px] w-11 h-11 bg-white/10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/20 transition-all rotate-45">
                 <div className="w-5 h-0.5 bg-white absolute"></div><div className="h-5 w-0.5 bg-white absolute"></div>
@@ -758,7 +786,6 @@ export default function App() {
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
       <div className="min-h-screen w-full flex flex-col">
         <Header currentPage={currentPage} navigate={setCurrentPage} />
         <main id="content-holder" className="flex-grow pt-[60px] relative">
