@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
-import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // =========================================
@@ -8,26 +8,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 const GLOBAL_STYLES = `
 @import url('https://fonts.googleapis.com/css2?family=Funnel+Display:wght@400;500;600&display=swap');
 
-/* Tailwind Base Reset (Simulated for preview) */
+/* Tailwind Base Reset */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
 html { line-height: 1.5; -webkit-text-size-adjust: 100%; tab-size: 4; font-family: ui-sans-serif, system-ui, sans-serif; }
 body { margin: 0; line-height: inherit; }
 
-/* 1. Полное скрытие скроллбара при сохранении прокрутки */
+/* 1. ПОЛНОЕ СКРЫТИЕ ПОЛОСЫ ПРОКРУТКИ */
 html {
-  overflow-y: scroll;
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none;  /* IE 10+ */
+  overflow-y: scroll; /* Прокрутка остается */
 }
 html::-webkit-scrollbar { 
     width: 0px;
-    background: transparent; /* Chrome/Safari/Webkit */
+    height: 0px;
+    background: transparent;
+    display: none; /* Chrome/Safari/Webkit */
+}
+body::-webkit-scrollbar {
     display: none;
 }
 
 body {
   font-family: 'Funnel Display', sans-serif;
-  background-color: #F7F7F7;
+  background-color: #FFFFFF;
   color: #000;
   overflow-x: hidden;
 }
@@ -99,7 +103,11 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
   const [animStart, setAnimStart] = useState(false);
 
   useEffect(() => { setTimeout(() => setAnimStart(true), 500); }, []);
-  const handleNav = (page: string) => { setMenuActive(false); navigate(page); };
+  
+  const handleNav = (page: string) => { 
+      setMenuActive(false); 
+      navigate(page); 
+  };
 
   const navLinkClasses = (page: string) => 
     `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
@@ -108,13 +116,18 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
 
   return (
     <>
-      <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[100] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
-        <div className="flex items-center justify-between max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="block transition-transform duration-400 hover:-translate-y-1.5">
+      {/* Z-Index: 110 для хедера. Элементы внутри получат z-120, чтобы быть выше оверлея */}
+      <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[110] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
+        <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
+          
+          {/* ЛОГОТИП: z-[120] гарантирует, что он будет ПОВЕРХ белого оверлея меню (z-100) */}
+          <div className="block transition-transform duration-400 hover:-translate-y-1.5 z-[120] relative">
             <a onClick={() => handleNav('home')} className="cursor-pointer block">
               <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
             </a>
           </div>
+          
+          {/* Desktop Menu */}
           <nav className="hidden lg:block">
             <ul className="flex gap-10 list-none m-0 p-0">
               <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
@@ -123,18 +136,29 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
               <li><a onClick={() => handleNav('info')} className={navLinkClasses('info')}>About</a></li>
             </ul>
           </nav>
-          <button className="block lg:hidden bg-none border-none cursor-pointer z-[110]" onClick={() => setMenuActive(!menuActive)}>
-            <div className="w-[25px] h-[2px] bg-black my-1.5"></div>
-            <div className="w-[25px] h-[2px] bg-black my-1.5"></div>
-            <div className="w-[25px] h-[2px] bg-black my-1.5"></div>
+          
+          {/* Mobile Menu Button (Крестик / Бургер) - z-[120] чтобы быть поверх оверлея */}
+          <button 
+            className="block lg:hidden bg-none border-none cursor-pointer z-[120] relative p-2" 
+            onClick={() => setMenuActive(!menuActive)}
+          >
+            {menuActive ? (
+                <X size={32} color="black" /> 
+            ) : (
+                <Menu size={32} color="black" />
+            )}
           </button>
         </div>
       </header>
-      <div className={`fixed inset-0 bg-[#F7F7F7] z-[100] flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none opacity-0 lg:hidden ${menuActive ? 'opacity-100 pointer-events-auto' : ''}`}>
+
+      {/* Mobile Overlay: fixed inset-0 + h-[100dvh] для идеального перекрытия на iOS */}
+      <div className={`fixed inset-0 h-[100dvh] bg-[#FFFFFF] z-[100] flex flex-col items-center justify-center transition-opacity duration-300 pointer-events-none opacity-0 lg:hidden ${menuActive ? 'opacity-100 pointer-events-auto' : ''}`}>
         <ul className="flex flex-col gap-10 text-center list-none p-0">
           {['home', 'reel', 'play', 'info'].map((item) => (
             <li key={item}>
-              <a onClick={() => handleNav(item)} className="text-[32px] text-black capitalize cursor-pointer">{item === 'info' ? 'About' : item}</a>
+              <a onClick={() => handleNav(item)} className="text-[32px] text-black capitalize cursor-pointer hover:text-gray-500 transition-colors">
+                {item === 'info' ? 'About' : item}
+              </a>
             </li>
           ))}
         </ul>
@@ -144,11 +168,12 @@ const Header = ({ currentPage, navigate }: { currentPage: string, navigate: (pag
 };
 
 const Footer = () => (
+  // UPDATED: Increased padding-y to 20 (80px) to lift the footer visually
   <motion.footer 
-    className="pt-20 pb-10"
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 1.0, duration: 0.8 }}
+    className="pt-20 pb-20" 
+    initial={{ opacity: 0, y: -20 }}	
+    animate={{ opacity: 1, y: -100 }}
+    transition={{ delay: 0.25, duration: 0.4 }}
   >
     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-8 lg:gap-0">
       <div className="flex gap-[30px]">
@@ -226,7 +251,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     setUiHidden(false);
     if (isPlaying) {
       clearTimeout(inactivityTimeout);
-      inactivityTimeout = setTimeout(() => setUiHidden(true), 3000);
+      inactivityTimeout = setTimeout(() => setUiHidden(true), 1500);
     }
   };
 
@@ -242,14 +267,58 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
       >
         <source src={src} type="video/mp4" />
       </video>
+      
+      {/* OVERLAY WITH FIXED PLAY BUTTON AND PARTICLES */}
       <div 
         className={`absolute inset-0 flex justify-center items-center bg-black/50 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
         onClick={togglePlay}
       >
-        <button className="w-[100px] h-[100px] lg:w-[150px] lg:h-[150px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform hover:scale-110 shadow-[0_0_0_0_rgba(255,255,255,0.4)] animate-[pulse_2s_infinite]">
-          <div className="pl-1.5"><Play fill="black" stroke="none" size={32} /></div>
-        </button>
+        <div className="relative flex items-center justify-center">
+            {/* PARTICLES SYSTEM */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                 {[...Array(30)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        className="absolute w-2 h-2 bg-white rounded-full opacity-0"
+                        animate={{
+                            x: [0, (Math.random() - 0.5) * 350],
+                            y: [0, (Math.random() - 0.5) * 350],
+                            opacity: [0, 0.6, 0],
+                            scale: [0.5, 0]
+                        }}
+                        transition={{
+                            duration: 2 + Math.random() * 1.5,
+                            repeat: Infinity,
+                            delay: Math.random() * 2,
+                            ease: "easeOut"
+                        }}
+                    />
+                 ))}
+                 {[...Array(3)].map((_, i) => (
+                    <motion.div
+                        key={`ring-${i}`}
+                        className="absolute rounded-full border border-white/20"
+                        initial={{ width: 200, height: 200, opacity: 0 }}
+                        animate={{ width: 300, height: 300, opacity: 0 }}
+                        transition={{
+                            duration: 0.1,
+                            repeat: Infinity,
+                            delay: i * 0.1,
+                            ease: "easeOut",
+                            times: [0, 1]
+                        }}
+                        style={{ opacity: [0.8, 0] } as any}
+                    />
+                 ))}
+            </div>
+
+            {/* BUTTON */}
+            <button className="w-[100px] h-[100px] lg:w-[100px] lg:h-[100px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-110 shadow-[0_0_10px_rgba(255,255,255,0.3)] relative z-20">
+                <div className="pl-1.5"><Play fill="black" stroke="none" size={32} /></div>
+            </button>
+        </div>
       </div>
+
       <div 
         className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`}
         onClick={(e) => e.stopPropagation()}
@@ -288,7 +357,6 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
     const [isHovered, setIsHovered] = useState(false);
     const isMobile = useIsMobile();
 
-    // Логика для Мобильных: Play если в зоне видимости
     useEffect(() => {
         if (!isMobile || !videoRef.current || !containerRef.current) return;
 
@@ -297,21 +365,20 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 entries.forEach(entry => {
                     if (entry.isIntersecting) {
                         videoRef.current?.play().catch(() => {});
-                        setIsHovered(true); // Скрываем картинку, показываем видео
+                        setIsHovered(true);
                     } else {
                         videoRef.current?.pause();
                         setIsHovered(false);
                     }
                 });
             },
-            { threshold: 0.6 } // Срабатывает когда 60% карточки видно
+            { threshold: 0.6 }
         );
 
         observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, [isMobile]);
 
-    // Логика для Десктопа: Hover
     const handleMouseEnter = () => {
         if (isMobile) return;
         setIsHovered(true);
@@ -319,9 +386,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
             videoRef.current.currentTime = 0;
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Игнорируем ошибки автоплея
-                });
+                playPromise.catch(() => {});
             }
         }
     };
@@ -351,11 +416,10 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
             <div 
                 ref={containerRef}
                 className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu"
-                style={{ minHeight: '400px' }} // ВЫСОТА УВЕЛИЧЕНА
+                style={{ minHeight: '400px' }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                {/* Видео слой (Снизу) */}
                 <div className="absolute inset-0 z-0">
                     <video 
                         ref={videoRef}
@@ -368,7 +432,6 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     </video>
                 </div>
 
-                {/* Картинка слой (Сверху) - исчезает если isHovered=true */}
                 <div 
                     className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out"
                     style={{ opacity: isHovered ? 0 : 1 }}
@@ -382,7 +445,6 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                     />
                 </div>
 
-                {/* Текст (Скрыт по умолчанию на Desktop, виден на Mobile) */}
                 <div className="absolute bottom-0 left-0 p-8 z-20 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
                     <h3 className="text-[32px] lg:text-[38px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
                     <p className="text-[16px] opacity-90 font-normal drop-shadow-md">{project.category}</p>
@@ -395,17 +457,15 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
 // --- WORK PAGE ---
 const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
-  const itemsRef = useRef<HTMLDivElement[]>([]);
-  
   const initialProjects: Project[] = [
-    { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
+    // UPDATED: Changed video link for Elf Bar
+    { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'https://video.f1nal.me/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' }
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
-  const [layoutReady, setLayoutReady] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -418,9 +478,13 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                 const text = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(text, 'text/html');
-                const title = doc.title || `Project ${id}`;
+                
                 const categoryMeta = doc.querySelector('meta[name="category"]');
-                const category = categoryMeta ? categoryMeta.getAttribute('content') || 'Work' : 'Work';
+                if (!categoryMeta) return null; 
+
+                const title = doc.title || `Project ${id}`;
+                const category = categoryMeta.getAttribute('content') || 'Work';
+                
                 return {
                     id: `auto-${id}`,
                     title: title,
@@ -435,7 +499,6 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
         return null;
     };
 
-    // Строгая последовательная загрузка: если нет проекта N, прерываем
     const loadSequence = async () => {
         const maxChecks = 10; 
         for (let i = 5; i <= 5 + maxChecks; i++) {
@@ -447,9 +510,8 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                     if (prev.some(p => p.id === project.id)) return prev;
                     return [...prev, project];
                 });
-                await new Promise(r => setTimeout(r, 100)); 
+                await new Promise(r => setTimeout(r, 200)); 
             } else {
-                // 2. Если проект N не существует, прекращаем поиск
                 break;
             }
         }
@@ -479,8 +541,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
     });
     if (isDesktop) gridRef.current.style.height = `${Math.max(leftH, rightH)}px`;
     else gridRef.current.style.height = 'auto';
-    if (!layoutReady) setTimeout(() => setLayoutReady(true), 100);
-  }, [layoutReady]);
+  }, []);
 
   useLayoutEffect(() => {
     calculateLayout();
@@ -499,19 +560,19 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   }, [projects, calculateLayout]);
 
   return (
-    <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
-        <div className="relative w-full mb-[120px]" ref={gridRef} style={{ opacity: layoutReady ? 1 : 0 }}>
+    <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
+        <div className="relative w-full mb-[60px]" ref={gridRef}>
             <AnimatePresence>
-                {layoutReady && projects.map((p, i) => (
+                {projects.map((p, i) => (
                     <motion.div
                         key={p.id}
                         className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
-                        initial={{ opacity: 0, y: 50 }} // Снизу
-                        animate={{ opacity: 1, y: 0 }} // Вверх
+                        initial={{ opacity: 0, y: 50 }} 
+                        animate={{ opacity: 1, y: 0 }} 
                         transition={{ 
                             duration: 0.5, 
                             ease: "easeOut",
-                            delay: 0.4 + (i * 0.2) // 0.4s старт, 0.2s шаг
+                            delay: 0.2 + (i * 0.15) 
                         }}
                         whileHover={{ scale: 1.02, transition: { duration: 0.4 } }}
                     >
@@ -520,7 +581,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                 ))}
             </AnimatePresence>
         </div>
-        {layoutReady && <Footer />}
+        <Footer />
     </div>
   );
 };
@@ -550,7 +611,6 @@ const PlayPage = () => {
                     return Array.from(unique).sort((a, b) => parseInt(a.match(/\d+/)?.[0]||'0') - parseInt(b.match(/\d+/)?.[0]||'0'));
                 });
             } else {
-                // 2. Stop checking immediately if image missing
                 break;
             }
         }
@@ -560,9 +620,9 @@ const PlayPage = () => {
   }, []);
 
   return (
-    <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
+    <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <motion.div 
-            className="flex flex-wrap justify-between items-end mb-[60px] gap-10"
+            className="flex flex-wrap justify-between items-end mb-[30px] gap-10"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
@@ -585,17 +645,47 @@ const PlayPage = () => {
                     whileHover={{ scale: 1.02 }}
                     onClick={() => setModalSrc(src)}
                 >
-                    {/* 4. Картинка всегда заполняет карточку */}
-                    <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block object-contain" />
+                    <img src={src} alt={`Experiment ${i}`} className="w-full h-auto block object-cover" />
                 </motion.div>
             ))}
             </AnimatePresence>
         </div>
-        {modalSrc && (
-            <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[10000] flex items-center justify-center" onClick={() => setModalSrc(null)}>
-                <img src={modalSrc} alt="Full size" className="max-w-[85%] max-h-[85vh] object-contain rounded-xl" onClick={(e) => e.stopPropagation()} />
-            </div>
-        )}
+        
+        {/* 2. MODAL WITH ANIMATION */}
+        <AnimatePresence>
+            {modalSrc && (
+                <motion.div 
+                    className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[10000] flex items-center justify-center" 
+                    onClick={() => setModalSrc(null)}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    <motion.div 
+                        className="relative max-w-[90vw] max-h-[90vh]"
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.9, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                    >
+                        <button 
+                            className="absolute -top-12 right-0 lg:-right-12 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-50"
+                            onClick={(e) => { e.stopPropagation(); setModalSrc(null); }}
+                        >
+                            <X size={24} />
+                        </button>
+                        <img 
+                            src={modalSrc} 
+                            alt="Full size" 
+                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
         <Footer />
     </div>
   );
@@ -609,41 +699,36 @@ const ReelPage = () => (
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
-        <motion.div 
-            className="flex flex-wrap justify-between items-end mb-[60px] gap-10"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-        >
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
+        <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10"> 
           <div className="flex-1 min-w-[300px]">
-            <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight">Showreel 2022</h1>
+            <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight">Showreel</h1>
             <div className="text-[16px] text-[#888] mt-2.5">Selected Works</div>
           </div>
-        </motion.div>
+        </div>
       </div>
-      <div className="w-full max-w-[1400px] mx-auto px-5 lg:px-10 mb-[100px]">
+      <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[100px]">
         <VideoPlayer src="https://video.f1nal.me/showreel2022.mp4" poster="img/preview1.png" />
       </div>
-      <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full"><Footer /></div>
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"><Footer /></div>
     </motion.div>
 );
 
 // --- ABOUT PAGE ---
 const AboutPage = () => (
     <motion.div 
-        className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full"
+        className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"
         initial={{ opacity: 0, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
     >
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[60px] mb-[60px]">
             <div className="flex-none w-full lg:w-[40%] max-w-[500px]">
-                <img src="img/me.png" alt="Vladimir Politov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'https://placehold.co/500x600/ccc/000?text=Vladimir'} />
+                <img src="img/me.png" alt="Oleg Shmarov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'img/me.png'} />
             </div>
             <div className="flex-1 pt-5">
                 <div className="text-[18px] lg:text-[24px] leading-[1.5]">
-                    <p className="mb-6">Hi! My name is Vladimir Politov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
+                    <p className="mb-6">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
                     <p className="mb-6">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
                     <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
                 </div>
@@ -654,7 +739,7 @@ const AboutPage = () => (
             <div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Software</h3>
-                    <p className="text-[18px] leading-relaxed text-[#222]">Cinema 4D, Redshift, Adobe Creative Suite, Houdini (beginner).</p>
+                    <p className="text-[18px] leading-relaxed text-[#222]">Cinema 4D, Redshift, Adobe Creative Suite</p>
                 </div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Social Media</h3>
@@ -676,7 +761,7 @@ const AboutPage = () => (
                 </div>
                 <div className="mb-10">
                     <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">For work inquiries, please contact at:</h3>
-                    <p className="text-[18px]"><a href="mailto:politovcg@gmail.com" className="hover:opacity-60 transition-opacity">politovcg@gmail.com</a></p>
+                    <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com" className="hover:opacity-60 transition-opacity">shmarov.oleg@gmail.com</a></p>
                 </div>
             </div>
         </div>
@@ -684,11 +769,17 @@ const AboutPage = () => (
     </motion.div>
 );
 
-// --- OTHER PAGES (UNCHANGED) ---
+// --- OTHER PAGES ---
 const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate }: any) => {
     return (
-        <div className="w-full">
-            <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
+        <motion.div 
+            initial={{opacity:0, y: 50}} 
+            animate={{opacity:1, y: 0}} 
+            exit={{opacity:0}} 
+            transition={{duration:0.5, ease: "easeOut"}} 
+            className="w-full"
+        >
+            <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
                 <div className="flex flex-wrap justify-between items-end mb-[60px] gap-10">
                     <div className="flex-1 min-w-[300px]">
                         <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight text-black">{title}</h1>
@@ -700,11 +791,11 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 </div>
             </div>
             {video && (
-                <div className="w-full max-w-[1400px] mx-auto px-5 lg:px-10 mb-[100px]">
+                <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[100px]">
                     <VideoPlayer src={video.src} poster={video.poster} />
                 </div>
             )}
-            <div className="max-w-[1400px] mx-auto px-5 lg:px-10 w-full">
+            <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px]">
                     {gallery.map((item: any, i: number) => (
                         <div key={i} className={`relative overflow-hidden rounded-[18px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
@@ -729,7 +820,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 </div>
                 <Footer />
             </div>
-        </div>
+        </motion.div>
     );
 };
 
@@ -738,10 +829,11 @@ const ElfBar = ({ navigate }: any) => (
         navigate={navigate}
         title="ELF BAR Promotion Video"
         meta="Commercial / 2022"
-        desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes."
-        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'img/preview1.png' }}
+        desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
+        // UPDATED: Video Link
+        video={{ src: 'https://video.f1nal.me/elf_preview.mp4', poster: 'img/preview1.png' }}
         gallery={[{ img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }]}
-        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design']}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     />
@@ -752,9 +844,9 @@ const FootballDynamics = ({ navigate }: any) => (
         navigate={navigate}
         title="Football Dynamics"
         meta="Personal Project / 2025"
-        desc="An exploration of motion and energy within the context of sports."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png' }]}
-        credits={['<strong>Design & Animation:</strong> Oleg Shmarov']}
+        desc="An exploration of motion and energy within the context of sports. This project focuses on the raw dynamics of football, capturing the intensity of the game through advanced simulation and rendering techniques."
+        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Simulation+Detail' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Dynamics+Wide+Shot', full: true }]}
+        credits={['<strong>Design & Animation:</strong> Oleg Shmarov', '<strong>Tools:</strong> Houdini, Redshift, Nuke, Marvelous Designer']}
         prev={{ label: 'ELF BAR', link: 'elfbar' }}
         next={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
     />
@@ -765,8 +857,8 @@ const Puma = ({ navigate }: any) => (
         navigate={navigate}
         title="Puma Running AW24"
         meta="Studio: Inertia Studios / 2024"
-        desc="Highlighting the technology behind Puma's new MagMax series."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png' }]}
+        desc="Highlighting the technology behind Puma's new MagMax series. A dynamic campaign emphasizing cushion, return, and speed through abstract material simulations and high-impact visuals."
+        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Shoe+Detail' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Campaign+Wide+View', full: true }]}
         credits={['<strong>Studio:</strong> Inertia Studios', '<strong>Role:</strong> 3D Motion Designer', '<strong>Client:</strong> Puma']}
         prev={{ label: 'Football Dynamics', link: 'football-dynamics' }}
         next={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
@@ -778,9 +870,9 @@ const Sber = ({ navigate }: any) => (
         navigate={navigate}
         title="SBER Creative Frame"
         meta="Combine"
-        desc="In 2020, Sber completely changed its positioning, removing the 'bank' label."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }]}
-        credits={['<strong>Art Direction & Design:</strong> Oleg Shmarov']}
+        desc="In 2020, Sber completely changed its positioning, removing the 'bank' label and transforming into a full-fledged ecosystem of services. The new brand united technology, convenience, and user care — embedding these values into its design.<br/><br/>After a few years, the design system required further fine-tuning. This led to the development of a new creative framework — a visual language focused on 3D, designed to strengthen relationships with users and refresh Sber's visual communication.<br/><br/>Together with Combine studio, I have developed many unique images that helped Sber to change its visual style."
+        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }, { img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Process+Detail' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Texture+Detail' }]}
+        credits={['<strong>Art Direction & Design:</strong> Oleg Shmarov', '<strong>Music & Sound Design:</strong> Blink Audio', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
         prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
         next={{ label: 'ELF BAR', link: 'elfbar' }}
     />
@@ -812,14 +904,14 @@ export default function App() {
       <div className="min-h-screen w-full flex flex-col">
         <Header currentPage={currentPage} navigate={setCurrentPage} />
         <main id="content-holder" className="flex-grow pt-[60px] relative">
-             {/* 3. Анимация переходов между страницами */}
+             {/* 3. Анимация переходов между страницами (0.25s) */}
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentPage}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
+                    transition={{ duration: 0.25 }}
                     className="w-full flex-grow"
                 >
                     {renderPage()}
