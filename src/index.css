@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  overflow-y: scroll; /* Всегда показывать полосу прокрутки */
+}
+
 body {
   font-family: 'Funnel Display', sans-serif;
   background-color: #F7F7F7;
