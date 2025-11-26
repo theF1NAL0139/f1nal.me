@@ -1321,8 +1321,6 @@ const ElfBar = ({ navigate }: any) => (
             ВАЖНО: Если вы обработаете PDF в картинки заранее, замените prop pdfUrl на:
             images={['img/page1.jpg', 'img/page2.jpg', ...]} 
         */}
-        <IssuuReader pdfUrl="https://video.f1nal.me/GOLDEN_MILL_RU.pdf" />
-		<IssuuReader pdfUrl="https://video.f1nal.me/GOLDENDIE_RU.pdf" />
 		<IssuuReader pdfUrl="https://video.f1nal.me/LKT_WERKE_RU.pdf" />
     </ProjectPage>
 );
