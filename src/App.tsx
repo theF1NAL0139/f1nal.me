@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ИСПРАВЛЕНИЕ: SVGMotionProps - это тип, его нужно импортировать через 'type'
 import type { Variants, SVGMotionProps } from 'framer-motion';
 
+// --- ИМПОРТ НОВОГО КОМПОНЕНТА ---
+import IssuuReader from './IssuuViewer'; 
 
 // =========================================
 // GLOBAL STYLES (Обновлено: защита контента)
@@ -1225,7 +1227,8 @@ const AboutPage = () => {
     );
 };
 
-const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate }: any) => {
+// --- ОБНОВЛЕНО: ProjectPage теперь принимает children ---
+const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate, children }: any) => {
     return (
         <motion.div 
             initial={{opacity:0, y: 50}} 
@@ -1262,6 +1265,15 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                         </div>
                     ))}
                 </div>
+
+                {/* --- ВСТАВКА ВИДЖЕТА ЗДЕСЬ (Сразу после галереи) --- */}
+                {children && (
+                    <div className="w-full mb-[100px] flex justify-center">
+                        {children}
+                    </div>
+                )}
+                {/* ------------------------------------------------ */}
+
                 <div className="text-[20px] text-[#555] leading-[1.8] mb-[80px] max-w-[700px]">
                     {credits.map((line: string, i: number) => <p key={i} dangerouslySetInnerHTML={{__html: line}} />)}
                 </div>
@@ -1287,20 +1299,29 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
     );
 };
 
+// --- ОБНОВЛЕНО: ElfBar теперь содержит IssuuReader ---
 const ElfBar = ({ navigate }: any) => (
     <ProjectPage 
         navigate={navigate}
         title="Elf Bar Promotion"
         meta="Presonal / 2022"
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
-        // UPDATED: Video Link for inner project page
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'img/preview1.png' }}
-        gallery={[{ img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }]}
+        gallery={[
+            { img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, 
+            { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, 
+            // Последний элемент галереи - Wide Shot, после которого будет виджет
+            { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }
+        ]}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
-    />
+    >
+        {/* Встраивание виджета */}
+        <IssuuReader pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
+    </ProjectPage>
 );
+// -----------------------------------------------------
 
 const FootballDynamics = ({ navigate }: any) => (
     <ProjectPage 
