@@ -8,7 +8,9 @@ import {
   Minimize, 
   Grid, 
   X,
-  BookOpen
+  BookOpen,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 // --- Типы ---
@@ -201,6 +203,9 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const [isGridView, setIsGridView] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
+  // UI Visibility State
+  const [showUI, setShowUI] = useState(true);
+
   // Dragging state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -217,8 +222,17 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   }, [isMobile]);
 
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    handleResize();
+    const handleResize = () => {
+        const mobile = window.innerWidth < 768;
+        setIsMobile(mobile);
+    };
+    handleResize(); // Init check
+    
+    // Set UI hidden by default on mobile on initial load
+    if (window.innerWidth < 768) {
+        setShowUI(false);
+    }
+
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -255,7 +269,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   // --- Fullscreen Toggle (Robust) ---
   const toggleFullscreen = async () => {
       if (!isFullscreen) {
-          // Попытка использовать Native API
           try {
               if (containerRef.current?.requestFullscreen) {
                   await containerRef.current.requestFullscreen();
@@ -265,10 +278,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           } catch (err) {
               console.warn("Fullscreen API not enabled or failed, falling back to CSS");
           }
-          // В любом случае включаем CSS fullscreen
           setIsFullscreen(true);
       } else {
-          // Выход из полноэкранного режима
           try {
               if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
                    if (document.exitFullscreen) await document.exitFullscreen();
@@ -407,7 +418,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const visiblePages = useMemo(() => {
     if (isLoading || pages.length === 0) return [null, null];
     
-    if (isMobile) return [pages[currentIndex]]; // Возвращаем 1 страницу для мобилки
+    if (isMobile) return [pages[currentIndex]];
 
     if (currentIndex === 0) return [null, pages[0]];
     
@@ -433,24 +444,39 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
       >
         {/* Header UI */}
         <div className="absolute top-4 left-4 right-4 flex justify-between z-20 pointer-events-none">
-          <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
-            <BookOpen size={16} className="text-neutral-700"/>
-            <span className="font-medium text-sm text-neutral-800 hidden sm:inline">
-                f1nal.me / F1NAL EDITING
-            </span>
-            <div className="w-px h-4 bg-neutral-300"></div>
-            <span className="text-xs font-bold text-neutral-500 font-mono">
-               {isMobile 
-                  ? `${currentIndex + 1}/${totalPages}` 
-                  : (currentIndex === 0 ? `Cover` : `${currentIndex}-${Math.min(currentIndex + 1, totalPages)}`)
-               }
-            </span>
+          {/* Title - Hide if UI hidden */}
+          <div className={`transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+            <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
+                <BookOpen size={16} className="text-neutral-700"/>
+                <span className="font-medium text-sm text-neutral-800 hidden sm:inline">
+                    f1nal.me / F1NAL EDITING
+                </span>
+                <div className="w-px h-4 bg-neutral-300"></div>
+                <span className="text-xs font-bold text-neutral-500 font-mono">
+                {isMobile 
+                    ? `${currentIndex + 1}/${totalPages}` 
+                    : (currentIndex === 0 ? `Cover` : `${currentIndex}-${Math.min(currentIndex + 1, totalPages)}`)
+                }
+                </span>
+            </div>
           </div>
           
           <div className="flex gap-2 pointer-events-auto">
-            <GlassButton onClick={() => setIsGridView(true)}><Grid size={18} /></GlassButton>
-            <GlassButton onClick={toggleFullscreen}>
-               {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            {/* Main Controls - Hide if UI hidden */}
+            <div className={`flex gap-2 transition-all duration-300 ${showUI ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4 pointer-events-none'}`}>
+                <GlassButton onClick={() => setIsGridView(true)}><Grid size={18} /></GlassButton>
+                <GlassButton onClick={toggleFullscreen}>
+                    {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                </GlassButton>
+            </div>
+
+            {/* UI Toggle Button - ALWAYS Visible */}
+            <GlassButton 
+                onClick={() => setShowUI(!showUI)} 
+                title={showUI ? "Скрыть интерфейс" : "Показать интерфейс"}
+                className={!showUI ? "bg-white/80" : ""}
+            >
+                {showUI ? <EyeOff size={18} /> : <Eye size={18} />}
             </GlassButton>
           </div>
         </div>
@@ -464,7 +490,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           onMouseUp={handleMouseUp} 
           onMouseLeave={handleMouseUp}
         >
-          {/* Крупные стрелки навигации */}
+          {/* Крупные стрелки навигации - ALWAYS Visible if pages exist */}
           {!isLoading && !error && (
             <>
               <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${currentIndex > 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
@@ -501,7 +527,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                 aspectRatio: isMobile ? '1 / 1.414' : '1.414 / 1', 
               }}
             >
-              {/* Левая сторона (Desktop: Левая страница. Mobile: СКРЫТО) */}
+              {/* Левая сторона */}
               <div className={`relative h-full ${isMobile ? 'hidden' : 'w-1/2'} bg-transparent flex items-center justify-end`}>
                 {!isMobile && visiblePages[0] ? (
                   <PageContent key={`L-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={true} />
@@ -510,9 +536,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                 )}
               </div>
 
-              {/* Правая сторона (Desktop: Правая страница. Mobile: ЕДИНСТВЕННАЯ страница) */}
+              {/* Правая сторона */}
               <div className={`relative h-full ${isMobile ? 'w-full shadow-lg' : 'w-1/2'} bg-transparent flex items-center justify-start`}>
-                  {/* ИСПРАВЛЕНИЕ: На мобильном рендерим visiblePages[0], на десктопе visiblePages[1] */}
                   {isMobile ? (
                       visiblePages[0] ? (
                         <PageContent key={`M-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={false} showSpineShadow={false} />
@@ -527,8 +552,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           )}
         </div>
 
-        {/* Footer Controls */}
-        <div className="absolute bottom-6 w-full flex justify-center pointer-events-none z-20">
+        {/* Footer Controls - Hide if UI hidden */}
+        <div className={`absolute bottom-6 w-full flex justify-center pointer-events-none z-20 transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0'}`}>
              <div className="bg-white/80 backdrop-blur-md border border-white/50 p-2 rounded-full shadow-lg flex items-center gap-4 pointer-events-auto">
                 <GlassButton onClick={prevPage} disabled={currentIndex === 0}><ChevronLeft size={20}/></GlassButton>
                 
