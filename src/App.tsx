@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ИСПРАВЛЕНИЕ: SVGMotionProps - это тип, его нужно импортировать через 'type'
 import type { Variants, SVGMotionProps } from 'framer-motion';
 
-// --- ИМПОРТ НОВОГО КОМПОНЕНТА ---
-import IssuuReader from './IssuuViewer.jsx'; 
+// --- ИМПОРТ КОМПОНЕНТА ---
+import IssuuReader from './IssuuViewer.tsx'; 
 
 // =========================================
 // GLOBAL STYLES (Обновлено: защита контента)
@@ -1317,7 +1317,10 @@ const ElfBar = ({ navigate }: any) => (
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
-        {/* Встраивание виджета */}
+        {/* Встраивание виджета.
+            ВАЖНО: Если вы обработаете PDF в картинки заранее, замените prop pdfUrl на:
+            images={['img/page1.jpg', 'img/page2.jpg', ...]} 
+        */}
         <IssuuReader pdfUrl="https://video.f1nal.me/LKT_WERKE_RU.pdf" />
     </ProjectPage>
 );
@@ -1472,7 +1475,7 @@ export default function App() {
         </div>
         
         {/* ScrollToTop outside blur if desired, or inside if it should blur. 
-            Usually controls stay sharp. Put it outside. */}
+            Usually controls stay sharp. Put it outside. */}\
         <ScrollToTop />
       </div>
     </>
