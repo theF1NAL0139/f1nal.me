@@ -428,7 +428,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
             <BookOpen size={16} className="text-neutral-700"/>
             <span className="font-medium text-sm text-neutral-800 hidden sm:inline">
-                {images ? 'Project Preview' : 'PDF Viewer'}
+                f1nal.me / F1NAL EDITING
             </span>
             <div className="w-px h-4 bg-neutral-300"></div>
             <span className="text-xs font-bold text-neutral-500 font-mono">
@@ -456,6 +456,25 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           onMouseUp={handleMouseUp} 
           onMouseLeave={handleMouseUp}
         >
+          {/* Крупные стрелки навигации (Fixed Overlay) */}
+          {!isLoading && !error && (
+            <>
+              {/* Левая стрелка */}
+              <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${currentIndex > 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
+                 <GlassButton onClick={prevPage} className="w-14 h-14 p-0 rounded-full hover:scale-110 hover:bg-white shadow-md border-white/60">
+                    <ChevronLeft size={32} className="text-neutral-800 relative -left-[2px]" />
+                 </GlassButton>
+              </div>
+
+              {/* Правая стрелка */}
+              <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${(currentIndex < maxPagesIndex) ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 pointer-events-none'}`}>
+                 <GlassButton onClick={nextPage} className="w-14 h-14 p-0 rounded-full hover:scale-110 hover:bg-white shadow-md border-white/60">
+                    <ChevronRight size={32} className="text-neutral-800 relative -right-[2px]" />
+                 </GlassButton>
+              </div>
+            </>
+          )}
+
           {error ? (
               <div className="bg-white/90 p-8 rounded-2xl shadow-xl text-center border border-red-100 backdrop-blur max-w-sm mx-4">
                   <div className="text-red-500 mb-2 text-xl font-bold">Ошибка загрузки</div>
@@ -485,11 +504,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                 ) : (
                   <div className="w-full h-full" /> 
                 )}
-                
-                {/* Клик зона Назад (только при масштабе 100%) */}
-                {scale <= 1 && currentIndex > 0 && (
-                   <div onClick={prevPage} className="absolute inset-y-0 left-0 w-1/2 cursor-pointer z-30 hover:bg-black/5 transition-colors" title="Назад" />
-                )}
               </div>
 
               {/* Правая страница */}
@@ -498,21 +512,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                     <PageContent key={`R-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
                   ) : (
                      <div className="w-full h-full" />
-                  )}
-
-                  {/* Клик зона Вперед */}
-                  {scale <= 1 && (
-                     <div 
-                        onClick={() => {
-                            if (currentIndex < maxPagesIndex) nextPage();
-                        }} 
-                        className={`absolute inset-y-0 right-0 w-1/2 z-30 transition-colors ${
-                             (currentIndex < maxPagesIndex)
-                             ? 'cursor-pointer hover:bg-black/5' 
-                             : ''
-                        }`} 
-                        title="Вперед" 
-                    />
                   )}
               </div>
             </div>
