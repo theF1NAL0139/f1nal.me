@@ -1318,7 +1318,7 @@ const ElfBar = ({ navigate }: any) => (
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
         {/* Встраивание виджета */}
-        <IssuuReader pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
+        <IssuuReader pdfUrl="https://video.f1nal.me/LKT_WERKE_RU.pdf" />
     </ProjectPage>
 );
 // -----------------------------------------------------

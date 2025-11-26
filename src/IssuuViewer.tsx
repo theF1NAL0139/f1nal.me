@@ -67,7 +67,7 @@ const GlobalStyles = () => (
   `}</style>
 );
 
-// --- Hook для РЕАЛЬНОЙ загрузки PDF через CDN ---
+// --- Hook для ЗАГРУЗКИ PDF ---
 const usePdfPages = (url?: string) => {
     const [pdfPages, setPdfPages] = useState<PageData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -81,33 +81,36 @@ const usePdfPages = (url?: string) => {
             setError(null);
             
             try {
-                // 1. Динамическая загрузка библиотеки PDF.js из CDN, если она еще не загружена
+                // === ИСПРАВЛЕНИЕ: Строгое согласование версий через CDN ===
+                const pdfjsVersion = '3.11.174';
+                const cdnBaseUrl = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}`;
+
+                // 1. Загружаем библиотеку, если её нет
                 if (!window.pdfjsLib) {
                     await new Promise((resolve, reject) => {
                         const script = document.createElement('script');
-                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                        script.src = `${cdnBaseUrl}/pdf.min.js`;
                         script.onload = resolve;
-                        script.onerror = reject;
+                        script.onerror = () => reject(new Error("Failed to load PDF.js script"));
                         document.head.appendChild(script);
                     });
                 }
 
-                // Настройка воркера (обязательно)
-				
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'; // Или путь, где он лежит
+                // 2. ВАЖНО: Указываем воркер ТОЙ ЖЕ версии с CDN
+                // Это решает проблему путей на GitHub Pages и конфликта версий
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${cdnBaseUrl}/pdf.worker.min.js`;
 
-
-                // 2. Загружаем документ
+                // 3. Загружаем документ
                 const loadingTask = window.pdfjsLib.getDocument(url);
                 const pdf = await loadingTask.promise;
                 const numPages = pdf.numPages;
                 const pagesData: PageData[] = [];
 
-                // 3. Проходим по всем страницам
+                // 4. Проходим по всем страницам
                 for (let i = 1; i <= numPages; i++) {
                     const page = await pdf.getPage(i);
                     
-                    // 4. Рендерим страницу в Canvas
+                    // Рендерим страницу в Canvas
                     // Scale 1.5 дает хорошее качество (можно увеличить до 2.0 для ретины)
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
@@ -122,8 +125,8 @@ const usePdfPages = (url?: string) => {
                             viewport: viewport
                         }).promise;
 
-                        // 5. Конвертируем Canvas в картинку (DataURL)
-                        const imgUrl = canvas.toDataURL('image/jpeg', 0.9); // JPEG 90% качества
+                        // Конвертируем Canvas в картинку
+                        const imgUrl = canvas.toDataURL('image/jpeg', 0.9); 
 
                         pagesData.push({
                             id: i,
@@ -136,9 +139,9 @@ const usePdfPages = (url?: string) => {
                 }
 
                 setPdfPages(pagesData);
-            } catch (e) {
+            } catch (e: any) {
                 console.error("Error loading PDF:", e);
-                setError("Не удалось загрузить PDF файл. Проверьте путь к файлу.");
+                setError(e.message || "Не удалось загрузить PDF файл.");
             } finally {
                 setIsLoading(false);
             }
@@ -156,7 +159,7 @@ const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }: { data
 
   return (
     <div className="relative w-full h-full bg-white overflow-hidden select-none animate-fade-in shadow-sm flex items-center justify-center">
-      {/* Тень от корешка (Сделали меньше: w-6 и прозрачнее: opacity-20) */}
+      {/* Тень от корешка */}
       {showSpineShadow && (
         <div className={`absolute inset-y-0 ${isLeft ? 'right-0 shadow-spine-left' : 'left-0 shadow-spine-center'} w-6 z-10 pointer-events-none opacity-20`} />
       )}
@@ -165,11 +168,11 @@ const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }: { data
       <img 
         src={data.image} 
         alt={`Page ${data.id}`} 
-        className="w-full h-full object-contain" // object-contain сохранит пропорции PDF страницы
+        className="w-full h-full object-contain" 
         loading="lazy" 
       />
       
-      {/* Номер страницы (опционально, можно убрать) */}
+      {/* Номер страницы */}
       <div className="absolute bottom-2 text-[10px] text-gray-400 font-sans select-none">
         {data.id}
       </div>
@@ -286,7 +289,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
     };
     
     const element = viewAreaRef.current;
-    // TypeScript требует приведения типа для использования non-passive listener
     if (element) element.addEventListener('wheel', handleWheel as any, { passive: false });
     return () => { if (element) element.removeEventListener('wheel', handleWheel as any); };
   }, [scale, panPosition]);
@@ -331,20 +333,15 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
   const cursorStyle = scale > 1 ? (isDragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default';
   const transitionStyle = isDragging ? 'none' : (isRestoring ? 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'transform 0.1s ease-out');
 
-  // Определяем видимые страницы
   const visiblePages = useMemo(() => {
     if (isLoading || pages.length === 0) return [null, null];
     if (isMobile) return [pages[currentIndex]];
-    if (currentIndex === 0) return [null, pages[0]]; // Обложка одна справа
-    // Разворот: Левая и Правая
+    if (currentIndex === 0) return [null, pages[0]]; 
     return [pages[currentIndex], pages[currentIndex + 1] || null];
   }, [isMobile, currentIndex, pages, isLoading]);
 
-  // Адаптивные размеры
-  const pageWidth = isMobile ? 'calc(100vw - 40px)' : '400px'; // Базовая ширина одной страницы
-  // Увеличили высоту на 1/5 (600px * 1.2 = 720px)
+  const pageWidth = isMobile ? 'calc(100vw - 40px)' : '400px';
   const containerHeight = isMobile ? 'auto' : '720px';
-  // Aspect Ratio A4
   const aspectRatio = '1 / 1.414';
 
   const maxPagesIndex = Math.max(0, totalPages - (totalPages % 2 === 0 ? 2 : 1));
@@ -404,15 +401,14 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
                 transition: transitionStyle,
                 width: isMobile ? pageWidth : `calc(${pageWidth} * 2)`,
                 aspectRatio: isMobile ? aspectRatio : '1.414 / 1', 
-                // На десктопе ширина разворота = 1.414 (корень из 2), высота = 1.
               }}
             >
-              {/* Left Page Slot (Desktop Only or Hidden) */}
+              {/* Left Page Slot */}
               <div className={`relative h-full ${isMobile ? 'hidden' : 'w-1/2'} bg-transparent overflow-hidden`}>
                 {visiblePages[0] ? (
                   <PageContent key={`left-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={true} />
                 ) : (
-                  <div className="w-full h-full bg-black/5" /> // Пустое место для обложки слева
+                  <div className="w-full h-full bg-black/5" /> 
                 )}
                 
                 {scale <= 1 && visiblePages[0] && (
@@ -420,7 +416,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
                 )}
               </div>
 
-              {/* Right Page Slot (Or Main Mobile Page) */}
+              {/* Right Page Slot */}
               <div className={`relative h-full ${isMobile ? 'w-full' : 'w-1/2'} bg-transparent overflow-hidden`}>
                   {visiblePages[1] ? (
                     <PageContent key={`right-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
