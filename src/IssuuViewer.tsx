@@ -21,8 +21,8 @@ interface PageData {
 }
 
 interface IssuuReaderProps {
-  pdfUrl?: string;     // Опция 1: Ссылка на PDF (старый метод)
-  images?: string[];   // Опция 2: Массив путей к картинкам (НОВЫЙ метод, быстрый)
+  pdfUrl?: string;     
+  images?: string[];   
 }
 
 // --- Глобальные стили ---
@@ -45,12 +45,12 @@ const GlobalStyles = () => (
       to { opacity: 1; transform: scale(1); }
     }
 
-    /* Тени для реализма разворота */
+    /* Тени для реализма разворота - МЕНЕЕ АГРЕССИВНЫЕ */
     .shadow-spine-center {
-      background: linear-gradient(to right, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 20%);
     }
     .shadow-spine-left {
-      background: linear-gradient(to left, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 20%);
     }
   `}</style>
 );
@@ -62,7 +62,6 @@ const usePagesSource = (pdfUrl?: string, images?: string[]) => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // 1. ПРИОРИТЕТ: Если переданы картинки — используем их сразу.
         if (images && images.length > 0) {
             const imgPages = images.map((src, i) => ({
                 id: i + 1,
@@ -74,7 +73,6 @@ const usePagesSource = (pdfUrl?: string, images?: string[]) => {
             return;
         }
 
-        // 2. Если передан только PDF
         if (pdfUrl) {
             const loadPdf = async () => {
                 setIsLoading(true);
@@ -103,7 +101,7 @@ const usePagesSource = (pdfUrl?: string, images?: string[]) => {
 
                     for (let i = 1; i <= numPages; i++) {
                         const page = await pdf.getPage(i);
-                        const viewport = page.getViewport({ scale: 2.5 });
+                        const viewport = page.getViewport({ scale: 3.0 });
                         const canvas = document.createElement('canvas');
                         const context = canvas.getContext('2d');
                         
@@ -116,7 +114,7 @@ const usePagesSource = (pdfUrl?: string, images?: string[]) => {
                                 viewport: viewport
                             }).promise;
 
-                            const imgUrl = canvas.toDataURL('image/jpeg', 0.9); 
+                            const imgUrl = canvas.toDataURL('image/jpeg', 0.85); 
 
                             pagesData.push({
                                 id: i,
@@ -130,7 +128,7 @@ const usePagesSource = (pdfUrl?: string, images?: string[]) => {
                     setPages(pagesData);
                 } catch (e: any) {
                     console.error("PDF Error:", e);
-                    setError(e.message || "Ошибка загрузки файла. Попробуйте использовать картинки.");
+                    setError(e.message || "Ошибка загрузки файла.");
                 } finally {
                     setIsLoading(false);
                 }
@@ -197,16 +195,28 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const [currentIndex, setCurrentIndex] = useState(0); 
   const [scale, setScale] = useState(1);
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
+  const [isAnimating, setIsAnimating] = useState(false); // Для плавного возврата
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGridView, setIsGridView] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Dragging state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Responsive constants
+  const PAGE_WIDTH_DESKTOP = 450;
+  const SAFE_ZONE = 100; // px вокруг документа
+  
+  // Базовая ширина страницы в пикселях (для расчетов)
+  const currentBaseWidth = useMemo(() => {
+      if (typeof window === 'undefined') return 1;
+      return isMobile ? (window.innerWidth - 40) : PAGE_WIDTH_DESKTOP;
+  }, [isMobile]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -215,19 +225,12 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Сброс зума при перелистывании
-  useEffect(() => {
-      setScale(1);
-      setPanPosition({x: 0, y: 0});
-  }, [currentIndex]);
-
-  // --- ЛОГИКА ПЕРЕЛИСТЫВАНИЯ (С учетом обложек) ---
+  // --- ЛОГИКА ПЕРЕЛИСТЫВАНИЯ ---
   const nextPage = () => {
     if (isLoading) return;
     if (isMobile) {
       if (currentIndex < totalPages - 1) setCurrentIndex(c => c + 1);
     } else {
-      // Desktop: 0 (Cover) -> 1 -> 3 ...
       if (currentIndex === 0) {
         setCurrentIndex(1);
       } else {
@@ -251,21 +254,93 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
     }
   };
 
-  // --- Zoom / Pan ---
+  // --- Bounds Logic (Safe Zone) ---
+  const checkAndEnforceBounds = (currentScale: number, currentPos: {x: number, y: number}) => {
+      if (currentScale <= 1) return { x: 0, y: 0 };
+      if (!viewAreaRef.current) return currentPos;
+
+      const viewRect = viewAreaRef.current.getBoundingClientRect();
+      const viewW = viewRect.width;
+      const viewH = viewRect.height;
+
+      // Размер контента при текущем зуме
+      // Mobile: 1 страница, Desktop: 2 страницы
+      const contentBaseW = isMobile ? currentBaseWidth : (currentBaseWidth * 2);
+      const contentBaseH = contentBaseW / (isMobile ? (1/1.414) : 1.414); // Соотношение сторон
+      
+      const contentW = contentBaseW * currentScale;
+      const contentH = contentBaseH * currentScale;
+
+      let { x, y } = currentPos;
+
+      // Горизонтальные границы
+      if (contentW <= viewW) {
+          x = 0; // Центрируем если меньше экрана
+      } else {
+          // Максимальное смещение от центра (половина разницы размеров + Safe Zone)
+          // Формула: (contentW - viewW) / 2 это край в край. + SAFE_ZONE дает люфт.
+          const maxX = (contentW - viewW) / 2 + SAFE_ZONE;
+          if (x > maxX) x = maxX;
+          if (x < -maxX) x = -maxX;
+      }
+
+      // Вертикальные границы
+      if (contentH <= viewH) {
+          y = 0;
+      } else {
+          const maxY = (contentH - viewH) / 2 + SAFE_ZONE;
+          if (y > maxY) y = maxY;
+          if (y < -maxY) y = -maxY;
+      }
+
+      return { x, y };
+  };
+
+  // --- Zoom Logic (Ctrl + Wheel) ---
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const delta = e.deltaY * -0.01;
-        const newScale = Math.min(Math.max(scale + delta, 1), 4);
+        
+        if (!viewAreaRef.current) return;
+        const rect = viewAreaRef.current.getBoundingClientRect();
+        
+        // Позиция курсора относительно центра контейнера
+        const mouseX = e.clientX - rect.left - rect.width / 2;
+        const mouseY = e.clientY - rect.top - rect.height / 2;
+
+        const delta = -e.deltaY * 0.002; // чувствительность
+        let newScale = scale + delta * scale;
+        
+        // Лимиты зума
+        newScale = Math.min(Math.max(newScale, 1), 5);
+
+        if (newScale <= 1.05) {
+            // Если почти 1, сбрасываем в дефолт
+            setScale(1);
+            setPanPosition({x:0, y:0});
+            setIsAnimating(true);
+            return;
+        }
+
+        const scaleRatio = newScale / scale;
+        
+        // Математика зума к курсору:
+        // Смещаем позицию так, чтобы точка под курсором осталась на месте
+        // NewPos = Mouse - (Mouse - OldPos) * (NewScale / OldScale)
+        const newX = mouseX - (mouseX - panPosition.x) * scaleRatio;
+        const newY = mouseY - (mouseY - panPosition.y) * scaleRatio;
+
+        setIsAnimating(false); // Отключаем анимацию для быстрого зума
         setScale(newScale);
-        if (newScale <= 1) setPanPosition({x:0, y:0});
+        setPanPosition({ x: newX, y: newY });
       }
     };
+    
     const element = viewAreaRef.current;
     if (element) element.addEventListener('wheel', handleWheel as any, { passive: false });
     return () => { if (element) element.removeEventListener('wheel', handleWheel as any); };
-  }, [scale]);
+  }, [scale, panPosition]);
 
   // Клавиши
   useEffect(() => {
@@ -273,27 +348,51 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
       if (isLoading) return;
       if (e.key === 'ArrowRight') nextPage();
       if (e.key === 'ArrowLeft') prevPage();
-      if (e.key === 'Escape') { setIsFullscreen(false); setIsGridView(false); }
+      if (e.key === 'Escape') { 
+          setIsFullscreen(false); 
+          setIsGridView(false);
+          // Сброс зума по Esc
+          setScale(1);
+          setPanPosition({x:0, y:0});
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [currentIndex, isLoading]);
 
-  // Drag logic
+  // --- Drag Logic ---
   const handleMouseDown = (e: React.MouseEvent) => {
     if (scale > 1) { 
         setIsDragging(true); 
-        setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y }); 
+        setIsAnimating(false);
+        setDragStart({ 
+            x: e.clientX - panPosition.x, 
+            y: e.clientY - panPosition.y 
+        }); 
         e.preventDefault(); 
     }
   };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging && scale > 1) { 
         e.preventDefault(); 
-        setPanPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); 
+        const newX = e.clientX - dragStart.x;
+        const newY = e.clientY - dragStart.y;
+        setPanPosition({ x: newX, y: newY }); 
     }
   };
-  const handleMouseUp = () => setIsDragging(false);
+
+  const handleMouseUp = () => {
+      if (isDragging) {
+          setIsDragging(false);
+          // При отпускании проверяем границы и анимируем возврат
+          const bounded = checkAndEnforceBounds(scale, panPosition);
+          if (bounded.x !== panPosition.x || bounded.y !== panPosition.y) {
+              setIsAnimating(true);
+              setPanPosition(bounded);
+          }
+      }
+  };
 
   // --- Вычисление видимых страниц ---
   const visiblePages = useMemo(() => {
@@ -306,16 +405,9 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
     return [pages[currentIndex], pages[currentIndex + 1] || null];
   }, [isMobile, currentIndex, pages, isLoading]);
 
-  const pageWidth = isMobile ? 'calc(100vw - 40px)' : '450px';
-
-  // --- ИСПРАВЛЕНИЕ: Используем вычисленный maxPagesIndex для блокировки кнопки ---
   const maxPagesIndex = useMemo(() => {
       if (isLoading || totalPages === 0) return 0;
       if (isMobile) return totalPages - 1;
-      
-      // Desktop:
-      // Even (e.g. 4 pages): indices 0, 1, 3. Last accessible is 3 (totalPages - 1).
-      // Odd (e.g. 5 pages): indices 0, 1, 3. Last accessible is 3 (totalPages - 2).
       return totalPages % 2 === 0 ? totalPages - 1 : Math.max(0, totalPages - 2);
   }, [isMobile, totalPages, isLoading]);
 
@@ -326,7 +418,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
         ref={containerRef}
         className={`flex flex-col bg-[#f0f0f0] overflow-hidden relative transition-all duration-500 font-sans ${isFullscreen ? 'fixed inset-0 z-[10000] h-screen w-screen' : 'w-full rounded-[20px] shadow-xl border border-white/50'}`}
         style={{ 
-            height: isFullscreen ? '100vh' : (isMobile ? '65vh' : '800px'),
+            // Увеличена высота на 20% (было 800px, стало 960px)
+            height: isFullscreen ? '100vh' : (isMobile ? '65vh' : '960px'),
             backgroundImage: 'radial-gradient(circle at 50% 50%, #ffffff 0%, #e5e5e5 100%)' 
         }}
       >
@@ -358,7 +451,10 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
         <div 
           ref={viewAreaRef}
           className={`flex-1 relative overflow-hidden flex items-center justify-center p-4 ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
-          onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+          onMouseDown={handleMouseDown} 
+          onMouseMove={handleMouseMove} 
+          onMouseUp={handleMouseUp} 
+          onMouseLeave={handleMouseUp}
         >
           {error ? (
               <div className="bg-white/90 p-8 rounded-2xl shadow-xl text-center border border-red-100 backdrop-blur max-w-sm mx-4">
@@ -372,11 +468,13 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
               </div>
           ) : (
             <div 
-              ref={contentRef}
-              className="relative flex justify-center items-center shadow-[0_20px_50px_-12px_rgba(0,0,0,0.25)] transition-transform duration-100 ease-out"
+              className={`relative flex justify-center items-center shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] origin-center`}
               style={{ 
-                transform: `translate(${panPosition.x}px, ${panPosition.y}px) scale(${scale})`,
-                width: isMobile ? pageWidth : `calc(${pageWidth} * 2)`,
+                // Если isAnimating = true, включаем CSS transition для плавного возврата
+                // Если false (драг или зум), выключаем для мгновенного отклика
+                transition: isAnimating ? 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
+                transform: `translate3d(${panPosition.x}px, ${panPosition.y}px, 0) scale(${scale})`,
+                width: isMobile ? currentBaseWidth : (currentBaseWidth * 2),
                 aspectRatio: isMobile ? '1 / 1.414' : '1.414 / 1', 
               }}
             >
@@ -388,7 +486,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                   <div className="w-full h-full" /> 
                 )}
                 
-                {/* Клик зона Назад */}
+                {/* Клик зона Назад (только при масштабе 100%) */}
                 {scale <= 1 && currentIndex > 0 && (
                    <div onClick={prevPage} className="absolute inset-y-0 left-0 w-1/2 cursor-pointer z-30 hover:bg-black/5 transition-colors" title="Назад" />
                 )}
@@ -402,7 +500,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
                      <div className="w-full h-full" />
                   )}
 
-                  {/* Клик зона Вперед - используем maxPagesIndex */}
+                  {/* Клик зона Вперед */}
                   {scale <= 1 && (
                      <div 
                         onClick={() => {
@@ -426,13 +524,34 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
              <div className="bg-white/80 backdrop-blur-md border border-white/50 p-2 rounded-full shadow-lg flex items-center gap-4 pointer-events-auto">
                 <GlassButton onClick={prevPage} disabled={currentIndex === 0}><ChevronLeft size={20}/></GlassButton>
                 
-                <div className="flex gap-1">
-                    <button onClick={() => setScale(s => Math.max(s - 0.5, 1))} className="p-2 hover:bg-black/5 rounded-full"><ZoomOut size={16}/></button>
-                    <span className="w-12 text-center py-2 text-xs font-bold font-mono text-neutral-600">{Math.round(scale * 100)}%</span>
-                    <button onClick={() => setScale(s => Math.min(s + 0.5, 4))} className="p-2 hover:bg-black/5 rounded-full"><ZoomIn size={16}/></button>
+                <div className="flex gap-1 items-center">
+                    <button 
+                      onClick={() => {
+                        const newScale = Math.max(scale - 0.5, 1);
+                        setScale(newScale);
+                        if(newScale === 1) setPanPosition({x:0, y:0});
+                        setIsAnimating(true);
+                      }} 
+                      className="p-2 hover:bg-black/5 rounded-full"
+                    >
+                      <ZoomOut size={16}/>
+                    </button>
+                    
+                    <span className="w-12 text-center text-xs font-bold font-mono text-neutral-600">
+                        {Math.round(scale * 100)}%
+                    </span>
+                    
+                    <button 
+                      onClick={() => {
+                         setScale(Math.min(scale + 0.5, 5));
+                         setIsAnimating(true);
+                      }} 
+                      className="p-2 hover:bg-black/5 rounded-full"
+                    >
+                      <ZoomIn size={16}/>
+                    </button>
                 </div>
 
-                {/* ИСПРАВЛЕНИЕ: Используем maxPagesIndex */}
                 <GlassButton onClick={nextPage} disabled={currentIndex >= maxPagesIndex}><ChevronRight size={20}/></GlassButton>
              </div>
         </div>
