@@ -195,7 +195,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const [currentIndex, setCurrentIndex] = useState(0); 
   const [scale, setScale] = useState(1);
   const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
-  const [isAnimating, setIsAnimating] = useState(false); // Для плавного возврата
+  const [isAnimating, setIsAnimating] = useState(false);
   
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isGridView, setIsGridView] = useState(false);
@@ -208,11 +208,9 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewAreaRef = useRef<HTMLDivElement>(null);
   
-  // Responsive constants
   const PAGE_WIDTH_DESKTOP = 450;
-  const SAFE_ZONE = 100; // px вокруг документа
+  const SAFE_ZONE = 100;
   
-  // Базовая ширина страницы в пикселях (для расчетов)
   const currentBaseWidth = useMemo(() => {
       if (typeof window === 'undefined') return 1;
       return isMobile ? (window.innerWidth - 40) : PAGE_WIDTH_DESKTOP;
@@ -254,6 +252,33 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
     }
   };
 
+  // --- Fullscreen Toggle (Robust) ---
+  const toggleFullscreen = async () => {
+      if (!isFullscreen) {
+          // Попытка использовать Native API
+          try {
+              if (containerRef.current?.requestFullscreen) {
+                  await containerRef.current.requestFullscreen();
+              } else if ((containerRef.current as any)?.webkitRequestFullscreen) {
+                  await (containerRef.current as any).webkitRequestFullscreen();
+              }
+          } catch (err) {
+              console.warn("Fullscreen API not enabled or failed, falling back to CSS");
+          }
+          // В любом случае включаем CSS fullscreen
+          setIsFullscreen(true);
+      } else {
+          // Выход из полноэкранного режима
+          try {
+              if (document.fullscreenElement || (document as any).webkitFullscreenElement) {
+                   if (document.exitFullscreen) await document.exitFullscreen();
+                   else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
+              }
+          } catch (err) { }
+          setIsFullscreen(false);
+      }
+  };
+
   // --- Bounds Logic (Safe Zone) ---
   const checkAndEnforceBounds = (currentScale: number, currentPos: {x: number, y: number}) => {
       if (currentScale <= 1) return { x: 0, y: 0 };
@@ -263,28 +288,22 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
       const viewW = viewRect.width;
       const viewH = viewRect.height;
 
-      // Размер контента при текущем зуме
-      // Mobile: 1 страница, Desktop: 2 страницы
       const contentBaseW = isMobile ? currentBaseWidth : (currentBaseWidth * 2);
-      const contentBaseH = contentBaseW / (isMobile ? (1/1.414) : 1.414); // Соотношение сторон
+      const contentBaseH = contentBaseW / (isMobile ? (1/1.414) : 1.414);
       
       const contentW = contentBaseW * currentScale;
       const contentH = contentBaseH * currentScale;
 
       let { x, y } = currentPos;
 
-      // Горизонтальные границы
       if (contentW <= viewW) {
-          x = 0; // Центрируем если меньше экрана
+          x = 0; 
       } else {
-          // Максимальное смещение от центра (половина разницы размеров + Safe Zone)
-          // Формула: (contentW - viewW) / 2 это край в край. + SAFE_ZONE дает люфт.
           const maxX = (contentW - viewW) / 2 + SAFE_ZONE;
           if (x > maxX) x = maxX;
           if (x < -maxX) x = -maxX;
       }
 
-      // Вертикальные границы
       if (contentH <= viewH) {
           y = 0;
       } else {
@@ -305,18 +324,15 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
         if (!viewAreaRef.current) return;
         const rect = viewAreaRef.current.getBoundingClientRect();
         
-        // Позиция курсора относительно центра контейнера
         const mouseX = e.clientX - rect.left - rect.width / 2;
         const mouseY = e.clientY - rect.top - rect.height / 2;
 
-        const delta = -e.deltaY * 0.002; // чувствительность
+        const delta = -e.deltaY * 0.002;
         let newScale = scale + delta * scale;
         
-        // Лимиты зума
         newScale = Math.min(Math.max(newScale, 1), 5);
 
         if (newScale <= 1.05) {
-            // Если почти 1, сбрасываем в дефолт
             setScale(1);
             setPanPosition({x:0, y:0});
             setIsAnimating(true);
@@ -324,14 +340,10 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
         }
 
         const scaleRatio = newScale / scale;
-        
-        // Математика зума к курсору:
-        // Смещаем позицию так, чтобы точка под курсором осталась на месте
-        // NewPos = Mouse - (Mouse - OldPos) * (NewScale / OldScale)
         const newX = mouseX - (mouseX - panPosition.x) * scaleRatio;
         const newY = mouseY - (mouseY - panPosition.y) * scaleRatio;
 
-        setIsAnimating(false); // Отключаем анимацию для быстрого зума
+        setIsAnimating(false);
         setScale(newScale);
         setPanPosition({ x: newX, y: newY });
       }
@@ -342,23 +354,21 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
     return () => { if (element) element.removeEventListener('wheel', handleWheel as any); };
   }, [scale, panPosition]);
 
-  // Клавиши
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isLoading) return;
       if (e.key === 'ArrowRight') nextPage();
       if (e.key === 'ArrowLeft') prevPage();
       if (e.key === 'Escape') { 
-          setIsFullscreen(false); 
+          if (isFullscreen) toggleFullscreen();
           setIsGridView(false);
-          // Сброс зума по Esc
           setScale(1);
           setPanPosition({x:0, y:0});
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentIndex, isLoading]);
+  }, [currentIndex, isLoading, isFullscreen]);
 
   // --- Drag Logic ---
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -385,7 +395,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const handleMouseUp = () => {
       if (isDragging) {
           setIsDragging(false);
-          // При отпускании проверяем границы и анимируем возврат
           const bounded = checkAndEnforceBounds(scale, panPosition);
           if (bounded.x !== panPosition.x || bounded.y !== panPosition.y) {
               setIsAnimating(true);
@@ -398,7 +407,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
   const visiblePages = useMemo(() => {
     if (isLoading || pages.length === 0) return [null, null];
     
-    if (isMobile) return [pages[currentIndex]];
+    if (isMobile) return [pages[currentIndex]]; // Возвращаем 1 страницу для мобилки
 
     if (currentIndex === 0) return [null, pages[0]];
     
@@ -418,7 +427,6 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
         ref={containerRef}
         className={`flex flex-col bg-[#f0f0f0] overflow-hidden relative transition-all duration-500 font-sans ${isFullscreen ? 'fixed inset-0 z-[10000] h-screen w-screen' : 'w-full rounded-[20px] shadow-xl border border-white/50'}`}
         style={{ 
-            // Увеличена высота на 20% (было 800px, стало 960px)
             height: isFullscreen ? '100vh' : (isMobile ? '65vh' : '960px'),
             backgroundImage: 'radial-gradient(circle at 50% 50%, #ffffff 0%, #e5e5e5 100%)' 
         }}
@@ -441,7 +449,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           
           <div className="flex gap-2 pointer-events-auto">
             <GlassButton onClick={() => setIsGridView(true)}><Grid size={18} /></GlassButton>
-            <GlassButton onClick={() => !document.fullscreenElement ? containerRef.current?.requestFullscreen().then(()=>setIsFullscreen(true)) : document.exitFullscreen().then(()=>setIsFullscreen(false))}>
+            <GlassButton onClick={toggleFullscreen}>
                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
             </GlassButton>
           </div>
@@ -456,17 +464,15 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
           onMouseUp={handleMouseUp} 
           onMouseLeave={handleMouseUp}
         >
-          {/* Крупные стрелки навигации (Fixed Overlay) */}
+          {/* Крупные стрелки навигации */}
           {!isLoading && !error && (
             <>
-              {/* Левая стрелка */}
               <div className={`absolute left-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${currentIndex > 0 ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10 pointer-events-none'}`}>
                  <GlassButton onClick={prevPage} className="w-14 h-14 p-0 rounded-full hover:scale-110 hover:bg-white shadow-md border-white/60">
                     <ChevronLeft size={32} className="text-neutral-800 relative -left-[2px]" />
                  </GlassButton>
               </div>
 
-              {/* Правая стрелка */}
               <div className={`absolute right-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-300 ${(currentIndex < maxPagesIndex) ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 pointer-events-none'}`}>
                  <GlassButton onClick={nextPage} className="w-14 h-14 p-0 rounded-full hover:scale-110 hover:bg-white shadow-md border-white/60">
                     <ChevronRight size={32} className="text-neutral-800 relative -right-[2px]" />
@@ -489,29 +495,32 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl, images }) => {
             <div 
               className={`relative flex justify-center items-center shadow-[0_20px_50px_-12px_rgba(0,0,0,0.15)] origin-center`}
               style={{ 
-                // Если isAnimating = true, включаем CSS transition для плавного возврата
-                // Если false (драг или зум), выключаем для мгновенного отклика
                 transition: isAnimating ? 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
                 transform: `translate3d(${panPosition.x}px, ${panPosition.y}px, 0) scale(${scale})`,
                 width: isMobile ? currentBaseWidth : (currentBaseWidth * 2),
                 aspectRatio: isMobile ? '1 / 1.414' : '1.414 / 1', 
               }}
             >
-              {/* Левая страница (Desktop) */}
+              {/* Левая сторона (Desktop: Левая страница. Mobile: СКРЫТО) */}
               <div className={`relative h-full ${isMobile ? 'hidden' : 'w-1/2'} bg-transparent flex items-center justify-end`}>
-                {visiblePages[0] ? (
+                {!isMobile && visiblePages[0] ? (
                   <PageContent key={`L-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={true} />
                 ) : (
-                  <div className="w-full h-full" /> 
+                  !isMobile && <div className="w-full h-full" /> 
                 )}
               </div>
 
-              {/* Правая страница */}
+              {/* Правая сторона (Desktop: Правая страница. Mobile: ЕДИНСТВЕННАЯ страница) */}
               <div className={`relative h-full ${isMobile ? 'w-full shadow-lg' : 'w-1/2'} bg-transparent flex items-center justify-start`}>
-                  {visiblePages[1] ? (
-                    <PageContent key={`R-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
+                  {/* ИСПРАВЛЕНИЕ: На мобильном рендерим visiblePages[0], на десктопе visiblePages[1] */}
+                  {isMobile ? (
+                      visiblePages[0] ? (
+                        <PageContent key={`M-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={false} showSpineShadow={false} />
+                      ) : <div className="w-full h-full" />
                   ) : (
-                     <div className="w-full h-full" />
+                      visiblePages[1] ? (
+                        <PageContent key={`R-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
+                      ) : <div className="w-full h-full" />
                   )}
               </div>
             </div>
