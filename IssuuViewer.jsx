@@ -11,32 +11,6 @@ import {
   BookOpen
 } from 'lucide-react';
 
-// --- Типы ---
-interface PageData {
-  id: number;
-  type: string;
-  title?: string;
-  subtitle?: string;
-  text?: string;
-  image?: string;
-  caption?: string;
-  color?: string;
-  isPdf?: boolean;
-  width?: number;
-  height?: number;
-}
-
-interface IssuuReaderProps {
-  pdfUrl?: string;
-}
-
-// Расширяем интерфейс window для pdfjsLib
-declare global {
-  interface Window {
-    pdfjsLib: any;
-  }
-}
-
 // --- Глобальные стили ---
 const GlobalStyles = () => (
   <style>{`
@@ -57,21 +31,21 @@ const GlobalStyles = () => (
       to { opacity: 1; transform: scale(1); }
     }
 
-    /* Тени для реализма разворота - сделали мягче */
+    /* Тени для реализма разворота */
     .shadow-spine-center {
-      background: linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to right, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
     }
     .shadow-spine-left {
-      background: linear-gradient(to left, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to left, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
     }
   `}</style>
 );
 
 // --- Hook для РЕАЛЬНОЙ загрузки PDF через CDN ---
-const usePdfPages = (url?: string) => {
-    const [pdfPages, setPdfPages] = useState<PageData[]>([]);
+const usePdfPages = (url) => {
+    const [pdfPages, setPdfPages] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         if (!url) return;
@@ -93,15 +67,13 @@ const usePdfPages = (url?: string) => {
                 }
 
                 // Настройка воркера (обязательно)
-				
-                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'; // Или путь, где он лежит
-
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
                 // 2. Загружаем документ
                 const loadingTask = window.pdfjsLib.getDocument(url);
                 const pdf = await loadingTask.promise;
                 const numPages = pdf.numPages;
-                const pagesData: PageData[] = [];
+                const pagesData = [];
 
                 // 3. Проходим по всем страницам
                 for (let i = 1; i <= numPages; i++) {
@@ -112,27 +84,24 @@ const usePdfPages = (url?: string) => {
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
-                    
-                    if (context) {
-                        canvas.height = viewport.height;
-                        canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
 
-                        await page.render({
-                            canvasContext: context,
-                            viewport: viewport
-                        }).promise;
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
 
-                        // 5. Конвертируем Canvas в картинку (DataURL)
-                        const imgUrl = canvas.toDataURL('image/jpeg', 0.9); // JPEG 90% качества
+                    // 5. Конвертируем Canvas в картинку (DataURL)
+                    const imgUrl = canvas.toDataURL('image/jpeg', 0.9); // JPEG 90% качества
 
-                        pagesData.push({
-                            id: i,
-                            type: 'pdf-page',
-                            image: imgUrl,
-                            width: viewport.width,
-                            height: viewport.height
-                        });
-                    }
+                    pagesData.push({
+                        id: i,
+                        type: 'pdf-page',
+                        image: imgUrl,
+                        width: viewport.width,
+                        height: viewport.height
+                    });
                 }
 
                 setPdfPages(pagesData);
@@ -151,14 +120,14 @@ const usePdfPages = (url?: string) => {
 };
 
 // --- Компонент контента страницы ---
-const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }: { data: PageData, isLeft: boolean, showSpineShadow?: boolean }) => {
+const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }) => {
   if (!data) return <div className="w-full h-full bg-white shadow-sm" />;
 
   return (
     <div className="relative w-full h-full bg-white overflow-hidden select-none animate-fade-in shadow-sm flex items-center justify-center">
-      {/* Тень от корешка (Сделали меньше: w-6 и прозрачнее: opacity-20) */}
+      {/* Тень от корешка */}
       {showSpineShadow && (
-        <div className={`absolute inset-y-0 ${isLeft ? 'right-0 shadow-spine-left' : 'left-0 shadow-spine-center'} w-6 z-10 pointer-events-none opacity-20`} />
+        <div className={`absolute inset-y-0 ${isLeft ? 'right-0 shadow-spine-left' : 'left-0 shadow-spine-center'} w-8 z-10 pointer-events-none opacity-40`} />
       )}
 
       {/* Отображение страницы PDF */}
@@ -178,11 +147,7 @@ const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }: { data
 });
 
 // --- Glass Button ---
-interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-}
-
-const GlassButton = ({ onClick, disabled, children, className = "", title }: GlassButtonProps) => (
+const GlassButton = ({ onClick, disabled, children, className = "", title }) => (
   <button 
     onClick={onClick} 
     disabled={disabled}
@@ -207,7 +172,7 @@ const GlassButton = ({ onClick, disabled, children, className = "", title }: Gla
 );
 
 // --- Основной компонент ---
-const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
+const IssuuReader = ({ pdfUrl }) => {
   const { pages, isLoading, error } = usePdfPages(pdfUrl);
   const totalPages = pages.length;
 
@@ -222,9 +187,9 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isRestoring, setIsRestoring] = useState(false);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const viewAreaRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef(null);
+  const viewAreaRef = useRef(null);
+  const contentRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -246,6 +211,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
       if (currentIndex < totalPages - 1) setCurrentIndex(c => c + 1);
     } else {
       // На десктопе листаем по 2, но учитываем первую страницу (обложку)
+      // 0 -> 1 (показывает 1 и 2)
+      // 1 -> 3 (показывает 3 и 4)
       const step = currentIndex === 0 ? 1 : 2;
       const nextIdx = Math.min(currentIndex + step, totalPages - (totalPages % 2 === 0 ? 2 : 1));
       setCurrentIndex(nextIdx);
@@ -265,10 +232,9 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
 
   // --- Zoom / Pan ---
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
+    const handleWheel = (e) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        if (!viewAreaRef.current) return;
         const rect = viewAreaRef.current.getBoundingClientRect();
         const mouseX = e.clientX - rect.left - rect.width / 2;
         const mouseY = e.clientY - rect.top - rect.height / 2;
@@ -284,16 +250,14 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
         if (newScale <= 1) setPanPosition({x:0, y:0});
       }
     };
-    
     const element = viewAreaRef.current;
-    // TypeScript требует приведения типа для использования non-passive listener
-    if (element) element.addEventListener('wheel', handleWheel as any, { passive: false });
-    return () => { if (element) element.removeEventListener('wheel', handleWheel as any); };
+    if (element) element.addEventListener('wheel', handleWheel, { passive: false });
+    return () => { if (element) element.removeEventListener('wheel', handleWheel); };
   }, [scale, panPosition]);
 
   // Keys
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e) => {
       if (isLoading) return;
       if (e.key === 'ArrowRight') nextPage();
       if (e.key === 'ArrowLeft') prevPage();
@@ -318,11 +282,11 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
     if (newX !== panPosition.x || newY !== panPosition.y) { setIsRestoring(true); setPanPosition({ x: newX, y: newY }); }
   }, [scale, panPosition]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = (e) => {
     if (isLoading) return;
     if (scale > 1) { setIsDragging(true); setIsRestoring(false); setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y }); e.preventDefault(); }
   };
-  const handleMouseMove = (e: React.MouseEvent) => {
+  const handleMouseMove = (e) => {
     if (isDragging && scale > 1) { e.preventDefault(); setPanPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); }
   };
   const handleMouseUp = () => { setIsDragging(false); checkBounds(); };
@@ -342,8 +306,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
 
   // Адаптивные размеры
   const pageWidth = isMobile ? 'calc(100vw - 40px)' : '400px'; // Базовая ширина одной страницы
-  // Увеличили высоту на 1/5 (600px * 1.2 = 720px)
-  const containerHeight = isMobile ? 'auto' : '720px';
+  const containerHeight = isMobile ? 'auto' : '600px';
   // Aspect Ratio A4
   const aspectRatio = '1 / 1.414';
 
@@ -373,7 +336,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
           </div>
           <div className="flex items-center gap-2 pointer-events-auto">
             <GlassButton onClick={() => setIsGridView(true)} title="Pages" disabled={isLoading}><Grid size={18} /></GlassButton>
-            <GlassButton onClick={() => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().then(()=>setIsFullscreen(true)).catch(()=>{})} title="Fullscreen">
+            <GlassButton onClick={() => document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen().then(()=>setIsFullscreen(true)).catch(()=>{})} title="Fullscreen">
               {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
             </GlassButton>
           </div>
@@ -410,7 +373,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
               {/* Left Page Slot (Desktop Only or Hidden) */}
               <div className={`relative h-full ${isMobile ? 'hidden' : 'w-1/2'} bg-transparent overflow-hidden`}>
                 {visiblePages[0] ? (
-                  <PageContent key={`left-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={true} />
+                  <PageContent key={`left-${visiblePages[0].id}`} data={visiblePages[0]} isLeft={true} />
                 ) : (
                   <div className="w-full h-full bg-black/5" /> // Пустое место для обложки слева
                 )}
@@ -422,8 +385,8 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
 
               {/* Right Page Slot (Or Main Mobile Page) */}
               <div className={`relative h-full ${isMobile ? 'w-full' : 'w-1/2'} bg-transparent overflow-hidden`}>
-                  {visiblePages[1] ? (
-                    <PageContent key={`right-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
+                  {visiblePages[isMobile ? 0 : 1] ? (
+                    <PageContent key={`right-${visiblePages[isMobile ? 0 : 1].id}`} data={visiblePages[isMobile ? 0 : 1]} isLeft={false} />
                   ) : (
                       <div className="w-full h-full bg-white flex items-center justify-center text-neutral-300">
                         <span className="text-[10px] tracking-widest uppercase">Конец</span>
@@ -463,11 +426,7 @@ const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
                 {pages.map((page, idx) => (
                   <div key={page.id} onClick={() => { setCurrentIndex(idx % 2 === 0 ? idx : idx - 1); setIsGridView(false); }} className={`cursor-pointer group relative aspect-[1/1.414] transition-all hover:-translate-y-1`}>
                     <div className="w-full h-full bg-white rounded-lg shadow-md overflow-hidden relative border border-neutral-200 group-hover:ring-2 ring-neutral-400">
-                      {page.image ? (
-                        <img src={page.image} className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">Loading...</div>
-                      )}
+                      <img src={page.image} className="w-full h-full object-cover" loading="lazy" />
                     </div>
                     <div className="mt-2 text-center text-xs text-neutral-500 font-medium">{idx + 1}</div>
                   </div>
