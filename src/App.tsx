@@ -1,30 +1,68 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import { Play, Volume2, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+// ИСПРАВЛЕНИЕ: SVGMotionProps - это тип, его нужно импортировать через 'type'
+import type { Variants, SVGMotionProps } from 'framer-motion';
+
 
 // =========================================
-// GLOBAL STYLES (Встроены для превью)
+// GLOBAL STYLES (Обновлено: защита контента)
 // =========================================
 const GLOBAL_STYLES = `
-
+.ios-safearea-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: env(safe-area-inset-bottom);
+    background: #fff;   /* цвет твоего фона */
+    z-index: 999999;
+    pointer-events: none;
+}
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+.font-poppins {
+    font-family: 'Poppins', sans-serif;
+}
 
 
 /* Tailwind Base Reset */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
+
+/* ЗАЩИТА КОНТЕНТА: Запрет выделения текста и drag-and-drop */
+* {
+    -webkit-user-select: none;  /* Chrome all / Safari all */
+    -moz-user-select: none;     /* Firefox all */
+    -ms-user-select: none;      /* IE 10+ */
+    user-select: none;          /* Likely future */
+    -webkit-touch-callout: none; /* iOS Safari: отключает меню при долгом нажатии */
+}
+
+/* Исключение для input и textarea, если они появятся */
+input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
 html { 
     line-height: 1.5; 
     -webkit-text-size-adjust: 100%; 
     tab-size: 4; 
-    font-family: 'Funnel Display', sans-serif; /* UPDATED: Added fallback */
+    font-family: 'Funnel Display', sans-serif;
 }
 body { margin: 0; line-height: inherit; }
 
 /* 1. ПОЛНОЕ СКРЫТИЕ ПОЛОСЫ ПРОКРУТКИ */
 html {
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none;  /* IE 10+ */
-  overflow-y: scroll; /* Прокрутка остается */
-  /* UPDATED: Font smoothing for Safari/iOS */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow-y: scroll;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -32,7 +70,7 @@ html::-webkit-scrollbar {
     width: 0px;
     height: 0px;
     background: transparent;
-    display: none; /* Chrome/Safari/Webkit */
+    display: none;
 }
 body::-webkit-scrollbar {
     display: none;
@@ -44,22 +82,18 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
+/* Наследование шрифтов */
 *, button, input, textarea, select, a {
   font-family: inherit !important;
 }
-
 motion, .motion, [data-motion] {
   font-family: inherit !important;
 }
 
-
-
-/* Блокировка скролла для мобильного меню */
-body.menu-open {
+/* Блокировка скролла */
+body.scroll-locked {
     overflow: hidden !important;
-    height: 100vh;
     touch-action: none;
-    position: fixed; /* Fix for iOS Safari scroll lock */
     width: 100%;
 }
 
@@ -70,11 +104,102 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
   will-change: transform, opacity;
   backface-visibility: hidden;
 }
+
+/* ЗАЩИТА ИЗОБРАЖЕНИЙ: Запрет на перетаскивание картинки мышкой */
+img {
+    pointer-events: auto; /* Оставляем клики работающими (для модалок) */
+    -webkit-user-drag: none;
+    user-drag: none;
+	
+}
 `;
 
 // =========================================
 // UTILITIES
 // =========================================
+
+// Hook to lock scroll and preserve position
+const useScrollLock = (lock: boolean) => {
+  useLayoutEffect(() => {
+    if (!lock) return;
+
+    // 1. Запоминаем текущую позицию скролла
+    const scrollY = window.scrollY;
+
+    // 2. Фиксируем body, сдвигая его наверх на величину скролла
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.classList.add('scroll-locked');
+
+    // 3. Функция очистки (вызывается при закрытии)
+    return () => {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.classList.remove('scroll-locked');
+      
+      // 4. Мгновенно восстанавливаем скролл
+      window.scrollTo(0, scrollY);
+    };
+  }, [lock]);
+};
+
+// Hook for Content Protection (Anti-Copy/Save)
+const useContentProtection = () => {
+  useEffect(() => {
+    // 1. Отключаем контекстное меню (Правый клик)
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // 2. Отключаем перетаскивание изображений и другого контента
+    const handleDragStart = (e: DragEvent) => {
+      e.preventDefault();
+      return false;
+    };
+
+    // 3. Отключаем комбинации клавиш (Ctrl+C, Ctrl+S, F12 и т.д.)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Блокируем F12
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+      
+      // Блокируем комбинации с Ctrl (или Command на Mac)
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'c': // Copy
+          case 's': // Save
+          case 'u': // View Source
+          case 'p': // Print
+          case 'i': // DevTools (обычно Ctrl+Shift+I)
+            e.preventDefault();
+            e.stopPropagation();
+            break;
+        }
+      }
+      
+      // Дополнительно для DevTools (Ctrl+Shift+I / J / C)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+          if (['i', 'j', 'c'].includes(e.key.toLowerCase())) {
+              e.preventDefault();
+          }
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+};
 
 const useIntroAnimation = () => {
   useEffect(() => {
@@ -103,41 +228,123 @@ const useIsMobile = () => {
     return isMobile;
 };
 
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+
+const smoothScrollToTop = (duration = 900) => {
+  const start = window.scrollY;
+  const startTime = performance.now();
+
+  const animate = (now: number) => {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = easeOutCubic(progress);
+
+    window.scrollTo(0, start * (1 - eased));
+
+    if (progress < 1) requestAnimationFrame(animate);
+  };
+
+  requestAnimationFrame(animate);
+};
+
+
+// UPDATED: ScrollToTop - Bouncy Scale Animation
 const ScrollToTop = () => {
   const [isVisible, setIsVisible] = useState(false);
+
   useEffect(() => {
-    const checkScroll = () => setIsVisible((window.scrollY || document.documentElement.scrollTop) > 300);
+    const checkScroll = () =>
+      setIsVisible(window.scrollY > 300);
+
     window.addEventListener('scroll', checkScroll, { passive: true });
     return () => window.removeEventListener('scroll', checkScroll);
   }, []);
 
   return (
-    <button 
-      onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-      className={`fixed bottom-10 right-10 w-[50px] h-[50px] bg-black rounded-full flex items-center justify-center z-50 transition-all duration-400 ease-out shadow-lg hover:-translate-y-1 hover:bg-[#1a1a1a] ${isVisible ? 'opacity-100 visible translate-y-0 scale-100' : 'opacity-0 invisible translate-y-5 scale-90'}`}
-    >
-      <ArrowUp size={24} stroke="white" strokeWidth={2} />
-    </button>
+    <AnimatePresence>
+      {isVisible && (
+        <motion.button
+          onClick={() => smoothScrollToTop(800)}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
+          whileTap={{ scale: 0.8 }} // Bounce effect on tap
+          whileHover={{ scale: 1.1 }}
+          transition={{ 
+            type: "spring",
+            stiffness: 300,
+            damping: 20
+          }}
+          className="
+            fixed bottom-10 right-10 z-[10005]
+            w-[52px] h-[52px]
+            rounded-full
+            flex items-center justify-center
+            backdrop-blur-[10px]
+            bg-white/40
+            border border-white/40
+            shadow-lg
+            hover:bg-white/60
+          "
+        >
+          <ArrowUp size={24} className="text-black/80" />
+        </motion.button>
+      )}
+    </AnimatePresence>
   );
 };
+
 
 // =========================================
 // COMPONENTS
 // =========================================
 
+// HELPERS FOR MENU ICON
+const Path = (props: SVGMotionProps<SVGPathElement>) => (
+  <motion.path
+    fill="transparent"
+    strokeWidth="3"
+    stroke="black"
+    strokeLinecap="round"
+    {...props}
+  />
+);
+
+const MenuToggle = ({ toggle, isOpen }: { toggle: () => void, isOpen: boolean }) => (
+  <button onClick={toggle} className="outline-none border-none cursor-pointer bg-transparent p-2 z-[10002] relative flex items-center justify-center">
+    <svg width="23" height="23" viewBox="0 0 23 23">
+      <Path
+        variants={{
+          closed: { d: "M 2 2.5 L 20 2.5" },
+          open: { d: "M 3 16.5 L 17 2.5" }
+        }}
+        animate={isOpen ? "open" : "closed"}
+      />
+      <Path
+        d="M 2 9.423 L 20 9.423"
+        variants={{
+          closed: { opacity: 1 },
+          open: { opacity: 0 }
+        }}
+        transition={{ duration: 0.1 }}
+        animate={isOpen ? "open" : "closed"}
+      />
+      <Path
+        variants={{
+          closed: { d: "M 2 16.346 L 20 16.346" },
+          open: { d: "M 3 2.5 L 17 16.346" }
+        }}
+        animate={isOpen ? "open" : "closed"}
+      />
+    </svg>
+  </button>
+);
+
+
 // UPDATED: Mobile Menu Overlay
-const MobileMenuOverlay = ({ isOpen, onClose, navigate }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void }) => {
-    // Lock scroll when open logic is handled via body class in App component or here
-    // But for iOS Safari specifically, 'position: fixed' on body in CSS helps (added above)
-    
-    useEffect(() => {
-        if (isOpen) {
-            document.body.classList.add('menu-open');
-        } else {
-            document.body.classList.remove('menu-open');
-        }
-        return () => document.body.classList.remove('menu-open');
-    }, [isOpen]);
+const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void, currentPage: string }) => {
+    // Используем новый хук для блокировки скролла
+    useScrollLock(isOpen);
 
     const menuItems = [
         { label: 'Work', href: 'home' },
@@ -160,55 +367,39 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate }: { isOpen: boolean, onC
                     animate="visible"
                     exit="exit"
                     variants={menuVariants}
-                    // UPDATED: h-[100dvh] for Safari mobile bar support
                     className="fixed inset-0 top-0 left-0 w-full h-[100dvh] flex flex-col items-center justify-center z-[9999]"
                     style={{ 
-                        // UPDATED: Blur reduced to 4px
-                        backgroundColor: 'rgba(255, 255, 255, 0.85)', // Increased opacity slightly for "white fill" feel
-                        backdropFilter: 'blur(4px)',
-                        WebkitBackdropFilter: 'blur(4px)',
-                        touchAction: 'none' // Prevent scrolling on the overlay itself
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly more opaque
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        touchAction: 'none'
                     }}
                 >
-                     {/* LOGO */}
-                    <div className="absolute top-0 left-0 w-full pt-[30px] px-5 flex justify-start z-[10000]">
-                         <div className="block cursor-pointer" onClick={() => { onClose(); navigate('home'); }}>
-                            <img 
-                                src="img/logo.svg" 
-                                alt="Logo" 
-                                className="h-[75px] w-auto block" 
-                                onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} 
-                            />
-                         </div>
-                    </div>
-
-                    {/* CLOSE BUTTON */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-[30px] right-5 lg:hidden p-3 text-3xl bg-transparent border-none cursor-pointer z-[10000] outline-none flex items-center justify-center"
-                        style={{ transform: 'translateY(10px)' }}
-                    >
-                        ✕
-                    </button>
-
+                     {/* LOGO is handled by the main Header which now sits ON TOP of this overlay */}
+                    
                     <div className="flex flex-col items-center gap-6">
-                        {menuItems.map((item, index) => (
-                            <motion.a
-                                key={item.label}
-                                onClick={() => {
-                                    onClose();
-                                    navigate(item.href);
-                                }}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 + (index * 0.1), duration: 0.4, ease: "easeOut" }}
-                                // UPDATED: Explicit fontFamily style to fix Safari rendering issues with fallback
-                                className="text-[40px] font-normal no-underline text-black cursor-pointer leading-tight"
-                                style={{ fontFamily: "'Funnel Display', sans-serif", fontWeight: 400 }}
-                            >
-                                {item.label}
-                            </motion.a>
-                        ))}
+                        {menuItems.map((item, index) => {
+                            // 1) Логика выделения активного пункта
+                            const isActive = currentPage === item.href;
+                            
+                            return (
+                                <motion.a
+                                    key={item.label}
+                                    onClick={() => {
+                                        onClose();
+                                        navigate(item.href);
+                                    }}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.05 + (index * 0.05), duration: 0.2, ease: "easeOut" }}
+                                    // UPDATED: Жирность шрифта для активного пункта
+                                    className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-normal' : 'text-[#777] font-[250]'}`}
+                                    style={{ fontFamily: "'Funnel Display', sans-serif" }}
+                                >
+                                    {item.label}
+                                </motion.a>
+                            );
+                        })}
                     </div>
                 </motion.nav>
             )}
@@ -216,14 +407,64 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate }: { isOpen: boolean, onC
     );
 };
 
-const Header = ({ currentPage, navigate, onOpenMenu }: { currentPage: string, navigate: (page: string) => void, onOpenMenu: () => void }) => {
+// NEW: Image Modal Overlay (Reusing Mobile Menu Logic)
+const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
+    // Используем новый хук для блокировки скролла
+    useScrollLock(!!src);
+
+    return (
+        <AnimatePresence>
+            {src && (
+                <motion.div 
+                    className="fixed inset-0 z-[10000] flex items-center justify-center" 
+                    // Clicking outside (on background) closes it
+                    onClick={onClose}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4 }}
+                    style={{ 
+                        // Reuse the exact same style as MobileMenuOverlay
+                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                        backdropFilter: 'blur(4px)',
+                        WebkitBackdropFilter: 'blur(4px)',
+                    }}
+                >
+                    <motion.div 
+                        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+                        initial={{ scale: 0.6, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.1, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: "easeOut" }}
+                        // Prevent click on container from closing, BUT user asked for image click to close
+                        // So we can let the click propagate or attach onClick to image
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Image closes on click as requested */}
+                        <img 
+                            src={src} 
+                            alt="Full size" 
+                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity" 
+                            onClick={onClose} 
+                        />
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
+// UPDATED HEADER: Includes Animated Burger
+const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPage: string, navigate: (page: string) => void, isMenuOpen: boolean, onToggleMenu: () => void }) => {
   const [animStart, setAnimStart] = useState(false);
 
   useEffect(() => { setTimeout(() => setAnimStart(true), 500); }, []);
   
   const handleNav = (page: string) => { 
+      if(isMenuOpen) onToggleMenu();
       navigate(page); 
   };
+  
 
   const navLinkClasses = (page: string) => 
     `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
@@ -231,17 +472,19 @@ const Header = ({ currentPage, navigate, onOpenMenu }: { currentPage: string, na
     ${currentPage === page ? 'text-black' : ''}`;
 
   return (
-    <header className={`relative w-full pt-[30px] pb-[10px] bg-transparent z-[110] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-[30px]'}`}>
+    // Raised z-index to allow interaction over the overlay when menu is open
+    // NOTE: Header is now placed outside the blurring container, so z-index works correctly relative to overlay
+    <header className={`relative w-full pt-[40px] pb-[10px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
       <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
         
-        <div className="block transition-transform duration-400 hover:-translate-y-1.5 z-[120] relative">
+        <div className="block transition-transform duration-300 ease-in-out hover:-translate-y-1.5 z-[10002] relative">
           <a onClick={() => handleNav('home')} className="cursor-pointer block">
-            <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = 'https://placehold.co/150x75/transparent/000?text=LOGO')} />
+            <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = '')} />
           </a>
         </div>
         
         <nav className="hidden lg:block">
-          <ul className="flex gap-10 list-none m-0 p-0">
+          <ul className="flex gap-8 list-none m-0 p-0">
             <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
             <li><a onClick={() => handleNav('reel')} className={navLinkClasses('reel')}>Reel</a></li>
             <li><a onClick={() => handleNav('play')} className={navLinkClasses('play')}>Play</a></li>
@@ -249,44 +492,100 @@ const Header = ({ currentPage, navigate, onOpenMenu }: { currentPage: string, na
           </ul>
         </nav>
         
-        <button
-            onClick={onOpenMenu}
-            aria-label="Open menu"
-            className="lg:hidden p-3 text-3xl bg-transparent border-none cursor-pointer relative z-[120] outline-none flex items-center justify-center"
-        >
-            ☰
-        </button>
+        {/* UPDATED: Animated Menu Toggle */}
+        <div className="lg:hidden z-[10002]">
+            <MenuToggle toggle={onToggleMenu} isOpen={isMenuOpen} />
+        </div>
 
       </div>
     </header>
   );
 };
 
-const Footer = () => (
-  <motion.footer 
-    className="pt-20 pb-20" 
-    initial={{ opacity: 0, y: -20 }}
-    animate={{ opacity: 1, y: -100 }}
-    transition={{ delay: 0.25, duration: 0.4 }}
-  >
-    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-8 lg:gap-0">
-      <div className="flex gap-[30px]">
-        {['Behance', 'LinkedIn', 'Instagram'].map((link) => (
-          <a key={link} href="#" target="_blank" rel="noreferrer" className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
-            {link}
-          </a>
-        ))}
-      </div>
-      <div className="text-[20px] text-black hover:-translate-y-1.5 transition-transform duration-300">
-        <a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a>
-      </div>
-    </div>
-    <div className="w-full h-[1px] bg-black/15 mb-[30px]"></div>
-    <div className="flex justify-between">
-      <div className="text-[20px] text-black opacity-50">2025 | Oleg Shmarov®</div>
-    </div>
-  </motion.footer>
-);
+// =========================================
+// UPDATED FOOTER: CLASSIC SLIDE-UP ANIMATION
+// =========================================
+const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
+    
+  // Контент футера
+  const footerContent = (
+      <>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
+          <div className="flex gap-[25px]">
+            <a 
+              href="https://www.behance.net/f1nal" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
+            >
+              Behance
+            </a>
+
+            <a 
+              href="https://www.linkedin.com/in/f1nal" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
+            >
+              LinkedIn
+            </a>
+
+            <a 
+              href="https://www.instagram.com/f1nal0139" 
+              target="_blank" 
+              rel="noreferrer" 
+              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
+            >
+              Instagram
+            </a>
+          </div>
+
+          <div className="text-[20px] text-black hover:-translate-y-1.5 transition-transform duration-300">
+            <a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a>
+          </div>
+        </div>
+
+        <div className="w-full h-[1px] bg-black/15 mb-[15px]"></div>
+
+        <div className="flex justify-between">
+          <div className="text-[20px] text-black opacity-50">2025 | Oleg Shmarov®</div>
+        </div>
+      </>
+  );
+
+  // Классы контейнера. "overflow-hidden" критически важен для эффекта "выезда" из ниоткуда.
+  const containerClasses = "pt-10 pb-0 overflow-hidden relative"; 
+
+  if (forceVisible) {
+      return (
+          <div className={containerClasses}>
+              {footerContent}
+          </div>
+      );
+  }
+
+  // OPTIMIZED ANIMATION FIXED:
+  // Переносим триггер (whileInView) на родительский тег footer, который находится в потоке документа.
+  // Анимируем вложенный div.
+  return (
+      <motion.footer 
+        className={containerClasses}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, amount: 0.2 }}
+      >
+        <motion.div 
+            variants={{
+                hidden: { y: "100%" },
+                visible: { y: "0%", transition: { duration: 1.0, ease: [0.22, 1, 0.36, 1] } }
+            }}
+        >
+            {footerContent}
+        </motion.div>
+      </motion.footer>
+  );
+};
+
 
 const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -297,17 +596,25 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const [uiHidden, setUiHidden] = useState(false);
   let inactivityTimeout: any = null;
 
-  const togglePlay = () => {
+const togglePlay = () => {
     if (!videoRef.current) return;
+
     if (videoRef.current.paused) {
-      videoRef.current.play();
-      setIsPlaying(true);
+        videoRef.current.play();
+        setIsPlaying(true);
+
+        // <<< ДОБАВЛЕНО: автоскрытие UI через 3 секунды
+        clearTimeout(inactivityTimeout);
+        inactivityTimeout = setTimeout(() => setUiHidden(true), 200);
+
     } else {
-      videoRef.current.pause();
-      setIsPlaying(false);
-      setUiHidden(false);
+        videoRef.current.pause();
+        setIsPlaying(false);
+        setUiHidden(false);
+        clearTimeout(inactivityTimeout);
     }
-  };
+};
+
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -349,6 +656,15 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     }
   };
 
+  // OPTIMIZATION: Memoize particles to avoid re-calculation on every render
+  const particles = useMemo(() => [...Array(12)].map((_, i) => ({
+      id: i,
+      x: (Math.random() - 0.5) * 250,
+      y: (Math.random() - 0.5) * 250,
+      duration: 2 + Math.random() * 1.5,
+      delay: Math.random() * 2
+  })), []);
+
   return (
     <div 
       className={`group relative w-full aspect-video bg-black rounded-[18px] overflow-hidden shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
@@ -356,33 +672,33 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     >
       <video 
         ref={videoRef} 
-        className={`w-full h-full object-cover block transition-all duration-700 ${isPlaying ? 'opacity-100 blur-0' : 'opacity-30 blur-[10px]'}`}
+        className={`w-full h-full object-cover block transition-all duration-1000 ${isPlaying ? 'opacity-100 blur-0' : 'opacity-30 blur-[10px]'}`}
         playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
       >
         <source src={src} type="video/mp4" />
       </video>
       
       <div 
-        className={`absolute inset-0 flex justify-center items-center bg-black/50 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
+        className={`absolute inset-0 flex justify-center items-center bg-black/5 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
         onClick={togglePlay}
       >
         <div className="relative flex items-center justify-center">
             {/* PARTICLES SYSTEM */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                 {[...Array(12)].map((_, i) => (
+                 {particles.map((p) => (
                     <motion.div
-                        key={i}
+                        key={p.id}
                         className="absolute w-2 h-2 bg-white rounded-full opacity-0"
                         animate={{
-                            x: [0, (Math.random() - 0.5) * 250],
-                            y: [0, (Math.random() - 0.5) * 250],
+                            x: [0, p.x],
+                            y: [0, p.y],
                             opacity: [0, 0.6, 0],
                             scale: [0.5, 0]
                         }}
                         transition={{
-                            duration: 2 + Math.random() * 1.5,
+                            duration: p.duration,
                             repeat: Infinity,
-                            delay: Math.random() * 2,
+                            delay: p.delay,
                             ease: "easeOut"
                         }}
                     />
@@ -405,8 +721,8 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
                  ))}
             </div>
 
-            <button className="w-[100px] h-[100px] lg:w-[150px] lg:h-[150px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-105 shadow-[0_0_50px_rgba(255,255,255,0.3)] relative z-20">
-                <div className="pl-1.5"><Play fill="black" stroke="none" size={32} /></div>
+            <button className="w-[100px] h-[100px] lg:w-[130px] lg:h-[130px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-105 shadow-[0_0_50px_rgba(255,255,255,0.3)] relative z-20">
+                <div className="pl-1.5"><Play fill="black" stroke="none" size={42} /></div>
             </button>
         </div>
       </div>
@@ -448,8 +764,10 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
     const [isHovered, setIsHovered] = useState(false);
     const isMobile = useIsMobile();
 
+
     useEffect(() => {
         if (!isMobile || !videoRef.current || !containerRef.current) return;
+		
 
         const observer = new IntersectionObserver(
             (entries) => {
@@ -477,7 +795,9 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
             videoRef.current.currentTime = 0;
             const playPromise = videoRef.current.play();
             if (playPromise !== undefined) {
-                playPromise.catch(() => {});
+                playPromise.catch(() => {
+                    // Autoplay was prevented
+                });
             }
         }
     };
@@ -507,7 +827,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
             <div 
                 ref={containerRef}
                 className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu"
-                style={{ minHeight: '400px' }}
+                style={{ minHeight: '380px' }}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
@@ -537,7 +857,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
 
                 {/* 3. Foreground Image (fades out on hover) */}
                 <div 
-                    className="absolute inset-0 z-20 transition-opacity duration-500 ease-in-out"
+                    className="absolute inset-0 z-20 transition-opacity duration-200 ease-in-out"
                     style={{ opacity: isHovered ? 0 : 1 }}
                 >
                     <img 
@@ -550,12 +870,12 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 </div>
 
                 {/* 4. NEW: Black Overlay for Text Readability (z-25) */}
-                <div className="absolute inset-0 z-[25] bg-black/40 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
+                <div className="absolute inset-0 z-[25] bg-black/30 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
 
                 {/* 5. Text Content */}
                 <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
-                    <h3 className="text-[32px] lg:text-[38px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
-                    <p className="text-[16px] opacity-70 font-normal drop-shadow-md">{project.category}</p>
+                    <h3 className="text-[32px] lg:text-[32px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
+                    <p className="text-[20px] opacity-70 font-normal drop-shadow-md">{project.category}</p>
                 </div>
             </div>
         </a>
@@ -564,14 +884,16 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
 
 const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
+  
   const initialProjects: Project[] = [
-    { id: 1, title: 'Elf Bar', category: 'Commercial', video: 'https://video.f1nal.me/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
+    { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' }
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
+  
 
   useEffect(() => {
     let isMounted = true;
@@ -603,6 +925,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
             }
         } catch {}
         return null;
+		
     };
 
     const loadSequence = async () => {
@@ -628,25 +951,30 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
     return () => { isMounted = false; };
   }, []);
 
+  // OPTIMIZATION: Wrap in requestAnimationFrame to prevent layout thrashing
   const calculateLayout = useCallback(() => {
-    if (!gridRef.current) return;
-    const isDesktop = window.innerWidth > 1024;
-    const items = Array.from(gridRef.current.children) as HTMLElement[];
-    let leftH = 0, rightH = 0;
-    const gap = 22;
-    const colWidth = (gridRef.current.offsetWidth - gap) / 2;
-    items.forEach((item) => {
-      if (isDesktop) {
-        item.style.width = `${colWidth}px`;
-        item.style.position = 'absolute';
-        if (leftH <= rightH) { item.style.left = '0px'; item.style.top = `${leftH}px`; leftH += item.offsetHeight + gap; } 
-        else { item.style.left = `${colWidth + gap}px`; item.style.top = `${rightH}px`; rightH += item.offsetHeight + gap; }
-      } else {
-        item.style.position = 'relative'; item.style.top = 'auto'; item.style.left = 'auto'; item.style.width = '100%';
-      }
+    window.requestAnimationFrame(() => {
+        if (!gridRef.current) return;
+        const isDesktop = window.innerWidth > 1024;
+        const items = Array.from(gridRef.current.children) as HTMLElement[];
+        let leftH = 0, rightH = 0;
+        const gap = 22;
+        const colWidth = (gridRef.current.offsetWidth - gap) / 2;
+        
+        items.forEach((item) => {
+          if (isDesktop) {
+            item.style.width = `${colWidth}px`;
+            item.style.position = 'absolute';
+            if (leftH <= rightH) { item.style.left = '0px'; item.style.top = `${leftH}px`; leftH += item.offsetHeight + gap; } 
+            else { item.style.left = `${colWidth + gap}px`; item.style.top = `${rightH}px`; rightH += item.offsetHeight + gap; }
+          } else {
+            item.style.position = 'relative'; item.style.top = 'auto'; item.style.left = 'auto'; item.style.width = '100%';
+          }
+        });
+        
+        if (isDesktop) gridRef.current.style.height = `${Math.max(leftH, rightH)}px`;
+        else gridRef.current.style.height = 'auto';
     });
-    if (isDesktop) gridRef.current.style.height = `${Math.max(leftH, rightH)}px`;
-    else gridRef.current.style.height = 'auto';
   }, []);
 
   useLayoutEffect(() => {
@@ -667,7 +995,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <div className="relative w-full mb-[80px]" ref={gridRef}>
+        <div className="relative w-full mb-[60px]" ref={gridRef}>
             <AnimatePresence>
                 {projects.map((p, i) => (
                     <motion.div
@@ -692,9 +1020,9 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   );
 };
 
-const PlayPage = () => {
+// UPDATED: PlayPage now accepts onOpenImage to trigger global modal
+const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [images, setImages] = useState<string[]>([]);
-  const [modalSrc, setModalSrc] = useState<string | null>(null);
   
   useEffect(() => {
     let isMounted = true;
@@ -733,12 +1061,13 @@ const PlayPage = () => {
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
         >
             <div className="flex-1">
-                <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight">Playground</h1>
+                <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">Playground</h1>
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
         </motion.div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] mb-[100px]">
+        {/* ADDED: min-h-[80vh] to push footer down before content loads */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] mb-[80px] min-h-[80vh]">
             <AnimatePresence>
             {images.map((src, i) => (
                 <motion.div 
@@ -748,7 +1077,7 @@ const PlayPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 + (i * 0.1) }}
                     whileHover={{ scale: 1.03 }}
-                    onClick={() => setModalSrc(src)}
+                    onClick={() => onOpenImage(src)} // Trigger global modal
                 >
                     <img src={src} alt={`Experiment ${i}`} className="w-full h-full block object-cover" />
                 </motion.div>
@@ -756,45 +1085,12 @@ const PlayPage = () => {
             </AnimatePresence>
         </div>
         
-        <AnimatePresence>
-            {modalSrc && (
-                <motion.div 
-                    className="fixed inset-0 bg-black/95 backdrop-blur-sm z-[10000] flex items-center justify-center" 
-                    onClick={() => setModalSrc(null)}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                >
-                    <motion.div 
-                        className="relative max-w-[90vw] max-h-[90vh]"
-                        initial={{ scale: 0.9, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.9, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                    >
-                        <button 
-                            className="absolute -top-12 right-0 lg:-right-12 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white z-50"
-                            onClick={(e) => { e.stopPropagation(); setModalSrc(null); }}
-                        >
-                            <ArrowLeft size={24} />
-                        </button>
-                        <img 
-                            src={modalSrc} 
-                            alt="Full size" 
-                            className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" 
-                            onClick={(e) => e.stopPropagation()} 
-                        />
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-
         <Footer />
     </div>
   );
 };
 
+// UPDATED: ReelPage now passes forceVisible={true} to Footer
 const ReelPage = () => (
     <motion.div 
         className="w-full"
@@ -805,71 +1101,129 @@ const ReelPage = () => (
       <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10"> 
           <div className="flex-1 min-w-[300px]">
-            <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight">Showreel</h1>
+            <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">Showreel</h1>
             <div className="text-[16px] text-[#888] mt-2.5">Selected Works</div>
           </div>
         </div>
       </div>
-      <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[100px]">
+      <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[80px]">
         <VideoPlayer src="https://video.f1nal.me/showreel2022.mp4" poster="img/preview1.png" />
       </div>
-      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"><Footer /></div>
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
+          <Footer forceVisible={true} />
+      </div>
     </motion.div>
 );
 
-const AboutPage = () => (
-    <motion.div 
-        className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-    >
-        <div className="flex flex-col lg:flex-row justify-between items-start gap-[60px] mb-[60px]">
-            <div className="flex-none w-full lg:w-[40%] max-w-[500px]">
-                <img src="img/me.png" alt="Oleg Shmarov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'img/me.png'} />
-            </div>
-            <div className="flex-0 pt-0">
-                <div className="text-[18px] lg:text-[24px] leading-[1.5]">
-                    <p className="mb-6">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
-                    <p className="mb-6">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
-                    <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
+// UPDATED: AboutPage с текстом, который плавно появляется при скролле (2 пункт задачи)
+const AboutPage = () => {
+    // Вспомогательный вариант анимации для текста: появляется снизу вверх
+    const textRevealVariant: Variants = {
+        hidden: { opacity: 0, y: 30 },
+        visible: { 
+            opacity: 1, 
+            y: 0,
+            transition: { duration: 0.6, ease: "easeOut" }
+        }
+    };
+
+    return (
+        <motion.div 
+            className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
+        >
+            <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[40px]">
+                <div className="flex-none w-full lg:w-[40%] max-w-[500px]">
+                    <img src="img/me.png" alt="Oleg Shmarov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'img/me.png'} />
                 </div>
-            </div>
-        </div>
-        <div className="w-full h-[1px] bg-black/15 my-[60px]" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[60px] mb-[80px]">
-            <div>
-                <div className="mb-10">
-                    <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Software</h3>
-                    <p className="text-[18px] leading-relaxed text-[#222]">Cinema 4D, Redshift, Adobe Creative Suite</p>
-                </div>
-                <div className="mb-10">
-                    <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Social Media</h3>
-                    <div className="flex gap-5">
-                        {['Instagram', 'Behance', 'LinkedIn'].map(l => (
-                            <a key={l} href="#" className="text-[18px] hover:opacity-60 transition-opacity">{l}</a>
-                        ))}
+                <div className="flex-0 pt-0">
+                    <div className="text-[18px] lg:text-[18px] leading-[1.5]">
+                        <motion.p 
+                            className="mb-3"
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            variants={textRevealVariant}
+                        >
+                            Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.
+                        </motion.p>
+                        <motion.p 
+                            className="mb-3"
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            variants={textRevealVariant}
+                        >
+                            My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.
+                        </motion.p>
+                        <motion.p
+                            initial="hidden"
+                            whileInView="visible"
+                            viewport={{ once: true }}
+                            variants={textRevealVariant}
+                        >
+                            Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.
+                        </motion.p>
                     </div>
                 </div>
             </div>
-            <div>
-                <div className="mb-10">
-                    <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">Awards</h3>
-                    <ul className="list-none p-0 space-y-4">
-                        <li className="text-[18px] text-[#222]">Promax Awards 2021 - Best internal marketing - Gold // TNT Design Showreel</li>
-                        <li className="text-[18px] text-[#222]">World Brand Design Awards 2023 / UK - Bronze // Gravix glue</li>
-                        <li className="text-[18px] text-[#222]">Dieline Awards 2023 / USA - Silver // Gravix glue</li>
-                    </ul>
+            
+            <div className="w-full h-[1px] bg-black/15 my-[40px]" />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[50px] mb-[40px]">
+                <div>
+                    <motion.div 
+                        className="mb-10"
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={textRevealVariant}
+                    >
+                        <h3 className="text-[18px] font-bold underline mb-1">Software</h3>
+                        <p className="text-[18px] leading-relaxed text-[#222]">Cinema 4D, Redshift, Adobe Creative Suite</p>
+                    </motion.div>
+
+                    <motion.div
+                        initial="hidden"
+                        whileInView="visible"
+                        viewport={{ once: true }}
+                        variants={textRevealVariant}
+                    >
+                        <div className="mb-10">
+                            <h3 className="text-[18px] font-bold underline mb-1">Awards</h3>
+                            <ul className="list-none p-0 space-y-1">
+                                <li className="text-[18px] text-[#222]">Promax Awards 2021 - Best internal marketing - Gold // TNT Design Showreel</li>
+                                <li className="text-[18px] text-[#222]">World Brand Design Awards 2023 / UK - Bronze // Gravix glue</li>
+                            </ul>
+                        </div>
+                        <div className="mb-1">
+                            <h3 className="text-[18px] font-bold underline mb-1">Social Media</h3>
+                            <div className="flex gap-5">
+                                <a href="https://www.instagram.com/f1nal0139" className="text-[18px] hover:opacity-60 transition-opacity">Instagram</a>
+                                <a href="https://www.behance.net/f1nal" className="text-[18px] hover:opacity-60 transition-opacity">Behance</a>
+                                <a href="https://www.linkedin.com/in/f1nal" className="text-[18px] hover:opacity-60 transition-opacity">LinkedIn</a>
+                            </div>
+                        </div>
+                    </motion.div>
                 </div>
-                <div className="mb-10">
-                    <h3 className="text-[18px] font-bold underline uppercase tracking-wider mb-4">For work inquiries, please contact at:</h3>
+                
+                <motion.div 
+                    className="mb-10"
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true }}
+                    variants={textRevealVariant}
+                >
+                    <h3 className="text-[18px] font-bold underline mb-1">For work inquiries, please contact at:</h3>
                     <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com" className="hover:opacity-60 transition-opacity">shmarov.oleg@gmail.com</a></p>
-                </div>
+                </motion.div>
             </div>
-        </div>
-        
-    </motion.div>
-);
+            <Footer />
+        </motion.div>
+    );
+};
 
 const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate }: any) => {
     return (
@@ -883,7 +1237,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
                 <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10">
                     <div className="flex-1 min-w-[300px]">
-                        <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 tracking-tight text-black">{title}</h1>
+                        <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 text-black">{title}</h1>
                         <div className="text-[16px] text-[#888] mt-2.5">{meta}</div>
                     </div>
                     <div className="flex-none w-full lg:w-[45%] min-w-[300px]">
@@ -911,14 +1265,22 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 <div className="text-[20px] text-[#555] leading-[1.8] mb-[80px] max-w-[700px]">
                     {credits.map((line: string, i: number) => <p key={i} dangerouslySetInnerHTML={{__html: line}} />)}
                 </div>
-                <div className="border-t border-black/10 pt-10 mb-20 flex justify-between text-[20px] font-medium">
-                    <a onClick={() => navigate(prev.link)} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer">
-                        <ArrowLeft size={18} /> {prev.label}
-                    </a>
-                    <a onClick={() => navigate(next.link)} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer">
-                        {next.label} <ArrowRight size={18} />
-                    </a>
-                </div>
+<div className="pt-10 mb-40 flex justify-between text-[16px] sm:text-[18px] lg:text-[30px] font-medium">
+    <a
+        onClick={() => navigate(prev.link)}
+        className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer"
+    >
+        <ArrowLeft size={22} /> {prev.label}
+    </a>
+
+    <a
+        onClick={() => navigate(next.link)}
+        className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer"
+    >
+        {next.label} <ArrowRight size={22} />
+    </a>
+</div>
+
                 <Footer />
             </div>
         </motion.div>
@@ -928,13 +1290,13 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
 const ElfBar = ({ navigate }: any) => (
     <ProjectPage 
         navigate={navigate}
-        title="ELF BAR Promotion Video"
-        meta="Commercial / 2022"
+        title="Elf Bar Promotion"
+        meta="Presonal / 2022"
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
         // UPDATED: Video Link for inner project page
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'img/preview1.png' }}
         gallery={[{ img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }]}
-        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     />
@@ -981,12 +1343,17 @@ const Sber = ({ navigate }: any) => (
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
-  // ADDED: Global state for mobile menu to allow Overlay rendering at root level
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [playModalSrc, setPlayModalSrc] = useState<string | null>(null);
+
+  // === ПОДКЛЮЧЕНИЕ ЗАЩИТЫ ===
+  useContentProtection(); 
+  // ==========================
 
   useEffect(() => {
     // 2. ИЗМЕНЕНИЕ ЗАГОЛОВКА
     document.title = "F1NAL EDITING - OLEG SHMAROV - 3D ARTIST";
+    // ... остальной код
 
     // 3. ДОБАВЛЕНИЕ FAVICON
     const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
@@ -1000,7 +1367,8 @@ export default function App() {
     switch(currentPage) {
       case 'home': return <WorkPage navigate={setCurrentPage} />;
       case 'reel': return <ReelPage />;
-      case 'play': return <PlayPage />;
+      // Pass the modal opener to PlayPage
+      case 'play': return <PlayPage onOpenImage={setPlayModalSrc} />;
       case 'info': return <AboutPage />;
       case 'elfbar': return <ElfBar navigate={setCurrentPage} />;
       case 'football-dynamics': return <FootballDynamics navigate={setCurrentPage} />;
@@ -1010,40 +1378,64 @@ export default function App() {
     }
   };
 
-  useEffect(() => { window.scrollTo(0, 0); }, [currentPage]);
+  // UPDATED: Smooth scroll to top when page changes instead of instant jump
+  useEffect(() => { 
+      // Используем ту же функцию плавного скролла, что и для кнопки "Наверх"
+      smoothScrollToTop(1000); 
+  }, [currentPage]);
+
   useIntroAnimation();
+
+  // Combine blur states
+  const isBlurActive = isMenuOpen || !!playModalSrc;
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
-      {/* UPDATED: Mobile Menu Overlay rendered here, outside transformed Header */}
+      {/* UPDATED: Mobile Menu Overlay теперь получает currentPage */}
       <MobileMenuOverlay 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
-        navigate={setCurrentPage} 
+        navigate={setCurrentPage}
+        currentPage={currentPage}
       />
       
+      {/* NEW: Image Modal Overlay reused same logic */}
+      <ImageModalOverlay
+        src={playModalSrc}
+        onClose={() => setPlayModalSrc(null)}
+      />
+	  
+	  <div className="ios-safearea-overlay"></div>
+
       {/* UPDATED: "Crutch" implementation for blurred background content */}
-      <div 
-        className="min-h-screen w-full flex flex-col"
-        style={{
-            // Apply blur filter directly to content when menu is open
-            filter: isMenuOpen ? 'blur(4px)' : 'none',
-            // Also ensure white background is dominant
-            backgroundColor: isMenuOpen ? 'rgba(255, 255, 255, 1)' : 'transparent', 
-            transition: 'filter 0.3s ease, background-color 0.3s ease',
-            // Ensure pointer events are disabled on background content when menu open
-            pointerEvents: isMenuOpen ? 'none' : 'auto'
-        }}
-      >
-        {/* UPDATED: Header receives onOpenMenu prop */}
-        <Header 
-            currentPage={currentPage} 
-            navigate={setCurrentPage} 
-            onOpenMenu={() => setIsMenuOpen(true)} 
-        />
-        {/* CHANGED: pt-[20px] -> pt-[40px] to add +20px spacing as requested */}
-        <main id="content-holder" className="flex-grow pt-[40px] relative">
+      {/* IMPORTANT FIX: Split Header out of the blurred container to keep it sharp and on top */}
+      <div className="min-h-screen w-full flex flex-col bg-transparent">
+        
+        {/* HEADER: Outside the blur filter, High Z-Index to stay above Overlay (z-9999) */}
+        <div className="relative z-[10005]">
+             <Header 
+                currentPage={currentPage} 
+                navigate={setCurrentPage} 
+                isMenuOpen={isMenuOpen}
+                onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
+            />
+        </div>
+
+        {/* MAIN CONTENT: This gets the blur filter */}
+        <div 
+            id="content-holder" 
+            className="flex-grow pt-[40px] relative flex flex-col"
+            style={{
+                // Apply blur filter directly to content when menu is open OR modal is open
+                filter: isBlurActive ? 'blur(4px)' : 'none',
+                // Also ensure white background is dominant
+                backgroundColor: isBlurActive ? 'rgba(255, 255, 255, 1)' : 'transparent', 
+                transition: 'filter 0.3s ease, background-color 0.3s ease',
+                // Ensure pointer events are disabled on background content when menu open
+                pointerEvents: isBlurActive ? 'none' : 'auto'
+            }}
+        >
              {/* 3. Анимация переходов между страницами (0.25s) */}
             <AnimatePresence mode="wait">
                 <motion.div
@@ -1051,13 +1443,15 @@ export default function App() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="w-full flex-grow"
-                >
+                    transition={{ duration: 0.3 }}
+                    className="w-full flex-grow">
                     {renderPage()}
                 </motion.div>
             </AnimatePresence>
-        </main>
+        </div>
+        
+        {/* ScrollToTop outside blur if desired, or inside if it should blur. 
+            Usually controls stay sharp. Put it outside. */}
         <ScrollToTop />
       </div>
     </>
