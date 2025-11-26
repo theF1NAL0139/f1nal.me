@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -12,9 +11,31 @@ import {
   BookOpen
 } from 'lucide-react';
 
-// Настраиваем воркер для PDF.js через CDN, чтобы не настраивать сборку Vite
-// Используем версию, совпадающую с установленной (обычно последняя)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// --- Типы ---
+interface PageData {
+  id: number;
+  type: string;
+  title?: string;
+  subtitle?: string;
+  text?: string;
+  image?: string;
+  caption?: string;
+  color?: string;
+  isPdf?: boolean;
+  width?: number;
+  height?: number;
+}
+
+interface IssuuReaderProps {
+  pdfUrl?: string;
+}
+
+// Расширяем интерфейс window для pdfjsLib
+declare global {
+  interface Window {
+    pdfjsLib: any;
+  }
+}
 
 // --- Глобальные стили ---
 const GlobalStyles = () => (
@@ -36,21 +57,21 @@ const GlobalStyles = () => (
       to { opacity: 1; transform: scale(1); }
     }
 
-    /* Тени для реализма разворота */
+    /* Тени для реализма разворота - сделали мягче */
     .shadow-spine-center {
-      background: linear-gradient(to right, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to right, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 20%);
     }
     .shadow-spine-left {
-      background: linear-gradient(to left, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0) 20%);
+      background: linear-gradient(to left, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0) 20%);
     }
   `}</style>
 );
 
-// --- Hook для РЕАЛЬНОЙ загрузки PDF ---
-const usePdfPages = (url) => {
-    const [pdfPages, setPdfPages] = useState([]);
+// --- Hook для РЕАЛЬНОЙ загрузки PDF через CDN ---
+const usePdfPages = (url?: string) => {
+    const [pdfPages, setPdfPages] = useState<PageData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!url) return;
@@ -60,45 +81,62 @@ const usePdfPages = (url) => {
             setError(null);
             
             try {
-                // 1. Загружаем документ
-                const loadingTask = pdfjsLib.getDocument(url);
+                // 1. Динамическая загрузка библиотеки PDF.js из CDN, если она еще не загружена
+                if (!window.pdfjsLib) {
+                    await new Promise((resolve, reject) => {
+                        const script = document.createElement('script');
+                        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                }
+
+                // Настройка воркера (обязательно)
+                window.pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'; // Или путь, где он лежит
+
+                // 2. Загружаем документ
+                const loadingTask = window.pdfjsLib.getDocument(url);
                 const pdf = await loadingTask.promise;
                 const numPages = pdf.numPages;
-                const pagesData = [];
+                const pagesData: PageData[] = [];
 
-                // 2. Проходим по всем страницам
+                // 3. Проходим по всем страницам
                 for (let i = 1; i <= numPages; i++) {
                     const page = await pdf.getPage(i);
                     
-                    // 3. Рендерим страницу в Canvas
+                    // 4. Рендерим страницу в Canvas
                     // Scale 1.5 дает хорошее качество (можно увеличить до 2.0 для ретины)
                     const viewport = page.getViewport({ scale: 1.5 });
                     const canvas = document.createElement('canvas');
                     const context = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
+                    
+                    if (context) {
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
 
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport
-                    }).promise;
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
 
-                    // 4. Конвертируем Canvas в картинку (DataURL)
-                    const imgUrl = canvas.toDataURL('image/jpeg', 0.9); // JPEG 90% качества
+                        // 5. Конвертируем Canvas в картинку (DataURL)
+                        const imgUrl = canvas.toDataURL('image/jpeg', 0.9); // JPEG 90% качества
 
-                    pagesData.push({
-                        id: i,
-                        type: 'pdf-page',
-                        image: imgUrl,
-                        width: viewport.width,
-                        height: viewport.height
-                    });
+                        pagesData.push({
+                            id: i,
+                            type: 'pdf-page',
+                            image: imgUrl,
+                            width: viewport.width,
+                            height: viewport.height
+                        });
+                    }
                 }
 
                 setPdfPages(pagesData);
             } catch (e) {
                 console.error("Error loading PDF:", e);
-                setError("Не удалось загрузить PDF файл. Проверьте, что файл существует по пути: " + url);
+                setError("Не удалось загрузить PDF файл. Проверьте путь к файлу.");
             } finally {
                 setIsLoading(false);
             }
@@ -111,14 +149,14 @@ const usePdfPages = (url) => {
 };
 
 // --- Компонент контента страницы ---
-const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }) => {
+const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }: { data: PageData, isLeft: boolean, showSpineShadow?: boolean }) => {
   if (!data) return <div className="w-full h-full bg-white shadow-sm" />;
 
   return (
     <div className="relative w-full h-full bg-white overflow-hidden select-none animate-fade-in shadow-sm flex items-center justify-center">
-      {/* Тень от корешка */}
+      {/* Тень от корешка (Сделали меньше: w-6 и прозрачнее: opacity-20) */}
       {showSpineShadow && (
-        <div className={`absolute inset-y-0 ${isLeft ? 'right-0 shadow-spine-left' : 'left-0 shadow-spine-center'} w-8 z-10 pointer-events-none opacity-40`} />
+        <div className={`absolute inset-y-0 ${isLeft ? 'right-0 shadow-spine-left' : 'left-0 shadow-spine-center'} w-6 z-10 pointer-events-none opacity-20`} />
       )}
 
       {/* Отображение страницы PDF */}
@@ -138,7 +176,11 @@ const PageContent = React.memo(({ data, isLeft, showSpineShadow = true }) => {
 });
 
 // --- Glass Button ---
-const GlassButton = ({ onClick, disabled, children, className = "", title }) => (
+interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+}
+
+const GlassButton = ({ onClick, disabled, children, className = "", title }: GlassButtonProps) => (
   <button 
     onClick={onClick} 
     disabled={disabled}
@@ -163,7 +205,7 @@ const GlassButton = ({ onClick, disabled, children, className = "", title }) => 
 );
 
 // --- Основной компонент ---
-const IssuuReader = ({ pdfUrl }) => {
+const IssuuReader: React.FC<IssuuReaderProps> = ({ pdfUrl }) => {
   const { pages, isLoading, error } = usePdfPages(pdfUrl);
   const totalPages = pages.length;
 
@@ -178,9 +220,9 @@ const IssuuReader = ({ pdfUrl }) => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isRestoring, setIsRestoring] = useState(false);
 
-  const containerRef = useRef(null);
-  const viewAreaRef = useRef(null);
-  const contentRef = useRef(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const viewAreaRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -202,8 +244,6 @@ const IssuuReader = ({ pdfUrl }) => {
       if (currentIndex < totalPages - 1) setCurrentIndex(c => c + 1);
     } else {
       // На десктопе листаем по 2, но учитываем первую страницу (обложку)
-      // 0 -> 1 (показывает 1 и 2)
-      // 1 -> 3 (показывает 3 и 4)
       const step = currentIndex === 0 ? 1 : 2;
       const nextIdx = Math.min(currentIndex + step, totalPages - (totalPages % 2 === 0 ? 2 : 1));
       setCurrentIndex(nextIdx);
@@ -223,9 +263,10 @@ const IssuuReader = ({ pdfUrl }) => {
 
   // --- Zoom / Pan ---
   useEffect(() => {
-    const handleWheel = (e) => {
+    const handleWheel = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
+        if (!viewAreaRef.current) return;
         const rect = viewAreaRef.current.getBoundingClientRect();
         const mouseX = e.clientX - rect.left - rect.width / 2;
         const mouseY = e.clientY - rect.top - rect.height / 2;
@@ -241,14 +282,16 @@ const IssuuReader = ({ pdfUrl }) => {
         if (newScale <= 1) setPanPosition({x:0, y:0});
       }
     };
+    
     const element = viewAreaRef.current;
-    if (element) element.addEventListener('wheel', handleWheel, { passive: false });
-    return () => { if (element) element.removeEventListener('wheel', handleWheel); };
+    // TypeScript требует приведения типа для использования non-passive listener
+    if (element) element.addEventListener('wheel', handleWheel as any, { passive: false });
+    return () => { if (element) element.removeEventListener('wheel', handleWheel as any); };
   }, [scale, panPosition]);
 
   // Keys
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (isLoading) return;
       if (e.key === 'ArrowRight') nextPage();
       if (e.key === 'ArrowLeft') prevPage();
@@ -273,11 +316,11 @@ const IssuuReader = ({ pdfUrl }) => {
     if (newX !== panPosition.x || newY !== panPosition.y) { setIsRestoring(true); setPanPosition({ x: newX, y: newY }); }
   }, [scale, panPosition]);
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: React.MouseEvent) => {
     if (isLoading) return;
     if (scale > 1) { setIsDragging(true); setIsRestoring(false); setDragStart({ x: e.clientX - panPosition.x, y: e.clientY - panPosition.y }); e.preventDefault(); }
   };
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: React.MouseEvent) => {
     if (isDragging && scale > 1) { e.preventDefault(); setPanPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); }
   };
   const handleMouseUp = () => { setIsDragging(false); checkBounds(); };
@@ -297,7 +340,8 @@ const IssuuReader = ({ pdfUrl }) => {
 
   // Адаптивные размеры
   const pageWidth = isMobile ? 'calc(100vw - 40px)' : '400px'; // Базовая ширина одной страницы
-  const containerHeight = isMobile ? 'auto' : '600px';
+  // Увеличили высоту на 1/5 (600px * 1.2 = 720px)
+  const containerHeight = isMobile ? 'auto' : '720px';
   // Aspect Ratio A4
   const aspectRatio = '1 / 1.414';
 
@@ -322,12 +366,12 @@ const IssuuReader = ({ pdfUrl }) => {
             <span className="font-medium text-sm text-neutral-800 tracking-wide hidden sm:inline">PDF Viewer</span>
             <div className="w-px h-4 bg-neutral-300 mx-1"></div>
             <span className="text-xs font-bold text-neutral-500">
-               {isLoading ? "Loading..." : isMobile ? `${currentIndex + 1} / ${totalPages}` : `${currentIndex === 0 ? 1 : `${currentIndex}-${Math.min(currentIndex + 1, totalPages)}`} / ${totalPages}`}
+               {isLoading ? "Загрузка..." : isMobile ? `${currentIndex + 1} / ${totalPages}` : `${currentIndex === 0 ? 1 : `${currentIndex}-${Math.min(currentIndex + 1, totalPages)}`} / ${totalPages}`}
             </span>
           </div>
           <div className="flex items-center gap-2 pointer-events-auto">
             <GlassButton onClick={() => setIsGridView(true)} title="Pages" disabled={isLoading}><Grid size={18} /></GlassButton>
-            <GlassButton onClick={() => document.fullscreenElement ? document.exitFullscreen() : containerRef.current.requestFullscreen().then(()=>setIsFullscreen(true)).catch(()=>{})} title="Fullscreen">
+            <GlassButton onClick={() => document.fullscreenElement ? document.exitFullscreen() : containerRef.current?.requestFullscreen().then(()=>setIsFullscreen(true)).catch(()=>{})} title="Fullscreen">
               {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
             </GlassButton>
           </div>
@@ -364,7 +408,7 @@ const IssuuReader = ({ pdfUrl }) => {
               {/* Left Page Slot (Desktop Only or Hidden) */}
               <div className={`relative h-full ${isMobile ? 'hidden' : 'w-1/2'} bg-transparent overflow-hidden`}>
                 {visiblePages[0] ? (
-                  <PageContent key={`left-${visiblePages[0].id}`} data={visiblePages[0]} isLeft={true} />
+                  <PageContent key={`left-${visiblePages[0].id}`} data={visiblePages[0]!} isLeft={true} />
                 ) : (
                   <div className="w-full h-full bg-black/5" /> // Пустое место для обложки слева
                 )}
@@ -376,8 +420,8 @@ const IssuuReader = ({ pdfUrl }) => {
 
               {/* Right Page Slot (Or Main Mobile Page) */}
               <div className={`relative h-full ${isMobile ? 'w-full' : 'w-1/2'} bg-transparent overflow-hidden`}>
-                  {visiblePages[isMobile ? 0 : 1] ? (
-                    <PageContent key={`right-${visiblePages[isMobile ? 0 : 1].id}`} data={visiblePages[isMobile ? 0 : 1]} isLeft={false} />
+                  {visiblePages[1] ? (
+                    <PageContent key={`right-${visiblePages[1].id}`} data={visiblePages[1]!} isLeft={false} />
                   ) : (
                       <div className="w-full h-full bg-white flex items-center justify-center text-neutral-300">
                         <span className="text-[10px] tracking-widest uppercase">Конец</span>
@@ -417,7 +461,11 @@ const IssuuReader = ({ pdfUrl }) => {
                 {pages.map((page, idx) => (
                   <div key={page.id} onClick={() => { setCurrentIndex(idx % 2 === 0 ? idx : idx - 1); setIsGridView(false); }} className={`cursor-pointer group relative aspect-[1/1.414] transition-all hover:-translate-y-1`}>
                     <div className="w-full h-full bg-white rounded-lg shadow-md overflow-hidden relative border border-neutral-200 group-hover:ring-2 ring-neutral-400">
-                      <img src={page.image} className="w-full h-full object-cover" loading="lazy" />
+                      {page.image ? (
+                        <img src={page.image} className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full bg-gray-100 flex items-center justify-center">Loading...</div>
+                      )}
                     </div>
                     <div className="mt-2 text-center text-xs text-neutral-500 font-medium">{idx + 1}</div>
                   </div>

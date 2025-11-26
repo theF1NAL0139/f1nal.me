@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants, SVGMotionProps } from 'framer-motion';
 
 // --- ИМПОРТ НОВОГО КОМПОНЕНТА ---
-import IssuuReader from './IssuuViewer'; 
+import IssuuReader from './IssuuViewer.jsx'; 
 
 // =========================================
 // GLOBAL STYLES (Обновлено: защита контента)
