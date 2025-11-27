@@ -1015,11 +1015,15 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
     );
 };
 
-// NEW: Image Modal Overlay (Reusing Mobile Menu Logic)
-// UPDATED: Now supports MP4 video files
+// UPDATED: Image Modal Overlay
+// Теперь блокировка скролла срабатывает только если есть src И мы на мобильном устройстве
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
-    // Используем новый хук для блокировки скролла
-    useScrollLock(!!src);
+    // 1. Получаем состояние: мобильное устройство или нет
+    const isMobile = useIsMobile();
+
+    // 2. Блокируем скролл ТОЛЬКО если модалка открыта (!!src) И это мобилка (isMobile)
+    // На десктопе второй аргумент будет false, и useScrollLock ничего не сделает
+    useScrollLock(!!src && isMobile);
     
     // Проверка, является ли файл видео (mp4)
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
@@ -1048,8 +1052,7 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.1, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
-                        // Prevent click on container from closing, BUT user asked for image click to close
-                        // So we can let the click propagate or attach onClick to image
+                        // Prevent click on container from closing
                         onClick={(e) => e.stopPropagation()}
                     >
                         {isVideo ? (
