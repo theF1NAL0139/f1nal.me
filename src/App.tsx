@@ -1672,8 +1672,8 @@ const FilterButton = ({
                 transition-all duration-300 backdrop-blur-md shadow-lg
                 border
                 ${active 
-                    ? 'bg-white/80 border-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
-                    : 'bg-white/30 border-white/40 text-neutral-800 hover:bg-white/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
+                    ? 'bg-black/100 border-white/50 text-white shadow-[(0,1,0,1.1)]' 
+                    : 'bg-black/2 border-black/1 text-neutral-500 hover:bg-white/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
                 }
             `}
         >
@@ -1738,10 +1738,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
             
-            // LEGACY / ROOT (Mapped to Experimental for now, or General)
-            { prefix: 'imgs/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
-            { prefix: 'anim/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
-            { prefix: 'anim/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
         ];
 
         for (const pathConfig of pathsToCheck) {
