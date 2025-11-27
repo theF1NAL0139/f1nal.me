@@ -1019,7 +1019,7 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
 // UPDATED: Now supports MP4 video files
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
     // Используем новый хук для блокировки скролла
-
+    useScrollLock(!!src);
     
     // Проверка, является ли файл видео (mp4)
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
