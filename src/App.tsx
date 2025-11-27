@@ -1668,7 +1668,10 @@ const FilterButton = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className={`
-                relative flex items-center gap-2 px-4 py-2 rounded-full 
+                relative flex items-center 
+                gap-1.5 lg:gap-2               
+                px-3 py-1.5 lg:px-4 lg:py-2    
+                rounded-full 
                 transition-all duration-300 backdrop-blur-md shadow-lg
                 border
                 ${active 
@@ -1677,20 +1680,30 @@ const FilterButton = ({
                 }
             `}
         >
-            <Icon size={18} strokeWidth={2} />
-            <span className="font-medium text-sm">{label}</span>
+            {/* Иконка чуть меньше на мобильных (14px), стандартная на десктопе (18px) */}
+            <Icon className="w-[14px] h-[14px] lg:w-[18px] lg:h-[18px]" strokeWidth={2} />
+            
+            {/* Текст чуть меньше на мобильных */}
+            <span className="font-medium text-xs lg:text-sm leading-none pt-[1px]">{label}</span>
         </motion.button>
     );
 };
 
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]); // Array of active categories
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  
+  // 1. ПОДКЛЮЧАЕМ ХУК ДЛЯ ОПРЕДЕЛЕНИЯ МОБИЛЬНОЙ ВЕРСИИ
+  const isMobile = useIsMobile(); 
   
   useEffect(() => {
     let isMounted = true;
     
-    // 1. Проверка изображений/GIF через загрузку
+    // ... (код проверки изображений и видео остается без изменений) ...
+    // ... (скопируйте функции checkImage, checkVideo и loadMedia из вашего старого кода сюда) ...
+    // Для краткости я не дублирую логику загрузки loadMedia, так как она не менялась.
+    
+    // --- НАЧАЛО БЛОКА ЗАГРУЗКИ (Оставьте как было в оригинале) ---
     const checkImage = (src: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -1700,7 +1713,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         });
     };
 
-    // 2. Проверка видео через HEAD + Content-Type
     const checkVideo = async (src: string): Promise<boolean> => {
         try {
             const res = await fetch(src, { method: 'HEAD' });
@@ -1713,31 +1725,19 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     };
 
     const loadMedia = async () => {
-        const MAX_CHECK = 15; // Limit per category to avoid too many requests
+        const MAX_CHECK = 15; 
         const promises = [];
         const items: MediaItem[] = [];
 
-        // Define search paths with categories
-        // User Logic: 
-        // Artwork = Artwork folder
-        // Gambling = Gambling folder
-        // Experimental = Experimental folder
-        // Also keeping root imgs/anim as 'experimental' or 'general' fallback
         const pathsToCheck = [
-            // ARTWORK
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'gif', type: 'image', cat: 'artwork' },
-            
-            // GAMBLING
             { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
             { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
-            
-            // EXPERIMENTAL
             { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
-            
         ];
 
         for (const pathConfig of pathsToCheck) {
@@ -1763,15 +1763,11 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         await Promise.all(promises);
 
         if (isMounted) {
-            // Remove duplicates if any (e.g. same file checked multiple times)
             const uniqueItems = Array.from(new Map(items.map(item => [item.src, item])).values());
-            
-            // Sort to mix content nicely
             uniqueItems.sort((a, b) => {
                  const getNum = (s: string) => parseInt(s.match(/\d+/)?.[0] || '0');
                  return getNum(a.src) - getNum(b.src);
             });
-            
             setMediaItems(uniqueItems);
         }
     };
@@ -1779,6 +1775,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     loadMedia();
     return () => { isMounted = false; };
   }, []);
+  // --- КОНЕЦ БЛОКА ЗАГРУЗКИ ---
 
   const handleLoadError = (id: string) => {
       setMediaItems(prev => prev.filter(item => item.id !== id));
@@ -1794,28 +1791,15 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
       });
   };
 
-  // Filter Logic:
-  // If filters are active, show items that match ANY active filter.
-  // If NO filters are active, show ALL items.
   const filteredItems = useMemo(() => {
       if (activeFilters.length === 0) return mediaItems;
-      return mediaItems.filter(item => {
-          // Special logic for Artwork button as requested by user?
-          // "Artwork: public\anim\Artwork and public\imgs\Gambling"
-          // If the user REALLY meant that specific mapping, we could do it here.
-          // But implementing standard category filtering is safer.
-          // IF strict requested logic:
-          // if (activeFilters.includes('artwork')) { check if item is in Artwork OR Gambling? }
-          
-          // Using standard logic for now based on file path categories
-          return activeFilters.includes(item.category);
-      });
+      return mediaItems.filter(item => activeFilters.includes(item.category));
   }, [mediaItems, activeFilters]);
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <motion.div 
-            className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-6"
+            className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-4 lg:gap-6"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
@@ -1825,8 +1809,8 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
 
-            {/* FILTERS */}
-            <div className="flex flex-wrap gap-3">
+            {/* 2. ИСПРАВЛЕНИЕ ОТСТУПОВ (gap-1.5 вместо gap-3 на мобильных) */}
+            <div className="flex flex-wrap gap-1.5 lg:gap-3 w-full lg:w-auto">
                 <FilterButton 
                     label="Artwork" 
                     icon={Brush} 
@@ -1848,23 +1832,26 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             </div>
         </motion.div>
         
-        {/* ADDED: min-h-[80vh] to push footer down before content loads */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px] min-h-[80vh]">
             <AnimatePresence mode="popLayout">
             {filteredItems.map((item, i) => (
                 <motion.div 
                     key={item.id} 
                     layout
-                    className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer h-full group"
+                    className={`relative rounded-[18px] overflow-hidden bg-black h-full group ${!isMobile ? 'cursor-pointer' : ''}`}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3 }}
-                    whileHover={{ scale: 1.03 }}
-                    onClick={() => onOpenImage(item.src)} // Trigger global modal
+                    whileHover={!isMobile ? { scale: 1.03 } : {}}
+                    // 3. ПРОВЕРКА НА МОБИЛЬНУЮ ВЕРСИЮ ПЕРЕД ОТКРЫТИЕМ
+                    onClick={() => {
+                        if (!isMobile) {
+                            onOpenImage(item.src);
+                        }
+                    }} 
                 >
                     {item.type === 'video' ? (
-                        // Video behaves like GIF: AutoPlay, Loop, Muted, No Controls
                         <video 
                             src={item.src} 
                             autoPlay 
