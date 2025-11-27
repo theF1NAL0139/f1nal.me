@@ -1692,21 +1692,78 @@ const FilterButton = ({
     );
 };
 
+// =========================================
+// NEW COMPONENT: HANDLES RELIABLE MEDIA PLAYBACK
+// =========================================
+const PlayMediaItem = ({ item, isMobile, onClick, handleLoadError }: any) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Принудительный запуск видео при появлении
+    useEffect(() => {
+        if (item.type === 'video' && videoRef.current) {
+            videoRef.current.defaultMuted = true; // Важно для React
+            videoRef.current.muted = true;
+            
+            // Пытаемся запустить. Если браузер блокирует (лимит), 
+            // видео просто встанет на паузу, но не сломается.
+            const playPromise = videoRef.current.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    // Autoplay prevented usually due to browser limits or unmuted state
+                });
+            }
+        }
+    }, [item.src]);
+
+    return (
+        <motion.div 
+            layout
+            className={`relative rounded-[18px] overflow-hidden bg-black h-full group ${!isMobile ? 'cursor-pointer' : ''}`}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+            whileHover={!isMobile ? { scale: 1.03 } : {}}
+            onClick={() => onClick(item.src)}
+        >
+            {item.type === 'video' ? (
+                <video 
+                    ref={videoRef}
+                    src={item.src} 
+                    loop 
+                    muted 
+                    playsInline 
+                    // autoPlay убираем из атрибутов и доверяем useEffect, это надежнее
+                    className="w-full h-full block object-cover pointer-events-none" 
+                    onError={() => handleLoadError(item.id)}
+                />
+            ) : (
+                <img 
+                    src={item.src} 
+                    alt="Experiment" 
+                    // decoding="async" помогает GIF не фризиться при скролле
+                    decoding="async"
+                    loading="eager"
+                    className="w-full h-full block object-cover" 
+                    onError={() => handleLoadError(item.id)}
+                />
+            )}
+        </motion.div>
+    );
+};
+
+// =========================================
+// UPDATED PLAY PAGE
+// =========================================
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  
-  // 1. ПОДКЛЮЧАЕМ ХУК ДЛЯ ОПРЕДЕЛЕНИЯ МОБИЛЬНОЙ ВЕРСИИ
   const isMobile = useIsMobile(); 
   
+  // ... (Ваш код useEffect с loadMedia оставляем БЕЗ ИЗМЕНЕНИЙ) ...
+  // Скопируйте сюда useEffect из вашего старого PlayPage полностью
   useEffect(() => {
     let isMounted = true;
-    
-    // ... (код проверки изображений и видео остается без изменений) ...
-    // ... (скопируйте функции checkImage, checkVideo и loadMedia из вашего старого кода сюда) ...
-    // Для краткости я не дублирую логику загрузки loadMedia, так как она не менялась.
-    
-    // --- НАЧАЛО БЛОКА ЗАГРУЗКИ (Оставьте как было в оригинале) ---
     const checkImage = (src: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -1715,7 +1772,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             img.src = src;
         });
     };
-
     const checkVideo = async (src: string): Promise<boolean> => {
         try {
             const res = await fetch(src, { method: 'HEAD' });
@@ -1726,12 +1782,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             return false;
         }
     };
-
     const loadMedia = async () => {
         const MAX_CHECK = 15; 
         const promises = [];
         const items: MediaItem[] = [];
-
         const pathsToCheck = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
@@ -1742,12 +1796,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
         ];
-
         for (const pathConfig of pathsToCheck) {
             for (let i = 1; i <= MAX_CHECK; i++) {
                 const src = `${pathConfig.prefix}${i}.${pathConfig.ext}`;
                 const checkFn = pathConfig.type === 'video' ? checkVideo : checkImage;
-                
                 promises.push(
                     checkFn(src).then(exists => {
                         if (exists && isMounted) {
@@ -1762,9 +1814,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 );
             }
         }
-
         await Promise.all(promises);
-
         if (isMounted) {
             const uniqueItems = Array.from(new Map(items.map(item => [item.src, item])).values());
             uniqueItems.sort((a, b) => {
@@ -1774,11 +1824,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             setMediaItems(uniqueItems);
         }
     };
-
     loadMedia();
     return () => { isMounted = false; };
   }, []);
-  // --- КОНЕЦ БЛОКА ЗАГРУЗКИ ---
+  // ... (Конец блока загрузки) ...
 
   const handleLoadError = (id: string) => {
       setMediaItems(prev => prev.filter(item => item.id !== id));
@@ -1799,6 +1848,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
       return mediaItems.filter(item => activeFilters.includes(item.category));
   }, [mediaItems, activeFilters]);
 
+  // Handler for opening modal safely
+  const handleItemClick = (src: string) => {
+      if (!isMobile) {
+          onOpenImage(src);
+      }
+  };
+
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <motion.div 
@@ -1812,67 +1868,23 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
 
-            {/* 2. ИСПРАВЛЕНИЕ ОТСТУПОВ (gap-1.5 вместо gap-3 на мобильных) */}
             <div className="flex flex-wrap gap-1.5 lg:gap-3 w-full lg:w-auto">
-                <FilterButton 
-                    label="Artwork" 
-                    icon={Brush} 
-                    active={activeFilters.includes('artwork')} 
-                    onClick={() => toggleFilter('artwork')} 
-                />
-                <FilterButton 
-                    label="Gambling" 
-                    icon={Dices} 
-                    active={activeFilters.includes('gambling')} 
-                    onClick={() => toggleFilter('gambling')} 
-                />
-                <FilterButton 
-                    label="Experimental" 
-                    icon={FlaskConical} 
-                    active={activeFilters.includes('experimental')} 
-                    onClick={() => toggleFilter('experimental')} 
-                />
+                <FilterButton label="Artwork" icon={Brush} active={activeFilters.includes('artwork')} onClick={() => toggleFilter('artwork')} />
+                <FilterButton label="Gambling" icon={Dices} active={activeFilters.includes('gambling')} onClick={() => toggleFilter('gambling')} />
+                <FilterButton label="Experimental" icon={FlaskConical} active={activeFilters.includes('experimental')} onClick={() => toggleFilter('experimental')} />
             </div>
         </motion.div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px] min-h-[80vh]">
             <AnimatePresence mode="popLayout">
-            {filteredItems.map((item, i) => (
-                <motion.div 
-                    key={item.id} 
-                    layout
-                    className={`relative rounded-[18px] overflow-hidden bg-black h-full group ${!isMobile ? 'cursor-pointer' : ''}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3 }}
-                    whileHover={!isMobile ? { scale: 1.03 } : {}}
-                    // 3. ПРОВЕРКА НА МОБИЛЬНУЮ ВЕРСИЮ ПЕРЕД ОТКРЫТИЕМ
-                    onClick={() => {
-                        if (!isMobile) {
-                            onOpenImage(item.src);
-                        }
-                    }} 
-                >
-                    {item.type === 'video' ? (
-                        <video 
-                            src={item.src} 
-                            autoPlay 
-                            loop 
-                            muted 
-                            playsInline 
-                            className="w-full h-full block object-cover pointer-events-none" 
-                            onError={() => handleLoadError(item.id)}
-                        />
-                    ) : (
-                        <img 
-                            src={item.src} 
-                            alt={`Experiment ${i}`} 
-                            className="w-full h-full block object-cover" 
-                            onError={() => handleLoadError(item.id)}
-                        />
-                    )}
-                </motion.div>
+            {filteredItems.map((item) => (
+                <PlayMediaItem 
+                    key={item.id}
+                    item={item}
+                    isMobile={isMobile}
+                    onClick={handleItemClick}
+                    handleLoadError={handleLoadError}
+                />
             ))}
             </AnimatePresence>
             
