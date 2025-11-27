@@ -1019,7 +1019,7 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
 // UPDATED: Now supports MP4 video files
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
     // Используем новый хук для блокировки скролла
-    useScrollLock(!!src);
+
     
     // Проверка, является ли файл видео (mp4)
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
@@ -1044,7 +1044,7 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
                 >
                     <motion.div 
                         className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-                        initial={{ scale: 0.6, opacity: 0 }}
+                        initial={{ scale: 0.3, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.1, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
@@ -1849,7 +1849,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         </motion.div>
         
         {/* ADDED: min-h-[80vh] to push footer down before content loads */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] mb-[80px] min-h-[80vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px] min-h-[80vh]">
             <AnimatePresence mode="popLayout">
             {filteredItems.map((item, i) => (
                 <motion.div 
@@ -2211,7 +2211,7 @@ export default function App() {
   // UPDATED: Smooth scroll to top when page changes instead of instant jump
   useEffect(() => { 
       // Используем ту же функцию плавного скролла, что и для кнопки "Наверх"
-      smoothScrollToTop(1000); 
+      smoothScrollToTop(1200); 
   }, [currentPage]);
 
   useIntroAnimation();
