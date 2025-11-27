@@ -16,10 +16,7 @@ import {
   X,
   BookOpen,
   Eye,
-  EyeOff,
-  Brush,        // Icon for Artwork
-  Dices,        // Icon for Gambling
-  FlaskConical  // Icon for Experimental
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants, SVGMotionProps } from 'framer-motion';
@@ -1001,7 +998,7 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.05 + (index * 0.05), duration: 0.2, ease: "easeOut" }}
                                     // UPDATED: Жирность шрифта для активного пункта
-                                    className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-normal' : 'text-[#777] font-[250]'}`}
+                                    className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-semibold' : 'text-[#777] font-[250]'}`}
                                     style={{ fontFamily: "'Funnel Display', sans-serif" }}
                                 >
                                     {item.label}
@@ -1089,10 +1086,13 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
   };
   
 
+  // ОБНОВЛЕНО: Классы для навигации с более заметным активным состоянием
   const navLinkClasses = (page: string) => 
-    `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
-    after:content-[''] after:absolute after:w-full after:h-[1px] after:bottom-0 after:left-0 after:bg-black after:scale-x-0 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left
-    ${currentPage === page ? 'text-black' : ''}`;
+    `text-[22px] relative transition-all duration-300 inline-block transform transition-transform cursor-pointer 
+    ${currentPage === page 
+        ? 'text-black font-bold after:scale-x-100 after:origin-bottom-left' 
+        : 'text-[#888] font-medium hover:text-black hover:-translate-y-1.5 after:scale-x-0 hover:after:scale-x-100 after:origin-bottom-right hover:after:origin-bottom-left'}
+    after:content-[''] after:absolute after:w-full after:h-[2px] after:bottom-0 after:left-0 after:bg-black after:transition-transform after:duration-300`;
 
   return (
     // Raised z-index to allow interaction over the overlay when menu is open
@@ -1645,52 +1645,18 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
 
 // UPDATED: PlayPage now supports Images (JPG), Animations (GIF), and Video (MP4)
 interface MediaItem {
-    id: string; // Changed to string to handle complex IDs
+    id: number;
     src: string;
     type: 'image' | 'video';
-    category: 'artwork' | 'gambling' | 'experimental' | 'general';
 }
-
-const FilterButton = ({ 
-    active, 
-    onClick, 
-    label, 
-    icon: Icon 
-}: { 
-    active: boolean; 
-    onClick: () => void; 
-    label: string; 
-    icon: any; 
-}) => {
-    return (
-        <motion.button
-            onClick={onClick}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`
-                relative flex items-center gap-2 px-4 py-2 rounded-full 
-                transition-all duration-300 backdrop-blur-md shadow-lg
-                border
-                ${active 
-                    ? 'bg-white/80 border-white/90 text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]' 
-                    : 'bg-white/30 border-white/40 text-neutral-800 hover:bg-white/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
-                }
-            `}
-        >
-            <Icon size={18} strokeWidth={2} />
-            <span className="font-medium text-sm">{label}</span>
-        </motion.button>
-    );
-};
 
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [activeFilters, setActiveFilters] = useState<string[]>([]); // Array of active categories
   
   useEffect(() => {
     let isMounted = true;
     
-    // 1. Проверка изображений/GIF через загрузку
+    // 1. Проверка изображений/GIF через загрузку (гарантирует валидность)
     const checkImage = (src: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -1700,7 +1666,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         });
     };
 
-    // 2. Проверка видео через HEAD + Content-Type
+    // 2. Проверка видео через HEAD + Content-Type (защита от SPA fallback 200 OK)
     const checkVideo = async (src: string): Promise<boolean> => {
         try {
             const res = await fetch(src, { method: 'HEAD' });
@@ -1712,71 +1678,56 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         }
     };
 
+    // ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА
+    // Проверяем 2 категории путей: anim (Motion) и imgs (Stills)
     const loadMedia = async () => {
-        const MAX_CHECK = 15; // Limit per category to avoid too many requests
+        const MAX_CHECK = 30; 
         const promises = [];
-        const items: MediaItem[] = [];
-
-        // Define search paths with categories
-        // User Logic: 
-        // Artwork = Artwork folder
-        // Gambling = Gambling folder
-        // Experimental = Experimental folder
-        // Also keeping root imgs/anim as 'experimental' or 'general' fallback
-        const pathsToCheck = [
-            // ARTWORK
-            { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
-            { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
-            { prefix: 'anim/Artwork/anim_', ext: 'gif', type: 'image', cat: 'artwork' },
-            
-            // GAMBLING
-            { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
-            { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
-            
-            // EXPERIMENTAL
-            { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
-            { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
-            { prefix: 'anim/Experimental/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
-            
-            // LEGACY / ROOT (Mapped to Experimental for now, or General)
-            { prefix: 'imgs/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
-            { prefix: 'anim/anim_', ext: 'gif', type: 'image', cat: 'experimental' },
-            { prefix: 'anim/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
-        ];
-
-        for (const pathConfig of pathsToCheck) {
-            for (let i = 1; i <= MAX_CHECK; i++) {
-                const src = `${pathConfig.prefix}${i}.${pathConfig.ext}`;
-                const checkFn = pathConfig.type === 'video' ? checkVideo : checkImage;
-                
-                promises.push(
-                    checkFn(src).then(exists => {
-                        if (exists && isMounted) {
-                            items.push({
-                                id: `${pathConfig.cat}-${pathConfig.type}-${i}-${pathConfig.ext}`,
-                                src: src,
-                                type: pathConfig.type as 'image' | 'video',
-                                category: pathConfig.cat as any
-                            });
-                        }
-                    })
-                );
-            }
+        
+        // Helper to check Anim slot (Video > Gif)
+        const checkAnim = async (i: number) => {
+             const vidPath = `anim/anim_${i}.mp4`;
+             const hasVid = await checkVideo(vidPath);
+             if(hasVid) return { id: i + 2000, src: vidPath, type: 'video' };
+             
+             // Если видео нет, проверяем GIF
+             const gifPath = `anim/anim_${i}.gif`;
+             const hasGif = await checkImage(gifPath);
+             if(hasGif) return { id: i + 1000, src: gifPath, type: 'image' };
+             
+             return null;
+        };
+        
+        // Helper to check Img slot
+        const checkImg = async (i: number) => {
+             const path = `imgs/img_${i}.jpg`;
+             if(await checkImage(path)) return { id: i, src: path, type: 'image' };
+             return null;
         }
 
-        await Promise.all(promises);
+        for (let i = 1; i <= MAX_CHECK; i++) {
+            promises.push(checkAnim(i));
+            promises.push(checkImg(i));
+        }
+
+        const results = await Promise.all(promises);
+        
+        // Фильтруем null и приводим типы
+        // @ts-ignore
+        const items = results.filter((item): item is MediaItem => item !== null);
+        
+        // Сортировка, чтобы элементы шли по порядку (1, 2, 3...)
+        // Восстанавливаем оригинальный индекс из ID
+        items.sort((a, b) => {
+             const getOriginalIndex = (id: number) => id > 2000 ? id - 2000 : (id > 1000 ? id - 1000 : id);
+             const idxA = getOriginalIndex(a.id);
+             const idxB = getOriginalIndex(b.id);
+             if (idxA !== idxB) return idxA - idxB;
+             return a.id - b.id; 
+        });
 
         if (isMounted) {
-            // Remove duplicates if any (e.g. same file checked multiple times)
-            const uniqueItems = Array.from(new Map(items.map(item => [item.src, item])).values());
-            
-            // Sort to mix content nicely
-            uniqueItems.sort((a, b) => {
-                 const getNum = (s: string) => parseInt(s.match(/\d+/)?.[0] || '0');
-                 return getNum(a.src) - getNum(b.src);
-            });
-            
-            setMediaItems(uniqueItems);
+            setMediaItems(items);
         }
     };
 
@@ -1784,42 +1735,15 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     return () => { isMounted = false; };
   }, []);
 
-  const handleLoadError = (id: string) => {
+  // Handler to hide items if they fail to render (runtime protection)
+  const handleLoadError = (id: number) => {
       setMediaItems(prev => prev.filter(item => item.id !== id));
   };
-
-  const toggleFilter = (filter: string) => {
-      setActiveFilters(prev => {
-          if (prev.includes(filter)) {
-              return prev.filter(f => f !== filter);
-          } else {
-              return [...prev, filter];
-          }
-      });
-  };
-
-  // Filter Logic:
-  // If filters are active, show items that match ANY active filter.
-  // If NO filters are active, show ALL items.
-  const filteredItems = useMemo(() => {
-      if (activeFilters.length === 0) return mediaItems;
-      return mediaItems.filter(item => {
-          // Special logic for Artwork button as requested by user?
-          // "Artwork: public\anim\Artwork and public\imgs\Gambling"
-          // If the user REALLY meant that specific mapping, we could do it here.
-          // But implementing standard category filtering is safer.
-          // IF strict requested logic:
-          // if (activeFilters.includes('artwork')) { check if item is in Artwork OR Gambling? }
-          
-          // Using standard logic for now based on file path categories
-          return activeFilters.includes(item.category);
-      });
-  }, [mediaItems, activeFilters]);
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <motion.div 
-            className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-6"
+            className="flex flex-wrap justify-between items-end mb-[30px] gap-10"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
@@ -1828,42 +1752,18 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">Playground</h1>
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
-
-            {/* FILTERS */}
-            <div className="flex flex-wrap gap-3">
-                <FilterButton 
-                    label="Artwork" 
-                    icon={Brush} 
-                    active={activeFilters.includes('artwork')} 
-                    onClick={() => toggleFilter('artwork')} 
-                />
-                <FilterButton 
-                    label="Gambling" 
-                    icon={Dices} 
-                    active={activeFilters.includes('gambling')} 
-                    onClick={() => toggleFilter('gambling')} 
-                />
-                <FilterButton 
-                    label="Experimental" 
-                    icon={FlaskConical} 
-                    active={activeFilters.includes('experimental')} 
-                    onClick={() => toggleFilter('experimental')} 
-                />
-            </div>
         </motion.div>
         
         {/* ADDED: min-h-[80vh] to push footer down before content loads */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[20px] mb-[80px] min-h-[80vh]">
-            <AnimatePresence mode="popLayout">
-            {filteredItems.map((item, i) => (
+            <AnimatePresence>
+            {mediaItems.map((item, i) => (
                 <motion.div 
                     key={item.id} 
-                    layout
                     className="relative rounded-[18px] overflow-hidden bg-black cursor-pointer h-full group"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 + (i * 0.1) }}
                     whileHover={{ scale: 1.03 }}
                     onClick={() => onOpenImage(item.src)} // Trigger global modal
                 >
@@ -1889,12 +1789,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 </motion.div>
             ))}
             </AnimatePresence>
-            
-            {filteredItems.length === 0 && (
-                <div className="col-span-full flex justify-center items-center h-[200px] text-neutral-400">
-                    No items found for this filter.
-                </div>
-            )}
         </div>
         
         <Footer />
