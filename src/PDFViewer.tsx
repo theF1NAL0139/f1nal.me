@@ -507,21 +507,22 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 {/* ZOOM LAYER (TRANSFORM) */}
                 <AnimatePresence mode="popLayout" initial={false}>
                     <motion.div
-                        key={pageIndex} 
-                        initial={{ opacity: 0, x: direction === 1 ? 60 : -60 }}
-                        animate={{ 
-                            opacity: 1, 
-                            x: position.x, 
-                            y: position.y, 
-                            scale 
-                        }}
-                        exit={{ opacity: 0, x: direction === 1 ? -60 : 60 }}
-                        transition={{
-                            x: isDragging ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 },
-                            y: isDragging ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 },
-                            scale: { duration: 0.2 },
-                            opacity: { duration: 0.2 }
-                        }}
+    key={pageIndex} 
+    initial={{ opacity: 0, x: direction === 1 ? 60 : -60 }}
+    animate={{ 
+        opacity: 1, 
+        x: position.x, 
+        y: position.y, 
+        scale 
+    }}
+    exit={{ opacity: 0, x: direction === 1 ? -60 : 60 }} // На мобилках exit может вызывать пик памяти
+    transition={{
+        // ИЗМЕНЕНО: Упрощаем анимацию для мобильных, делаем её быстрее и без "пружины"
+        x: isDragging ? { type: "tween", duration: 0 } : (isMobile ? { duration: 0.2 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 }),
+        y: isDragging ? { type: "tween", duration: 0 } : (isMobile ? { duration: 0.2 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 }),
+        scale: { duration: 0.2 },
+        opacity: { duration: 0.2 }
+    }}
                         className="flex origin-center will-change-transform absolute inset-0 flex items-center justify-center"
                     >
                         <Document
