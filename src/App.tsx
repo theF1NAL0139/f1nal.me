@@ -7,20 +7,19 @@ import {
   ArrowUp, 
   ArrowLeft, 
   ArrowRight,
-  Brush,        // Icon for Artwork
-  Dices,        // Icon for Gambling
-  FlaskConical  // Icon for Experimental
+  Brush,        
+  Dices,        
+  FlaskConical  
 } from 'lucide-react';
-
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants, SVGMotionProps } from 'framer-motion';
-import IssuuReader from "./components/IssuuReader_clean";
 
+// --- IMPORT PDF VIEWER ---
+import PDFViewer from './PDFViewer';
 
 // =========================================
 // GLOBAL STYLES & CSS
 // =========================================
-
 const GLOBAL_STYLES = `
 .ios-safearea-overlay {
     position: fixed;
@@ -122,34 +121,15 @@ img {
     user-drag: none;
 }
 
-/* --- ISSUU READER STYLES --- */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
 
-/* UPDATED: Simplified Animation (No Scale) */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
-.shadow-spine-center {
-  background: linear-gradient(to right, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 20%);
-}
-.shadow-spine-left {
-  background: linear-gradient(to left, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 20%);
-}
 `;
-
-
 
 
 // =========================================
@@ -167,7 +147,7 @@ const useScrollLock = (lock: boolean) => {
     // 2. Фиксируем body, сдвигая его наверх на величину скролла
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+    document.body.style.width = '40%';
     document.body.classList.add('scroll-locked');
 
     // 3. Функция очистки (вызывается при закрытии)
@@ -381,7 +361,6 @@ const MenuToggle = ({ toggle, isOpen }: { toggle: () => void, isOpen: boolean })
 
 // UPDATED: Mobile Menu Overlay
 const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void, currentPage: string }) => {
-    // Используем новый хук для блокировки скролла
     useScrollLock(isOpen);
 
     const menuItems = [
@@ -407,17 +386,14 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
                     variants={menuVariants}
                     className="fixed inset-0 top-0 left-0 w-full h-[100dvh] flex flex-col items-center justify-center z-[9999]"
                     style={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly more opaque
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
                         backdropFilter: 'blur(8px)',
                         WebkitBackdropFilter: 'blur(8px)',
                         touchAction: 'none'
                     }}
                 >
-                     {/* LOGO is handled by the main Header which now sits ON TOP of this overlay */}
-                    
                     <div className="flex flex-col items-center gap-6">
                         {menuItems.map((item, index) => {
-                            // 1) Логика выделения активного пункта
                             const isActive = currentPage === item.href;
                             
                             return (
@@ -430,7 +406,6 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.05 + (index * 0.05), duration: 0.2, ease: "easeOut" }}
-                                    // UPDATED: Жирность шрифта для активного пункта
                                     className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-normal' : 'text-[#777] font-[250]'}`}
                                     style={{ fontFamily: "'Funnel Display', sans-serif" }}
                                 >
@@ -446,16 +421,10 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
 };
 
 // UPDATED: Image Modal Overlay
-// Теперь блокировка скролла срабатывает только если есть src И мы на мобильном устройстве
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
-    // 1. Получаем состояние: мобильное устройство или нет
     const isMobile = useIsMobile();
-
-    // 2. Блокируем скролл ТОЛЬКО если модалка открыта (!!src) И это мобилка (isMobile)
-    // На десктопе второй аргумент будет false, и useScrollLock ничего не сделает
     useScrollLock(!!src && isMobile);
     
-    // Проверка, является ли файл видео (mp4)
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
 
     return (
@@ -463,14 +432,12 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
             {src && (
                 <motion.div 
                     className="fixed inset-0 z-[10000] flex items-center justify-center" 
-                    // Clicking outside (on background) closes it
                     onClick={onClose}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.4 }}
                     style={{ 
-                        // Reuse the exact same style as MobileMenuOverlay
                         backgroundColor: 'rgba(255, 255, 255, 0.85)',
                         backdropFilter: 'blur(4px)',
                         WebkitBackdropFilter: 'blur(4px)',
@@ -482,7 +449,6 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
                         animate={{ scale: 1, opacity: 1 }}
                         exit={{ scale: 0.1, opacity: 0 }}
                         transition={{ duration: 0.3, ease: "easeOut" }}
-                        // Prevent click on container from closing
                         onClick={(e) => e.stopPropagation()}
                     >
                         {isVideo ? (
@@ -528,8 +494,6 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
     ${currentPage === page ? 'text-black' : ''}`;
 
   return (
-    // Raised z-index to allow interaction over the overlay when menu is open
-    // NOTE: Header is now placed outside the blurring container, so z-index works correctly relative to overlay
     <header className={`relative w-full pt-[40px] pb-[10px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
       <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
         
@@ -548,7 +512,6 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
           </ul>
         </nav>
         
-        {/* UPDATED: Animated Menu Toggle */}
         <div className="lg:hidden z-[10002]">
             <MenuToggle toggle={onToggleMenu} isOpen={isMenuOpen} />
         </div>
@@ -558,12 +521,9 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
   );
 };
 
-// =========================================
-// UPDATED FOOTER: CLASSIC SLIDE-UP ANIMATION
-// =========================================
+// UPDATED FOOTER
 const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
     
-  // Контент футера
   const footerContent = (
       <>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
@@ -609,7 +569,6 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
       </>
   );
 
-  // Классы контейнера. "overflow-hidden" критически важен для эффекта "выезда" из ниоткуда.
   const containerClasses = "pt-10 pb-0 overflow-hidden relative"; 
 
   if (forceVisible) {
@@ -620,9 +579,6 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
       );
   }
 
-  // OPTIMIZED ANIMATION FIXED:
-  // Переносим триггер (whileInView) на родительский тег footer, который находится в потоке документа.
-  // Анимируем вложенный div.
   return (
       <motion.footer 
         className={containerClasses}
@@ -659,7 +615,6 @@ const togglePlay = () => {
         videoRef.current.play();
         setIsPlaying(true);
 
-        // <<< ДОБАВЛЕНО: автоскрытие UI через 3 секунды
         clearTimeout(inactivityTimeout);
         inactivityTimeout = setTimeout(() => setUiHidden(true), 200);
 
@@ -712,7 +667,6 @@ const togglePlay = () => {
     }
   };
 
-  // OPTIMIZATION: Memoize particles to avoid re-calculation on every render
   const particles = useMemo(() => [...Array(12)].map((_, i) => ({
       id: i,
       x: (Math.random() - 0.5) * 250,
@@ -1007,7 +961,6 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
     return () => { isMounted = false; };
   }, []);
 
-  // OPTIMIZATION: Wrap in requestAnimationFrame to prevent layout thrashing
   const calculateLayout = useCallback(() => {
     window.requestAnimationFrame(() => {
         if (!gridRef.current) return;
@@ -1113,10 +1066,8 @@ const FilterButton = ({
                 }
             `}
         >
-            {/* Иконка чуть меньше на мобильных (14px), стандартная на десктопе (18px) */}
             <Icon className="w-[14px] h-[14px] lg:w-[18px] lg:h-[18px]" strokeWidth={2} />
             
-            {/* Текст чуть меньше на мобильных */}
             <span className="font-medium text-xs lg:text-sm leading-none pt-[1px]">{label}</span>
         </motion.button>
     );
@@ -1126,17 +1077,12 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   
-  // 1. ПОДКЛЮЧАЕМ ХУК ДЛЯ ОПРЕДЕЛЕНИЯ МОБИЛЬНОЙ ВЕРСИИ
   const isMobile = useIsMobile(); 
   
   useEffect(() => {
     let isMounted = true;
     
-    // ... (код проверки изображений и видео остается без изменений) ...
-    // ... (скопируйте функции checkImage, checkVideo и loadMedia из вашего старого кода сюда) ...
-    // Для краткости я не дублирую логику загрузки loadMedia, так как она не менялась.
-    
-    // --- НАЧАЛО БЛОКА ЗАГРУЗКИ (Оставьте как было в оригинале) ---
+    // --- НАЧАЛО БЛОКА ЗАГРУЗКИ ---
     const checkImage = (src: string): Promise<boolean> => {
         return new Promise((resolve) => {
             const img = new Image();
@@ -1162,7 +1108,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         const promises = [];
         const items: MediaItem[] = [];
 
-        // UPDATED: Replaced .gif with .png
         const pathsToCheck = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
@@ -1243,7 +1188,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
             </div>
 
-            {/* 2. ИСПРАВЛЕНИЕ ОТСТУПОВ (gap-1.5 вместо gap-3 на мобильных) */}
             <div className="flex flex-wrap gap-1.5 lg:gap-3 w-full lg:w-auto">
                 <FilterButton 
                     label="Artwork" 
@@ -1278,7 +1222,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.3 }}
                     whileHover={!isMobile ? { scale: 1.03 } : {}}
-                    // 3. ПРОВЕРКА НА МОБИЛЬНУЮ ВЕРСИЮ ПЕРЕД ОТКРЫТИЕМ
                     onClick={() => {
                         if (!isMobile) {
                             onOpenImage(item.src);
@@ -1319,7 +1262,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   );
 };
 
-// UPDATED: ReelPage now passes forceVisible={true} to Footer
 const ReelPage = () => (
     <motion.div 
         className="w-full"
@@ -1344,9 +1286,7 @@ const ReelPage = () => (
     </motion.div>
 );
 
-// UPDATED: AboutPage с текстом, который плавно появляется при скролле (2 пункт задачи)
 const AboutPage = () => {
-    // Вспомогательный вариант анимации для текста: появляется снизу вверх
     const textRevealVariant: Variants = {
         hidden: { opacity: 0, y: 30 },
         visible: { 
@@ -1454,7 +1394,6 @@ const AboutPage = () => {
     );
 };
 
-// --- ОБНОВЛЕНО: ProjectPage теперь принимает children ---
 const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate, children }: any) => {
     return (
         <motion.div 
@@ -1526,7 +1465,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
     );
 };
 
-// --- ОБНОВЛЕНО: ElfBar теперь содержит IssuuReader ---
+// --- ИСПОЛЬЗОВАНИЕ PDF VIEWER ---
 const ElfBar = ({ navigate }: any) => (
     <ProjectPage 
         navigate={navigate}
@@ -1544,7 +1483,7 @@ const ElfBar = ({ navigate }: any) => (
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
-		<IssuuReader pdfUrl="/LKT_WERKE_RU.pdf" />
+		<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
     </ProjectPage>
 );
 // -----------------------------------------------------
@@ -1593,16 +1532,10 @@ export default function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [playModalSrc, setPlayModalSrc] = useState<string | null>(null);
 
-  // === ПОДКЛЮЧЕНИЕ ЗАЩИТЫ ===
   useContentProtection(); 
-  // ==========================
 
   useEffect(() => {
-    // 2. ИЗМЕНЕНИЕ ЗАГОЛОВКА
     document.title = "F1NAL EDITING - OLEG SHMAROV - 3D ARTIST";
-    // ... остальной код
-
-    // 3. ДОБАВЛЕНИЕ FAVICON
     const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
     (link as HTMLLinkElement).type = 'image/webp';
     (link as HTMLLinkElement).rel = 'icon';
@@ -1614,7 +1547,6 @@ export default function App() {
     switch(currentPage) {
       case 'home': return <WorkPage navigate={setCurrentPage} />;
       case 'reel': return <ReelPage />;
-      // Pass the modal opener to PlayPage
       case 'play': return <PlayPage onOpenImage={setPlayModalSrc} />;
       case 'info': return <AboutPage />;
       case 'elfbar': return <ElfBar navigate={setCurrentPage} />;
@@ -1625,21 +1557,17 @@ export default function App() {
     }
   };
 
-  // UPDATED: Smooth scroll to top when page changes instead of instant jump
   useEffect(() => { 
-      // Используем ту же функцию плавного скролла, что и для кнопки "Наверх"
       smoothScrollToTop(1200); 
   }, [currentPage]);
 
   useIntroAnimation();
 
-  // Combine blur states
   const isBlurActive = isMenuOpen || !!playModalSrc;
 
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
-      {/* UPDATED: Mobile Menu Overlay теперь получает currentPage */}
       <MobileMenuOverlay 
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
@@ -1647,7 +1575,6 @@ export default function App() {
         currentPage={currentPage}
       />
       
-      {/* NEW: Image Modal Overlay reused same logic */}
       <ImageModalOverlay
         src={playModalSrc}
         onClose={() => setPlayModalSrc(null)}
@@ -1655,11 +1582,8 @@ export default function App() {
 	  
 	  <div className="ios-safearea-overlay"></div>
 
-      {/* UPDATED: "Crutch" implementation for blurred background content */}
-      {/* IMPORTANT FIX: Split Header out of the blurred container to keep it sharp and on top */}
       <div className="min-h-screen w-full flex flex-col bg-transparent">
         
-        {/* HEADER: Outside the blur filter, High Z-Index to stay above Overlay (z-9999) */}
         <div className="relative z-[10005]">
              <Header 
                 currentPage={currentPage} 
@@ -1669,21 +1593,16 @@ export default function App() {
             />
         </div>
 
-        {/* MAIN CONTENT: This gets the blur filter */}
         <div 
             id="content-holder" 
             className="flex-grow pt-[40px] relative flex flex-col"
             style={{
-                // Apply blur filter directly to content when menu is open OR modal is open
                 filter: isBlurActive ? 'blur(4px)' : 'none',
-                // Also ensure white background is dominant
                 backgroundColor: isBlurActive ? 'rgba(255, 255, 255, 1)' : 'transparent', 
                 transition: 'filter 0.3s ease, background-color 0.3s ease',
-                // Ensure pointer events are disabled on background content when menu open
                 pointerEvents: isBlurActive ? 'none' : 'auto'
             }}
         >
-             {/* 3. Анимация переходов между страницами (0.25s) */}
             <AnimatePresence mode="wait">
                 <motion.div
                     key={currentPage}
@@ -1697,8 +1616,6 @@ export default function App() {
             </AnimatePresence>
         </div>
         
-        {/* ScrollToTop outside blur if desired, or inside if it should blur. 
-            Usually controls stay sharp. Put it outside. */}\
         <ScrollToTop />
       </div>
     </>
