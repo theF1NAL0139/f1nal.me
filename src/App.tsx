@@ -147,7 +147,7 @@ const useScrollLock = (lock: boolean) => {
     // 2. Фиксируем body, сдвигая его наверх на величину скролла
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '40%';
+    document.body.style.width = '100%';
     document.body.classList.add('scroll-locked');
 
     // 3. Функция очистки (вызывается при закрытии)
