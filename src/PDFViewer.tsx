@@ -129,7 +129,12 @@ const SmartPage = ({
 };
 
 // --- MAIN COMPONENT ---
-const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
+interface PDFViewerProps {
+    pdfUrl: string;
+    fileName?: string; 
+}
+
+const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     useEffect(() => {
         const styleSheet = document.createElement("style");
         styleSheet.innerText = PDF_STYLES;
@@ -137,16 +142,29 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
         return () => { document.head.removeChild(styleSheet); };
     }, []);
 
+    // --- ЛОГИКА ОПРЕДЕЛЕНИЯ ИМЕНИ ФАЙЛА ---
+    const displayFileName = useMemo(() => {
+        if (fileName) return fileName; 
+        try {
+            const cleanUrl = pdfUrl.split('?')[0];
+            const nameFromUrl = cleanUrl.substring(cleanUrl.lastIndexOf('/') + 1);
+            return decodeURIComponent(nameFromUrl) || "Document.pdf";
+        } catch (e) {
+            return "Document.pdf";
+        }
+    }, [fileName, pdfUrl]);
+
     const containerRef = useRef<HTMLDivElement>(null);
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageIndex, setPageIndex] = useState(0); 
 
-    // --- FIX: Добавляем состояние размеров контейнера ---
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
 
     const getDevicePixelRatio = () => typeof window !== 'undefined' ? window.devicePixelRatio : 1;
     const [scale, setScale] = useState(1);
-    const [pdfRenderScale, setPdfRenderScale] = useState(getDevicePixelRatio() * 2);
+    
+    // Изначально ставим заглушку, реальное значение выставится в useEffect
+    const [pdfRenderScale, setPdfRenderScale] = useState(1); 
     const [position, setPosition] = useState({ x: 0, y: 0 });
     
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -165,14 +183,23 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
         const checkMobile = () => {
             const mobile = window.innerWidth < 768;
             setIsMobile(mobile);
-            if(mobile) setShowUI(false);
+            
+            if (mobile) {
+                setShowUI(false);
+                // [FIX 1] Ограничиваем качество рендера для мобильных (макс 1.5), 
+                // чтобы избежать вылетов памяти (OOM) на iOS
+                setPdfRenderScale(Math.min(window.devicePixelRatio, 1.5));
+            } else {
+                // Для десктопа оставляем высокое качество
+                setPdfRenderScale(window.devicePixelRatio * 2);
+            }
         };
+        
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
     }, []);
 
-    // --- FIX: ResizeObserver для точных размеров контейнера ---
     useEffect(() => {
         if (!containerRef.current) return;
         const updateSize = () => {
@@ -187,13 +214,12 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
         observer.observe(containerRef.current);
         updateSize();
         return () => observer.disconnect();
-    }, [isFullscreen]); // Пересчет при смене режима экрана
+    }, [isFullscreen]); 
 
     useEffect(() => {
         positionRef.current = position;
     }, [position]);
 
-    // --- FIX: Новая логика расчета ширины страницы с учетом высоты ---
     const currentPages = useMemo(() => {
         if (!numPages) return [];
         if (isMobile) return [pageIndex + 1];
@@ -207,29 +233,22 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
         const width = containerSize.width || 800;
         const height = containerSize.height || 600;
         
-        // Отступы по краям
         const padding = isFullscreen ? 0 : 32;
         const availableWidth = width - padding;
-        const availableHeight = height - (isFullscreen ? 10 : 40); // Немного места сверху/снизу
+        const availableHeight = height - (isFullscreen ? 10 : 40); 
 
-        // Пропорции A4 ~ 1.414
         const PAGE_ASPECT = 1.414;
-
-        // 1. Макс ширина, если ограничивать по высоте (contain)
         const heightConstrainedWidth = availableHeight / PAGE_ASPECT;
 
         if (isMobile) {
             return Math.min(availableWidth, heightConstrainedWidth);
         }
 
-        // Режим двух страниц
         if ((pageIndex === 0 && !isMobile) || currentPages.length === 2) {
-            // Доступная ширина для одной страницы (половина экрана)
             const widthConstrainedWidth = (availableWidth - 20) / 2;
             return Math.min(widthConstrainedWidth, heightConstrainedWidth);
         }
 
-        // Одиночная страница
         return Math.min(availableWidth, heightConstrainedWidth);
 
     }, [containerSize, isMobile, pageIndex, currentPages, isFullscreen]);
@@ -244,7 +263,6 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
             
         const contentHeight = (pdfPageWidth * 1.414) * scale;
 
-        // Используем реальные размеры из стейта
         const containerW = containerSize.width;
         const containerH = containerSize.height;
 
@@ -301,6 +319,10 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
 
     // --- ZOOM & WHEEL ---
     const updateQualitySmart = (newVisualScale: number) => {
+        // [FIX 2] На мобильных устройствах не повышаем качество рендера при зуме,
+        // чтобы не перегружать память новыми тяжелыми канвасами.
+        if (isMobile) return;
+
         if (qualityTimeoutRef.current) clearTimeout(qualityTimeoutRef.current);
         qualityTimeoutRef.current = setTimeout(() => {
             const dpr = getDevicePixelRatio();
@@ -333,7 +355,7 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
         setScale(targetScale);
         setPosition({ x: newX, y: newY });
         updateQualitySmart(targetScale);
-    }, [scale, position, pdfRenderScale]);
+    }, [scale, position, pdfRenderScale, isMobile]); // added isMobile dep
 
     useEffect(() => {
         const el = containerRef.current;
@@ -345,13 +367,52 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
     const resetTransform = () => {
         setScale(1); 
         setPosition({ x: 0, y: 0 });
-        setPdfRenderScale(getDevicePixelRatio() * 2);
+        
+        // [FIX 3] При сбросе зума (смена страницы) возвращаем безопасный scale для мобильных
+        const baseScale = isMobile 
+            ? Math.min(getDevicePixelRatio(), 1.5) 
+            : getDevicePixelRatio() * 2;
+            
+        setPdfRenderScale(baseScale);
     };
 
-    const toggleFullscreen = async () => { 
-        if (!isFullscreen) { containerRef.current?.requestFullscreen?.(); setIsFullscreen(true); } 
-        else { document.exitFullscreen?.(); setIsFullscreen(false); }
-        // Сброс трансформации с небольшой задержкой, чтобы контейнер успел обновить размеры
+    // --- FULLSCREEN LOGIC ---
+    const toggleFullscreen = async () => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        if (!isFullscreen) {
+            try {
+                if (container.requestFullscreen) {
+                    await container.requestFullscreen();
+                } else if ((container as any).webkitRequestFullscreen) {
+                    await (container as any).webkitRequestFullscreen();
+                } else if ((container as any).mozRequestFullScreen) {
+                    await (container as any).mozRequestFullScreen();
+                } else if ((container as any).msRequestFullscreen) {
+                    await (container as any).msRequestFullscreen();
+                }
+            } catch (err) {
+                console.log("Native fullscreen not supported, using CSS fallback");
+            }
+            setIsFullscreen(true);
+        } else {
+            try {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                } else if ((document as any).webkitExitFullscreen) {
+                    await (document as any).webkitExitFullscreen();
+                } else if ((document as any).mozCancelFullScreen) {
+                    await (document as any).mozCancelFullScreen();
+                } else if ((document as any).msExitFullscreen) {
+                    await (document as any).msExitFullscreen();
+                }
+            } catch (err) {
+                // Ignore errors
+            }
+            setIsFullscreen(false);
+        }
+        
         setTimeout(resetTransform, 150);
     };
 
@@ -401,10 +462,16 @@ const PDFViewer = ({ pdfUrl }: { pdfUrl: string }) => {
             <div className="absolute top-4 left-4 right-4 flex justify-between z-20 pointer-events-none">
                 <div className={`transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0'}`}>
                     <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
-                        <BookOpen size={16} className="text-neutral-700"/>
-                        <span className="font-medium text-sm text-neutral-800 hidden sm:inline">PDF Viewer</span>
-                        <div className="w-px h-4 bg-neutral-300"></div>
-                        <span className="text-xs font-bold text-neutral-500 font-mono">
+                        <BookOpen size={16} className="text-neutral-700 shrink-0"/>
+                        <span 
+                            className="font-medium text-xs sm:text-sm text-neutral-800 truncate max-w-[120px] sm:max-w-[300px]"
+                            title={displayFileName}
+                        >
+                            {displayFileName}
+                        </span>
+                        
+                        <div className="w-px h-4 bg-neutral-300 shrink-0"></div>
+                        <span className="text-xs font-bold text-neutral-500 font-mono shrink-0">
                             {currentPages.length > 1 ? `${currentPages[0]}-${currentPages[1]}` : currentPages[0] || 1} / {numPages || '-'}
                         </span>
                     </div>
