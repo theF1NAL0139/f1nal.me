@@ -880,7 +880,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 </div>
 
                 {/* 4. NEW: Black Overlay for Text Readability (z-25) */}
-                <div className="absolute inset-0 z-[25] bg-black/30 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
+                <div className="absolute inset-0 z-[25] bg-black/15 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
 
                 {/* 5. Text Content */}
                 <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
@@ -1252,7 +1252,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             
             {filteredItems.length === 0 && (
                 <div className="col-span-full flex justify-center items-center h-[200px] text-neutral-400">
-                    No items found for this filter.
+                    
                 </div>
             )}
         </div>
