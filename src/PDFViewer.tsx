@@ -5,10 +5,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// Настройка воркера
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
-// --- GLOBAL STYLES ---
 const PDF_STYLES = `
 .react-pdf__Page__canvas {
   display: block;
@@ -29,7 +27,6 @@ const PDF_STYLES = `
 }
 `;
 
-// --- UI COMPONENTS ---
 const GlassButton = ({ onClick, disabled, children, className = "", title }: any) => (
   <button 
     onClick={onClick} disabled={disabled} title={title}
@@ -39,7 +36,6 @@ const GlassButton = ({ onClick, disabled, children, className = "", title }: any
   </button>
 );
 
-// --- SMART PAGE COMPONENT ---
 const VISUAL_PADDING = 50; 
 
 const SmartPage = ({ 
@@ -71,7 +67,6 @@ const SmartPage = ({
         );
     }
 
-    // --- Desktop Logic (Double Buffering) ---
     const [activeSlot, setActiveSlot] = useState<'A' | 'B'>('A');
     const [stateA, setStateA] = useState({ page: pageNumber, scale: targetScale });
     const [stateB, setStateB] = useState({ page: pageNumber, scale: targetScale });
@@ -147,7 +142,6 @@ const SmartPage = ({
     );
 };
 
-// --- MAIN COMPONENT ---
 interface PDFViewerProps {
     pdfUrl: string;
     fileName?: string; 
@@ -194,7 +188,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     const qualityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollPosRef = useRef({ x: 0, y: 0 });
 
-    // --- SETUP & UTILS ---
     useEffect(() => {
         const checkMobile = () => {
             const mobile = window.innerWidth < 768;
@@ -231,12 +224,10 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         positionRef.current = position;
     }, [position]);
 
-    // [FIX] Восстановление скролла + синхронизация с кнопкой Esc браузера
     useEffect(() => {
         const handleFullscreenChange = () => {
             const isBrowserFullscreen = !!document.fullscreenElement;
             
-            // Если пользователь нажал Esc (браузер вышел, а стейт еще true)
             if (!isBrowserFullscreen && isFullscreen) {
                 setIsFullscreen(false);
             }
@@ -247,7 +238,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     }, [isFullscreen]);
 
     useLayoutEffect(() => {
-        // Если мы только что выключили полный экран
         if (!isFullscreen && scrollPosRef.current.y > 0) {
             window.scrollTo({
                 top: scrollPosRef.current.y,
@@ -306,7 +296,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         return { maxX, maxY };
     };
 
-    // --- MOUSE HANDLERS ---
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
         dragStartRef.current = { x: e.clientX - positionRef.current.x, y: e.clientY - positionRef.current.y };
@@ -338,7 +327,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         }
     };
 
-    // --- ZOOM & WHEEL ---
     const updateQualitySmart = (newVisualScale: number) => {
         if (isMobile) return; 
 
@@ -354,15 +342,17 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
             if (neededScale > pdfRenderScale) {
                  setPdfRenderScale(neededScale * 1.2); 
             } else if (hasQualityGap) {
-                 setPdfRenderScale(Math.max(neededScale, 1.0));
+                 setPdfRenderScale(Math.max(neededScale, 2.0));
             } else if (isZoomedInNormal && pdfRenderScale < dpr) {
                  setPdfRenderScale(dpr * 1.2);
             }
         }, 500); 
     };
 
-    const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => {
-        if (!e.ctrlKey) return; 
+    // 1) ИСПРАВЛЕНИЕ: Добавлена проверка isGridView
+    const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => { 
+        if (isGridView) return; // Если открыта сетка, не перехватываем скролл
+        
         e.preventDefault(); e.stopPropagation();
         const container = containerRef.current;
         if (!container) return;
@@ -373,6 +363,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         const targetScale = Math.min(Math.max(scale + delta * scale, 1.0), 4);
         
         if (targetScale <= 1.05) {
+            if (scale === 1) return; 
             setScale(1);
             setPosition({ x: 0, y: 0 });
             updateQualitySmart(1);
@@ -387,7 +378,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         setScale(targetScale);
         setPosition({ x: newX, y: newY });
         updateQualitySmart(targetScale);
-    }, [scale, position, pdfRenderScale, isMobile]);
+    }, [scale, position, pdfRenderScale, isMobile, isGridView]);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -396,53 +387,39 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         return () => el.removeEventListener('wheel', handleWheel as any);
     }, [handleWheel]);
 
-    const resetTransform = () => {
+    const resetTransform = useCallback(() => {
         setScale(1); 
         setPosition({ x: 0, y: 0 });
         const baseScale = isMobile 
             ? Math.min(getDevicePixelRatio(), 1.2) 
             : getDevicePixelRatio() * 1.5;
         setPdfRenderScale(baseScale);
-    };
+    }, [isMobile]);
 
-    // [FIX] Логика переключения полного экрана без "пропадания"
-    const toggleFullscreen = async () => {
+    // Обернули в useCallback для стабильности в зависимостях
+    const toggleFullscreen = useCallback(async () => {
         const container = containerRef.current;
         if (!container) return;
 
         if (!isFullscreen) {
-            // ВХОД В ПОЛНЫЙ ЭКРАН
             scrollPosRef.current = { x: window.scrollX, y: window.scrollY };
-
             try {
                 if (container.requestFullscreen) await container.requestFullscreen();
                 else if ((container as any).webkitRequestFullscreen) await (container as any).webkitRequestFullscreen();
-                // Ставим стейт ПОСЛЕ запроса, это безопасно
                 setIsFullscreen(true);
-            } catch (err) { 
-                console.error(err); 
-            }
+            } catch (err) { console.error(err); }
             
             setTimeout(() => resetTransform(), 500);
 
         } else {
-            // ВЫХОД ИЗ ПОЛНОГО ЭКРАНА
-            
-            // 1. Сначала меняем React State. Это заставит компонент вернуться в DOM
-            // и занять свое место (высоту) МОМЕНТАЛЬНО.
-            setIsFullscreen(false);
-            
-            // 2. Сразу вызываем выход из браузерного API.
-            // React отрендерит "обычный" виджет внутри fullscreen-контейнера браузера на долю секунды,
-            // но зато скролл восстановится корректно, так как высота страницы вернется.
             try {
                 if (document.exitFullscreen) await document.exitFullscreen();
                 else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
             } catch (err) {}
-            
-            setTimeout(() => resetTransform(), 500);
+            setIsFullscreen(false);
+            setTimeout(() => resetTransform(), 300);
         }
-    };
+    }, [isFullscreen, resetTransform]);
 
     const maxIndex = useMemo(() => {
         if (!numPages) return 0;
@@ -466,15 +443,28 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // 2) ИСПРАВЛЕНИЕ: Добавлена обработка клавиши F
+            if (e.key === 'А' || e.key === 'а')  {
+                toggleFullscreen();
+                return;
+				
+				
+            }
+			if (e.key === 'F' || e.key === 'f')  {
+                toggleFullscreen();
+                return;
+				
+				
+            }
+
             if (isGridView) return;
             if (e.key === 'ArrowRight') nextPage();
             if (e.key === 'ArrowLeft') prevPage();
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [pageIndex, numPages, isGridView]);
+    }, [pageIndex, numPages, isGridView, toggleFullscreen]);
 
-    // [FIX] Убрал 'transition-all duration-500' из классов ниже, чтобы избежать сбоев при смене position
     return (
         <div 
             ref={containerRef}
@@ -487,8 +477,11 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         >
             <div className="absolute top-4 left-4 right-4 flex justify-between z-20 pointer-events-none">
                 <div className={``}>
-                    <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
-                        <BookOpen size={16} className="text-neutral-700 shrink-0"/>
+                    <div 
+                        onClick={() => setIsGridView(true)}
+                        className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3 cursor-pointer hover:bg-white transition-colors group"
+                    >
+                        <BookOpen size={16} className="text-neutral-700 shrink-0 group-hover:scale-110 transition-transform"/>
                         <span className="font-medium text-xs sm:text-sm text-neutral-800 truncate max-w-[120px] sm:max-w-[300px]" title={displayFileName}>
                             {displayFileName}
                         </span>
@@ -594,41 +587,48 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 </div>
             </div>
 
-             <AnimatePresence>
-                {isGridView && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-                        className="absolute inset-0 bg-[#f5f5f5]/95 backdrop-blur z-50 flex flex-col p-8"
-                    >
-                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-2xl font-light">Pages Overview</h2>
-                            <button onClick={() => setIsGridView(false)} className="p-2 bg-white rounded-full hover:shadow-md transition-all"><X size={24}/></button>
-                        </div>
-                        <div className="overflow-y-auto flex-1 pb-10">
-                             <Document file={pdfUrl} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
-                                {Array.from(new Array(numPages), (_el, index) => (
-                                    <div 
-                                        key={`thumb-${index + 1}`} className="cursor-pointer group relative"
-                                        onClick={() => {
-                                            if (isMobile) setPageIndex(index);
-                                            else setPageIndex(index === 0 ? 0 : Math.ceil(index / 2));
-                                            setIsGridView(false);
-                                        }}
-                                    >
-                                        <div className="rounded-lg overflow-hidden shadow-sm group-hover:shadow-xl group-hover:scale-105 transition-all border border-black/5 bg-white">
-                                            <Page 
-                                                pageNumber={index + 1} width={200} renderMode="canvas" 
-                                                renderTextLayer={false} renderAnnotationLayer={false}
-                                            />
-                                        </div>
-                                        <div className="text-center mt-2 text-xs font-mono text-neutral-500">{index + 1}</div>
-                                    </div>
-                                ))}
-                             </Document>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            {/* Always rendered but hidden when not in use to support preloading */}
+            <div 
+                className={`absolute inset-0 bg-[#f5f5f5]/95 backdrop-blur flex flex-col p-8 transition-all duration-300 ease-out origin-bottom ${
+                    isGridView 
+                    ? 'opacity-100 z-50 translate-y-0' 
+                    : 'opacity-0 -z-10 translate-y-10 pointer-events-none'
+                }`}
+                // Добавляем stopPropagation для колесика, чтобы быть уверенными, что оно не бабблится наверх,
+                // хотя проверка в handleWheel уже это решает. Это доп. защита.
+                onWheel={(e) => e.stopPropagation()} 
+            >
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                    <h2 className="text-2xl font-light">Pages Overview</h2>
+                    <button onClick={() => setIsGridView(false)} className="p-2 bg-white rounded-full hover:shadow-md transition-all"><X size={24}/></button>
+                </div>
+                <div className="overflow-y-auto flex-1 pb-10">
+                    {/* Only start rendering the document grid if numPages is known to avoid premature loading */}
+                    {numPages && (
+                        <Document file={pdfUrl} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
+                        {Array.from(new Array(numPages), (_el, index) => (
+                            <div 
+                                key={`thumb-${index + 1}`} className="cursor-pointer group relative"
+                                onClick={() => {
+                                    if (isMobile) setPageIndex(index);
+                                    else setPageIndex(index === 0 ? 0 : Math.ceil(index / 2));
+                                    setIsGridView(false);
+                                }}
+                            >
+                                <div className="rounded-lg overflow-hidden shadow-sm group-hover:shadow-xl group-hover:scale-105 transition-all border border-black/5 bg-white">
+                                    <Page 
+                                        pageNumber={index + 1} width={200} renderMode="canvas" 
+                                        renderTextLayer={false} renderAnnotationLayer={false}
+                                        loading={<div className="aspect-[1/1.4] bg-neutral-100 animate-pulse" />}
+                                    />
+                                </div>
+                                <div className="text-center mt-2 text-xs font-mono text-neutral-500">{index + 1}</div>
+                            </div>
+                        ))}
+                        </Document>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
