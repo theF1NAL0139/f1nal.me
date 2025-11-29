@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { 
-  Maximize, Minimize, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Grid, X, BookOpen, Eye, EyeOff 
+  Maximize, Minimize, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Grid, X, BookOpen, Eye, EyeOff, Download 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -42,7 +42,6 @@ const GlassButton = ({ onClick, disabled, children, className = "", title }: any
 // --- SMART PAGE COMPONENT ---
 const VISUAL_PADDING = 50; 
 
-// [OPTIMIZATION] Добавлен проп isMobile
 const SmartPage = ({ 
     pageNumber, 
     width, 
@@ -56,8 +55,6 @@ const SmartPage = ({
     direction: number,
     isMobile: boolean
 }) => {
-    // [OPTIMIZATION] На мобильных устройствах отключаем сложную логику буферизации (A/B slots),
-    // чтобы не хранить в памяти два тяжелых canvas одновременно. Рендерим напрямую.
     if (isMobile) {
         return (
             <div className="relative bg-white shadow-sm overflow-hidden" style={{ width, minHeight: width * 1.414 }}>
@@ -68,7 +65,7 @@ const SmartPage = ({
                     loading={null}
                     renderTextLayer={false} 
                     renderAnnotationLayer={false}
-                    devicePixelRatio={Math.min(window.devicePixelRatio, 2)} // Хард-кап DPI для мобилок внутри PDFJS
+                    devicePixelRatio={Math.min(window.devicePixelRatio, 2)} 
                 />
             </div>
         );
@@ -195,6 +192,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     const dragStartRef = useRef({ x: 0, y: 0 });
     const positionRef = useRef({ x: 0, y: 0 }); 
     const qualityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const scrollPosRef = useRef({ x: 0, y: 0 });
 
     // --- SETUP & UTILS ---
     useEffect(() => {
@@ -203,7 +201,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
             setIsMobile(mobile);
             if (mobile) {
                 setShowUI(false);
-                // [FIX] Строго ограничиваем начальное качество на мобильных
                 setPdfRenderScale(Math.min(window.devicePixelRatio, 1.2));
             } else {
                 setPdfRenderScale(window.devicePixelRatio * 1.5);
@@ -233,6 +230,33 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     useEffect(() => {
         positionRef.current = position;
     }, [position]);
+
+    // [FIX] Восстановление скролла + синхронизация с кнопкой Esc браузера
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            const isBrowserFullscreen = !!document.fullscreenElement;
+            
+            // Если пользователь нажал Esc (браузер вышел, а стейт еще true)
+            if (!isBrowserFullscreen && isFullscreen) {
+                setIsFullscreen(false);
+            }
+        };
+        
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    }, [isFullscreen]);
+
+    useLayoutEffect(() => {
+        // Если мы только что выключили полный экран
+        if (!isFullscreen && scrollPosRef.current.y > 0) {
+            window.scrollTo({
+                top: scrollPosRef.current.y,
+                left: scrollPosRef.current.x,
+                behavior: "instant" 
+            });
+        }
+    }, [isFullscreen]);
+
 
     const currentPages = useMemo(() => {
         if (!numPages) return [];
@@ -315,36 +339,26 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     };
 
     // --- ZOOM & WHEEL ---
-    
-    // [FIX] Исправлена логика обновления качества
     const updateQualitySmart = (newVisualScale: number) => {
-        if (isMobile) return; // На мобильных не меняем качество динамически, чтобы сэкономить память
+        if (isMobile) return; 
 
         if (qualityTimeoutRef.current) clearTimeout(qualityTimeoutRef.current);
         
         qualityTimeoutRef.current = setTimeout(() => {
             const dpr = getDevicePixelRatio();
             const neededScale = newVisualScale * dpr;
-
-            // Логика была переписана для большей чувствительности
-            // 1. Если нам нужно качество выше текущего -> повышаем (с небольшим запасом 1.2)
-            // 2. Если качество нужно СИЛЬНО ниже (разница > 30%) -> понижаем (экономим GPU)
-            // 3. Если зум близок к 100% (scale ~1), всегда форсируем качество не ниже dpr
             
             const isZoomedInNormal = newVisualScale >= 1;
-            const hasQualityGap = Math.abs(neededScale - pdfRenderScale) > 0.3; // Реагируем на изменения > 0.3
+            const hasQualityGap = Math.abs(neededScale - pdfRenderScale) > 0.3; 
 
             if (neededScale > pdfRenderScale) {
                  setPdfRenderScale(neededScale * 1.2); 
             } else if (hasQualityGap) {
-                 // Понижаем качество только если мы уверены, что это не микродвижение
-                 // И не опускаем ниже 1.0 на десктопе для четкости
                  setPdfRenderScale(Math.max(neededScale, 1.0));
             } else if (isZoomedInNormal && pdfRenderScale < dpr) {
-                 // Fix для бага "вернулся в 100%, а качество мыло"
                  setPdfRenderScale(dpr * 1.2);
             }
-        }, 500); // 500ms debounce
+        }, 500); 
     };
 
     const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => {
@@ -356,7 +370,15 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         const mouseX = (e as any).clientX - rect.left;
         const mouseY = (e as any).clientY - rect.top;
         const delta = -(e.deltaY * 0.002); 
-        const targetScale = Math.min(Math.max(scale + delta * scale, 0.5), 4);
+        const targetScale = Math.min(Math.max(scale + delta * scale, 1.0), 4);
+        
+        if (targetScale <= 1.05) {
+            setScale(1);
+            setPosition({ x: 0, y: 0 });
+            updateQualitySmart(1);
+            return;
+        }
+
         const contentX = (mouseX - position.x - (rect.width / 2)) / scale;
         const contentY = (mouseY - position.y - (rect.height / 2)) / scale;
         const newX = mouseX - (contentX * targetScale) - (rect.width / 2);
@@ -383,23 +405,43 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         setPdfRenderScale(baseScale);
     };
 
+    // [FIX] Логика переключения полного экрана без "пропадания"
     const toggleFullscreen = async () => {
         const container = containerRef.current;
         if (!container) return;
+
         if (!isFullscreen) {
+            // ВХОД В ПОЛНЫЙ ЭКРАН
+            scrollPosRef.current = { x: window.scrollX, y: window.scrollY };
+
             try {
                 if (container.requestFullscreen) await container.requestFullscreen();
                 else if ((container as any).webkitRequestFullscreen) await (container as any).webkitRequestFullscreen();
-            } catch (err) { console.log("Fullscreen error", err); }
-            setIsFullscreen(true);
+                // Ставим стейт ПОСЛЕ запроса, это безопасно
+                setIsFullscreen(true);
+            } catch (err) { 
+                console.error(err); 
+            }
+            
+            setTimeout(() => resetTransform(), 500);
+
         } else {
+            // ВЫХОД ИЗ ПОЛНОГО ЭКРАНА
+            
+            // 1. Сначала меняем React State. Это заставит компонент вернуться в DOM
+            // и занять свое место (высоту) МОМЕНТАЛЬНО.
+            setIsFullscreen(false);
+            
+            // 2. Сразу вызываем выход из браузерного API.
+            // React отрендерит "обычный" виджет внутри fullscreen-контейнера браузера на долю секунды,
+            // но зато скролл восстановится корректно, так как высота страницы вернется.
             try {
                 if (document.exitFullscreen) await document.exitFullscreen();
                 else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
             } catch (err) {}
-            setIsFullscreen(false);
+            
+            setTimeout(() => resetTransform(), 500);
         }
-        setTimeout(resetTransform, 150);
     };
 
     const maxIndex = useMemo(() => {
@@ -432,19 +474,19 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [pageIndex, numPages, isGridView]);
 
+    // [FIX] Убрал 'transition-all duration-500' из классов ниже, чтобы избежать сбоев при смене position
     return (
         <div 
             ref={containerRef}
-            className={`flex flex-col bg-[#f0f0f0] overflow-hidden relative transition-all duration-500 font-sans pdf-container ${isFullscreen ? 'fixed inset-0 z-[10000] h-screen w-screen' : 'w-full rounded-[20px] shadow-xl border border-white/50'}`}
+            className={`flex flex-col bg-[#f0f0f0] overflow-hidden relative font-sans pdf-container ${isFullscreen ? 'fixed inset-0 z-[10000] h-screen w-screen' : 'w-full rounded-[20px] shadow-xl border border-b/50 transition-shadow'}`}
             style={{ 
                 height: isFullscreen ? '100vh' : (isMobile ? '65vh' : '1000px'),
-                backgroundImage: 'radial-gradient(circle at 50% 50%, #ffffff 0%, #e5e5e5 100%)',
                 cursor: isDragging ? 'grabbing' : 'grab'
             }}
             onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
         >
             <div className="absolute top-4 left-4 right-4 flex justify-between z-20 pointer-events-none">
-                <div className={`transition-opacity duration-300 ${showUI ? 'opacity-100' : 'opacity-0'}`}>
+                <div className={``}>
                     <div className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3">
                         <BookOpen size={16} className="text-neutral-700 shrink-0"/>
                         <span className="font-medium text-xs sm:text-sm text-neutral-800 truncate max-w-[120px] sm:max-w-[300px]" title={displayFileName}>
@@ -460,9 +502,17 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 <div className="flex gap-2 pointer-events-auto">
                     <div className={`flex gap-2 transition-all duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         <GlassButton onClick={() => setIsGridView(true)}><Grid size={18} /></GlassButton>
-                        <GlassButton onClick={toggleFullscreen}>
-                            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-                        </GlassButton>
+                        
+                        {isMobile ? (
+                            <GlassButton onClick={() => window.open(pdfUrl, '_blank')} >
+                                <Download size={18} />
+                            </GlassButton>
+                        ) : (
+                            <GlassButton onClick={toggleFullscreen}>
+                                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+                            </GlassButton>
+                        )}
+
                     </div>
                     <GlassButton onClick={() => setShowUI(!showUI)} className={!showUI ? "bg-white/80" : ""}>
                         {showUI ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -487,8 +537,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                         key={pageIndex} 
                         initial={{ opacity: 0, x: direction === 1 ? 60 : -60 }}
                         animate={{ opacity: 1, x: position.x, y: position.y, scale }}
-                        // [OPTIMIZATION] На мобильных отключаем анимацию выхода (exit: null) и ставим duration: 0. 
-                        // Это критично, чтобы старая страница исчезла из памяти ДО того как новая начнет рендериться.
                         exit={isMobile ? undefined : { opacity: 0, x: direction === 1 ? -60 : 60 }} 
                         transition={{
                             x: isDragging ? { type: "tween", duration: 0 } : (isMobile ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 }),
@@ -526,8 +574,9 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                     <GlassButton onClick={prevPage} disabled={pageIndex === 0}><ChevronLeft size={20}/></GlassButton>
                     <div className="flex gap-1 items-center px-2">
                         <button onClick={() => {
-                            const newScale = Math.max(0.5, scale - 0.5);
+                            const newScale = Math.max(1.0, scale - 0.5);
                             setScale(newScale);
+                            if (newScale === 1.0) setPosition({ x: 0, y: 0 });
                             updateQualitySmart(newScale);
                         }} className="p-2 hover:bg-black/5 rounded-full"><ZoomOut size={16}/></button>
                         
