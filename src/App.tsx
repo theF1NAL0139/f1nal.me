@@ -279,19 +279,20 @@ const ScrollToTop = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.button
-          onClick={() => smoothScrollToTop(800)}
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0 }}
-          whileTap={{ scale: 0.8 }} // Bounce effect on tap
-          whileHover={{ scale: 1.1 }}
-          transition={{ 
-            type: "spring",
-            stiffness: 300,
-            damping: 20
-          }}
-          className="
-            fixed bottom-10 right-10 z-[10005]
+  layout // <-- Добавь это свойство, оно помогает сгладить изменение позиции
+  onClick={() => smoothScrollToTop(800)}
+  initial={{ opacity: 0, scale: 0 }}
+  animate={{ opacity: 1, scale: 1 }}
+  exit={{ opacity: 0, scale: 0 }}
+  whileTap={{ scale: 0.95 }} // Делаем эффект нажатия едва заметным (5%)
+  whileHover={{ scale: 1.1 }} // Можно убрать для мобильных, но не критично
+  transition={{ 
+    type: "spring",
+    stiffness: 300,
+    damping: 20
+  }}
+  className="
+    fixed bottom-10 right-10 z-[10005]
             w-[52px] h-[52px]
             rounded-full
             flex items-center justify-center
@@ -473,7 +474,7 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
     );
 };
 
-// UPDATED HEADER: Includes Animated Burger
+// UPDATED HEADER: Includes Animated Burger + FIX FOR HOVER JITTER
 const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPage: string, navigate: (page: string) => void, isMenuOpen: boolean, onToggleMenu: () => void }) => {
   const [animStart, setAnimStart] = useState(false);
 
@@ -484,9 +485,13 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
       navigate(page); 
   };
   
-
+  // FIX APPLIED HERE:
+  // Added `before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0`
+  // This creates a larger, invisible hit area around the link. Even if the text moves up, 
+  // the cursor stays within this invisible box, preventing the hover loop (z-fighting).
   const navLinkClasses = (page: string) => 
     `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
+    before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0
     after:content-[''] after:absolute after:w-full after:h-[1px] after:bottom-0 after:left-0 after:bg-black after:scale-x-0 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left
     ${currentPage === page ? 'text-black' : ''}`;
 
@@ -678,10 +683,11 @@ const togglePlay = () => {
       ref={containerRef} onMouseMove={handleActivity} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
     >
       <video 
-        ref={videoRef} 
-        className={`w-full h-full object-cover block transition-all duration-1000 ${isPlaying ? 'opacity-100 blur-0' : 'opacity-30 blur-[10px]'}`}
-        playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
-      >
+  ref={videoRef} 
+  // Убираем условие opacity и blur, оставляем всегда 100% видимость
+  className="w-full h-full object-cover block transition-all duration-1000 opacity-100 blur-0"
+  playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
+>
         <source src={src} type="video/mp4" />
       </video>
       
@@ -893,7 +899,7 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   const gridRef = useRef<HTMLDivElement>(null);
   
   const initialProjects: Project[] = [
-    { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview1.png', link: 'elfbar' },
+    { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' }
@@ -1466,11 +1472,12 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
 };
 
 // =========================================
-// HELPER: ANIMATED IMAGE BLOCK
+// HELPER: ANIMATED IMAGE BLOCK (MODIFIED)
 // =========================================
-const ImageBlock = ({ src, alt, className = "" }: { src: string, alt: string, className?: string }) => (
+const ImageBlock = ({ src, alt, className = "", onClick }: { src: string, alt: string, className?: string, onClick?: () => void }) => (
     <motion.div
-        className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${className}`}
+        className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`}
+        onClick={onClick}
         initial={{ opacity: 0, y: 40 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: "-15%" }}
@@ -1486,17 +1493,15 @@ const ImageBlock = ({ src, alt, className = "" }: { src: string, alt: string, cl
 );
 
 // =========================================
-// UPDATED PAGE: ELF BAR CASE STUDY
+// UPDATED PAGE: ELF BAR CASE STUDY (MODIFIED)
 // =========================================
-const ElfBar = ({ navigate }: any) => (
+const ElfBar = ({ navigate, onOpenImage }: { navigate: (page: string) => void, onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         navigate={navigate}
         title="Elf Bar Promotion"
-        meta="Personal / 2022" // Typo fixed from Presonal
+        meta="Personal / 2022" 
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
-        // Видео остается в стандартном слоте
-        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_1.png' }}
-        // Оставляем gallery пустым, чтобы не выводить стандартную сетку
+        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_13.png' }}
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
@@ -1506,59 +1511,59 @@ const ElfBar = ({ navigate }: any) => (
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             
             {/* 1. Hero Image */}
-            <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" />
+            <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
 
             {/* 2. Split View (Details) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" />
-                <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" />
+                <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
+                <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
             </div>
 
             {/* 3. Full Width Break */}
-            <ImageBlock src="work/elfbar/img_4.png" alt="Wide Shot" />
+            <ImageBlock src="work/elfbar/img_4.png" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
 
             {/* 4. Triple Grid (Texture/Materials) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
-                <ImageBlock src="work/elfbar/img_5.png" alt="Material 1" />
-                <ImageBlock src="work/elfbar/img_6.png" alt="Material 2" />
-                <ImageBlock src="work/elfbar/img_7.png" alt="Material 3" />
+                <ImageBlock src="work/elfbar/img_5.png" alt="Material 1" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
+                <ImageBlock src="work/elfbar/img_6.png" alt="Material 2" onClick={() => onOpenImage('work/elfbar/img_6.png')} />
+                <ImageBlock src="work/elfbar/img_7.png" alt="Material 3" onClick={() => onOpenImage('work/elfbar/img_7.png')} />
             </div>
 
             {/* 5. Large Impact Shot */}
-            <ImageBlock src="work/elfbar/img_8.png" alt="Process" />
+            <ImageBlock src="work/elfbar/img_8.png" alt="Process" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
 
             {/* 6. Asymmetrical Split */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
                 <div className="lg:col-span-2">
-                    <ImageBlock src="work/elfbar/img_9.png" alt="Vertical Detail" className="h-full" />
+                    <ImageBlock src="work/elfbar/img_9.png" alt="Vertical Detail" className="h-full" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
                 </div>
                 <div className="lg:col-span-3">
-                    <ImageBlock src="work/elfbar/img_10.png" alt="Horizontal Context" className="h-full" />
+                    <ImageBlock src="work/elfbar/img_10.png" alt="Horizontal Context" className="h-full" onClick={() => onOpenImage('work/elfbar/img_10.png')} />
                 </div>
             </div>
 
             {/* 7. Full Width */}
-            <ImageBlock src="work/elfbar/img_11.png" alt="Render" />
+            <ImageBlock src="work/elfbar/img_11.png" alt="Render" onClick={() => onOpenImage('work/elfbar/img_11.png')} />
 
             {/* 8. Split View */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                <ImageBlock src="work/elfbar/img_12.png" alt="Variant Blue" />
-                <ImageBlock src="work/elfbar/img_13.png" alt="Variant Red" />
+                <ImageBlock src="work/elfbar/img_12.png" alt="Variant Blue" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
+                <ImageBlock src="work/elfbar/img_13.png" alt="Variant Red" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
             </div>
 
             {/* 9. Full Width */}
-            <ImageBlock src="work/elfbar/img_14.png" alt="Atmosphere" />
+            <ImageBlock src="work/elfbar/img_14.png" alt="Atmosphere" onClick={() => onOpenImage('work/elfbar/img_14.png')} />
 
             {/* 10. Triple Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
-                <ImageBlock src="work/elfbar/img_15.png" alt="Detail 1" />
-                <ImageBlock src="work/elfbar/img_16.png" alt="Detail 2" />
-                <ImageBlock src="work/elfbar/img_17.png" alt="Detail 3" />
+                <ImageBlock src="work/elfbar/img_15.png" alt="Detail 1" onClick={() => onOpenImage('work/elfbar/img_15.png')} />
+                <ImageBlock src="work/elfbar/img_16.png" alt="Detail 2" onClick={() => onOpenImage('work/elfbar/img_16.png')} />
+                <ImageBlock src="work/elfbar/img_17.png" alt="Detail 3" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
             </div>
 
             {/* 11. Two Large Shots Stacked */}
-            <ImageBlock src="work/elfbar/img_18.png" alt="Pre-final" />
-            <ImageBlock src="work/elfbar/img_19.png" alt="Final Packshot" />
+            <ImageBlock src="work/elfbar/img_18.png" alt="Pre-final" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
+            <ImageBlock src="work/elfbar/img_19.png" alt="Final Packshot" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
 
         </div>
     </ProjectPage>
@@ -1626,7 +1631,7 @@ export default function App() {
       case 'reel': return <ReelPage />;
       case 'play': return <PlayPage onOpenImage={setPlayModalSrc} />;
       case 'info': return <AboutPage />;
-      case 'elfbar': return <ElfBar navigate={setCurrentPage} />;
+      case 'elfbar': return <ElfBar navigate={setCurrentPage} onOpenImage={setPlayModalSrc} />;
       case 'football-dynamics': return <FootballDynamics navigate={setCurrentPage} />;
       case 'puma-magmax': return <Puma navigate={setCurrentPage} />;
       case 'sber-creative-frame': return <Sber navigate={setCurrentPage} />;
