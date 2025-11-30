@@ -14,9 +14,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants, SVGMotionProps } from 'framer-motion';
 
-// --- IMPORT PDF VIEWER ---
-import PDFViewer from './PDFViewer';
-
 // =========================================
 // GLOBAL STYLES & CSS
 // =========================================
