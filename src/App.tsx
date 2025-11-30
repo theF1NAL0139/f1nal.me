@@ -1420,17 +1420,20 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 </div>
             )}
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px]">
-                    {gallery.map((item: any, i: number) => (
-                        <div key={i} className={`relative overflow-hidden rounded-[18px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
-                            {item.video ? (
-                                <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[18px]"><source src={item.video} type="video/mp4"/></video>
-                            ) : (
-                                <img src={item.img} alt="Gallery" className="w-full h-auto block rounded-[18px]" />
-                            )}
-                        </div>
-                    ))}
-                </div>
+                {/* --- FIX: Only render if gallery has items to prevent empty whitespace --- */}
+                {gallery && gallery.length > 0 && (
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px]">
+                        {gallery.map((item: any, i: number) => (
+                            <div key={i} className={`relative overflow-hidden rounded-[18px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
+                                {item.video ? (
+                                    <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[18px]"><source src={item.video} type="video/mp4"/></video>
+                                ) : (
+                                    <img src={item.img} alt="Gallery" className="w-full h-auto block rounded-[18px]" />
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* --- ВСТАВКА ВИДЖЕТА ЗДЕСЬ (Сразу после галереи) --- */}
                 {children && (
@@ -1465,25 +1468,102 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
     );
 };
 
-// --- ИСПОЛЬЗОВАНИЕ PDF VIEWER ---
+// =========================================
+// HELPER: ANIMATED IMAGE BLOCK
+// =========================================
+const ImageBlock = ({ src, alt, className = "" }: { src: string, alt: string, className?: string }) => (
+    <motion.div
+        className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${className}`}
+        initial={{ opacity: 0, y: 40 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-15%" }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+        <img 
+            src={src} 
+            alt={alt} 
+            loading="lazy"
+            className="w-full h-full object-cover block transition-transform duration-700 hover:scale-[1.02]" 
+        />
+    </motion.div>
+);
+
+// =========================================
+// UPDATED PAGE: ELF BAR CASE STUDY
+// =========================================
 const ElfBar = ({ navigate }: any) => (
     <ProjectPage 
         navigate={navigate}
         title="Elf Bar Promotion"
-        meta="Presonal / 2022"
+        meta="Personal / 2022" // Typo fixed from Presonal
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
-        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'img/preview1.png' }}
-        gallery={[
-            { img: 'https://placehold.co/700x700/111/FFF?text=Elf+Bar+Flavor+1' }, 
-            { img: 'https://placehold.co/700x700/222/FFF?text=Elf+Bar+Flavor+2' }, 
-            // Последний элемент галереи - Wide Shot, после которого будет виджет
-            { img: 'https://placehold.co/1400x788/333/FFF?text=Wide+Shot+Render', full: true }
-        ]}
-        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe']}
+        // Видео остается в стандартном слоте
+        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_1.png' }}
+        // Оставляем gallery пустым, чтобы не выводить стандартную сетку
+        gallery={[]} 
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
-		<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
+        {/* === CUSTOM BEHANCE STYLE GRID === */}
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            
+            {/* 1. Hero Image */}
+            <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" />
+
+            {/* 2. Split View (Details) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" />
+                <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" />
+            </div>
+
+            {/* 3. Full Width Break */}
+            <ImageBlock src="work/elfbar/img_4.png" alt="Wide Shot" />
+
+            {/* 4. Triple Grid (Texture/Materials) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
+                <ImageBlock src="work/elfbar/img_5.png" alt="Material 1" />
+                <ImageBlock src="work/elfbar/img_6.png" alt="Material 2" />
+                <ImageBlock src="work/elfbar/img_7.png" alt="Material 3" />
+            </div>
+
+            {/* 5. Large Impact Shot */}
+            <ImageBlock src="work/elfbar/img_8.png" alt="Process" />
+
+            {/* 6. Asymmetrical Split */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
+                <div className="lg:col-span-2">
+                    <ImageBlock src="work/elfbar/img_9.png" alt="Vertical Detail" className="h-full" />
+                </div>
+                <div className="lg:col-span-3">
+                    <ImageBlock src="work/elfbar/img_10.png" alt="Horizontal Context" className="h-full" />
+                </div>
+            </div>
+
+            {/* 7. Full Width */}
+            <ImageBlock src="work/elfbar/img_11.png" alt="Render" />
+
+            {/* 8. Split View */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/elfbar/img_12.png" alt="Variant Blue" />
+                <ImageBlock src="work/elfbar/img_13.png" alt="Variant Red" />
+            </div>
+
+            {/* 9. Full Width */}
+            <ImageBlock src="work/elfbar/img_14.png" alt="Atmosphere" />
+
+            {/* 10. Triple Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
+                <ImageBlock src="work/elfbar/img_15.png" alt="Detail 1" />
+                <ImageBlock src="work/elfbar/img_16.png" alt="Detail 2" />
+                <ImageBlock src="work/elfbar/img_17.png" alt="Detail 3" />
+            </div>
+
+            {/* 11. Two Large Shots Stacked */}
+            <ImageBlock src="work/elfbar/img_18.png" alt="Pre-final" />
+            <ImageBlock src="work/elfbar/img_19.png" alt="Final Packshot" />
+
+        </div>
     </ProjectPage>
 );
 // -----------------------------------------------------
