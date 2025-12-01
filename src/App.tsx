@@ -10,7 +10,7 @@ import {
   Play, Volume2, Volume1, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight,
   Brush, Dices, FlaskConical  
 } from 'lucide-react';
-import { motion, AnimatePresence, type Variants, type SVGMotionProps } from 'framer-motion';
+import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
 
 // Предполагается, что PDFViewer существует
 import PDFViewer from './PDFViewer'; 
@@ -712,12 +712,11 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         if(type === 'image') {
             return new Promise(r => { const img = new Image(); img.onload = () => r(true); img.onerror = () => r(false); img.src = src; });
         } else {
-            return fetch(src, { method: 'HEAD' }).then(res => res.ok && res.headers.get('content-type')?.startsWith('video')).catch(() => false);
+            return fetch(src, { method: 'HEAD' }).then(res => (res.ok && res.headers.get('content-type')?.startsWith('video')) || false).catch(() => false);
         }
     };
 
     const loadMedia = async () => {
-        const items: any[] = [];
         const paths = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
@@ -769,7 +768,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         </motion.div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px]">
             <AnimatePresence mode="popLayout">
-                {filtered.map((item, i) => (
+                {filtered.map((item) => (
                     <motion.div key={item.id} layout initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
                         className="relative rounded-[18px] overflow-hidden bg-black aspect-square cursor-pointer"
                         onClick={() => !isMobile && onOpenImage(item.src)}
@@ -800,11 +799,11 @@ const ReelPage = () => (
 const AboutPage = () => (
     <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[40px]">
-            <div className="w-full lg:w-[100%] max-w-[500px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
+            <div className="w-full lg:w-[40%] max-w-[500px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
             <div className="text-[18px] leading-[1.5]">
-                <p className="mb-3">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
-                <p className="mb-3">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
-                <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
+                <p className="mb-3">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer...</p>
+                <p className="mb-3">My career began in the television industry...</p>
+                <p>Now I work on freelance projects...</p>
             </div>
         </div>
         <div className="w-full h-[1px] bg-black/15 my-[40px]" />
@@ -883,7 +882,7 @@ const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
 const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="Elf Bar Promotion" meta="Personal / 2022" 
-        desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
+        desc="A promotional video for Elf Bar..."
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_13.png' }}
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design']}
