@@ -4,59 +4,167 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================
+   FONTS
+========================================= */
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-Regular.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
 
+.font-poppins {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+/* =========================================
+   GLOBAL RESET & BASE
+========================================= */
 html, body {
   font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-}
-
-*, button, input, textarea, select, a {
-  font-family: inherit !important;
-}
-
-html {
-  overflow-y: scroll; /* Всегда показывать полосу прокрутки */
-}
-
-body {
-  font-family: 'Funnel Display';
   background-color: #F7F7F7;
   color: #000;
-  overflow-x: hidden;
 }
 
-/* Анимации для body */
+/* Наследование шрифтов для форм */
+*, button, input, textarea, select, a {
+  font-family: inherit;
+}
+
+/* Скрываем скроллбар, но оставляем функционал скролла */
+html {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  overflow-y: scroll;
+}
+
+html::-webkit-scrollbar { 
+    width: 0px;
+    height: 0px;
+    background: transparent;
+    display: none;
+}
+body::-webkit-scrollbar {
+    display: none;
+}
+
+/* Защита контента (как было в твоем коде) */
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+img {
+    pointer-events: auto;
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+/* =========================================
+   UTILITIES & ANIMATIONS
+========================================= */
+
+/* Анимации загрузки страницы */
 html.is-animating body { opacity: 0; }
 html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 
-/* Утилиты для JS-анимаций */
-.js-anim-item {
-  opacity: 0;
-  transform: translateY(60px);
-  transition: opacity 1.2s ease, transform 1.2s cubic-bezier(0.165, 0.84, 0.44, 1);
-}
-.js-anim-item.animate-in {
-  opacity: 1;
-  transform: translateY(0);
+/* FIX SAFARI/CHROME RADIUS BUG */
+.fix-safari-radius {
+  overflow: hidden;
+  border-radius: 18px;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
 }
 
-/* Плавность для Masonry сетки */
-.masonry-item-transition {
-  transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-}
-
-/* index.css */
-
+/* Video Blur Effects */
 .video-blur {
-  filter: blur(5px); /* Сила размытия (можно менять: 3px, 5px, 10px) */
-  transform: scale(1.02); /* Скрывает размытые края */
-  transition: filter 0.3s ease, transform 0.3s ease; /* Плавное исчезновение эффекта */
-  overflow: hidden; /* На всякий случай, если видео в контейнере */
+  filter: blur(5px);
+  transform: scale(1.02);
+  transition: filter 0.5s ease, transform 0.5s ease;
 }
-
-/* Опционально: класс для снятия размытия (если нужно явно) */
 .video-clear {
   filter: blur(0);
   transform: scale(1);
+  transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+/* Volume Slider Customization */
+input[type=range].volume-slider {
+  -webkit-appearance: none; 
+  background: transparent; 
+  cursor: pointer;
+}
+input[type=range].volume-slider:focus { outline: none; }
+
+/* Chrome/Safari Slider Track */
+input[type=range].volume-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
+input[type=range].volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: white;
+  margin-top: -4px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Firefox Slider Track */
+input[type=range].volume-slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
+input[type=range].volume-slider::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+/* iOS Safe Area */
+.ios-safearea-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: env(safe-area-inset-bottom);
+    background: #fff;
+    z-index: 999999;
+    pointer-events: none;
+}
+
+/* Scroll Lock Helper */
+body.scroll-locked {
+    overflow: hidden !important;
+    touch-action: none;
+    width: 100%;
+}
+
+/* Masonry Items */
+.masonry-item {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }

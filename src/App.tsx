@@ -1,282 +1,77 @@
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
 import { 
-  Play, 
-  Volume2, 
-  Volume1,
-  VolumeX, 
-  Maximize, 
-  ArrowUp, 
-  ArrowLeft, 
-  ArrowRight,
-  Brush,        
-  Dices,        
-  FlaskConical  
+  Routes, 
+  Route, 
+  Link, 
+  useLocation, 
+  useNavigate 
+} from 'react-router-dom';
+import { 
+  Play, Volume2, Volume1, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight,
+  Brush, Dices, FlaskConical  
 } from 'lucide-react';
+import { motion, AnimatePresence, type Variants, type SVGMotionProps } from 'framer-motion';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import type { Variants, SVGMotionProps } from 'framer-motion';
-
-// Импорт PDFViewer (предполагается, что файл существует в той же директории)
+// Предполагается, что PDFViewer существует
 import PDFViewer from './PDFViewer'; 
 
-
 // =========================================
-// GLOBAL STYLES & CSS
-// =========================================
-
-const GLOBAL_STYLES = `
-/* FIX SAFARI/CHROME RADIUS BUG */
-.fix-safari-radius {
-  overflow: hidden;
-  border-radius: 18px;
-  isolation: isolate;
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-  mask-image: radial-gradient(white, black);
-}
-
-.video-blur {
-  filter: blur(5px);
-  transform: scale(1.02);
-  transition: filter 0.5s ease, transform 0.5s ease;
-}
-
-.video-clear {
-  filter: blur(0);
-  transform: scale(1);
-  transition: filter 0.5s ease, transform 0.5s ease;
-}
-
-/* --- СТИЛИ ПОЛЗУНКА ГРОМКОСТИ --- */
-input[type=range].volume-slider {
-  -webkit-appearance: none; 
-  background: transparent; 
-  cursor: pointer;
-}
-
-/* Track (полоса) */
-input[type=range].volume-slider::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 4px;
-  cursor: pointer;
-  background: rgba(255,255,255,0.3);
-  border-radius: 2px;
-}
-
-/* Thumb (кружок) */
-input[type=range].volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 12px;
-  width: 12px;
-  border-radius: 50%;
-  background: white;
-  margin-top: -4px; /* центрируем относительно трека высотой 4px */
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-}
-
-/* Firefox Styles */
-input[type=range].volume-slider::-moz-range-track {
-  width: 100%;
-  height: 4px;
-  cursor: pointer;
-  background: rgba(255,255,255,0.3);
-  border-radius: 2px;
-}
-input[type=range].volume-slider::-moz-range-thumb {
-  height: 12px;
-  width: 12px;
-  border: none;
-  border-radius: 50%;
-  background: white;
-  cursor: pointer;
-}
-
-input[type=range].volume-slider:focus {
-  outline: none;
-}
-
-.ios-safearea-overlay {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: env(safe-area-inset-bottom);
-    background: #fff;
-    z-index: 999999;
-    pointer-events: none;
-}
-@font-face {
-    font-family: 'Poppins';
-    src: url('/fonts/Poppins-Regular.ttf') format('truetype');
-    font-weight: 400;
-    font-style: normal;
-}
-.font-poppins {
-    font-family: 'Poppins', sans-serif;
-}
-
-/* Tailwind Base Reset */
-*, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: #e5e7eb; }
-
-/* ЗАЩИТА КОНТЕНТА */
-* {
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    -webkit-touch-callout: none;
-}
-
-input, textarea {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
-}
-
-html { 
-    line-height: 1.5; 
-    -webkit-text-size-adjust: 100%; 
-    tab-size: 4; 
-    font-family: 'Funnel Display', sans-serif;
-}
-body { margin: 0; line-height: inherit; }
-
-/* 1. ПОЛНОЕ СКРЫТИЕ ПОЛОСЫ ПРОКРУТКИ */
-html {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  overflow-y: scroll;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-html::-webkit-scrollbar { 
-    width: 0px;
-    height: 0px;
-    background: transparent;
-    display: none;
-}
-body::-webkit-scrollbar {
-    display: none;
-}
-
-html, body {
-  font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif !important;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* Наследование шрифтов */
-*, button, input, textarea, select, a {
-  font-family: inherit !important;
-}
-motion, .motion, [data-motion] {
-  font-family: inherit !important;
-}
-
-/* Блокировка скролла */
-body.scroll-locked {
-    overflow: hidden !important;
-    touch-action: none;
-    width: 100%;
-}
-
-html.is-animating body { opacity: 0; }
-html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
-
-.masonry-item {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-
-img {
-    pointer-events: auto;
-    -webkit-user-drag: none;
-    user-drag: none;
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-`;
-
-
-// =========================================
-// APP UTILITIES
+// HOOKS
 // =========================================
 
-// Hook to lock scroll and preserve position
+// Scroll to top on route change
+const ScrollToTopOnNavigate = () => {
+    const { pathname } = useLocation();
+    useEffect(() => {
+        const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+        const start = window.scrollY;
+        const duration = 800;
+        const startTime = performance.now();
+
+        const animate = (now: number) => {
+            const elapsed = now - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = easeOutCubic(progress);
+            window.scrollTo(0, start * (1 - eased));
+            if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+    }, [pathname]);
+    return null;
+};
+
 const useScrollLock = (lock: boolean) => {
   useLayoutEffect(() => {
     if (!lock) return;
-
     const scrollY = window.scrollY;
-
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = '100%';
     document.body.classList.add('scroll-locked');
-
     return () => {
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
       document.body.classList.remove('scroll-locked');
-      
       window.scrollTo(0, scrollY);
     };
   }, [lock]);
 };
 
-// Hook for Content Protection (Anti-Copy/Save)
 const useContentProtection = () => {
   useEffect(() => {
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
-    const handleDragStart = (e: DragEvent) => {
-      e.preventDefault();
-      return false;
-    };
-
+    const preventDefault = (e: Event) => e.preventDefault();
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F12') {
+      if (e.key === 'F12' || (e.ctrlKey && ['c', 's', 'u', 'p', 'i'].includes(e.key.toLowerCase()))) {
         e.preventDefault();
       }
-      
-      if (e.ctrlKey || e.metaKey) {
-        switch (e.key.toLowerCase()) {
-          case 'c':
-          case 's':
-          case 'u':
-          case 'p':
-          case 'i':
-            e.preventDefault();
-            e.stopPropagation();
-            break;
-        }
-      }
-      
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-          if (['i', 'j', 'c'].includes(e.key.toLowerCase())) {
-              e.preventDefault();
-          }
-      }
     };
-
-    document.addEventListener('contextmenu', handleContextMenu);
-    document.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('contextmenu', preventDefault);
+    document.addEventListener('dragstart', preventDefault);
     document.addEventListener('keydown', handleKeyDown);
-
     return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-      document.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('contextmenu', preventDefault);
+      document.removeEventListener('dragstart', preventDefault);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
@@ -309,70 +104,34 @@ const useIsMobile = () => {
     return isMobile;
 };
 
-const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+// =========================================
+// UI COMPONENTS
+// =========================================
 
-const smoothScrollToTop = (duration = 900) => {
-  const start = window.scrollY;
-  const startTime = performance.now();
-
-  const animate = (now: number) => {
-    const elapsed = now - startTime;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = easeOutCubic(progress);
-
-    window.scrollTo(0, start * (1 - eased));
-
-    if (progress < 1) requestAnimationFrame(animate);
-  };
-
-  requestAnimationFrame(animate);
-};
-
-
-// UPDATED: ScrollToTop - Fixed Mobile Positioning
-const ScrollToTop = () => {
+const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
-
   useEffect(() => {
-    const checkScroll = () =>
-      setIsVisible(window.scrollY > 300);
-
+    const checkScroll = () => setIsVisible(window.scrollY > 300);
     window.addEventListener('scroll', checkScroll, { passive: true });
     return () => window.removeEventListener('scroll', checkScroll);
   }, []);
+
+  const scrollToTop = () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.button
-          // 1. УБРАН проп "layout", чтобы кнопка не прыгала при ресайзе интерфейса браузера
-          onClick={() => smoothScrollToTop(800)}
+          onClick={scrollToTop}
           initial={{ opacity: 0, scale: 0 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0 }}
           whileTap={{ scale: 0.95 }} 
           whileHover={{ scale: 1.1 }} 
-          transition={{ 
-            type: "spring",
-            stiffness: 300,
-            damping: 20
-          }}
-          // 2. Добавлен style для корректного отступа на iOS (Safe Area)
-          style={{ 
-             bottom: 'calc(40px + env(safe-area-inset-bottom))' 
-          }}
-          className="
-            fixed right-5 lg:right-10 z-[10005]
-            w-[52px] h-[52px]
-            rounded-full
-            flex items-center justify-center
-            backdrop-blur-[10px]
-            bg-white/40
-            border border-white/40
-            shadow-lg
-            hover:bg-white/60
-            /* Убрал bottom-10 отсюда, так как он задан в style выше */
-          "
+          style={{ bottom: 'calc(40px + env(safe-area-inset-bottom))' }}
+          className="fixed right-5 lg:right-10 z-[10005] w-[52px] h-[52px] rounded-full flex items-center justify-center backdrop-blur-[10px] bg-white/40 border border-white/40 shadow-lg hover:bg-white/60"
         >
           <ArrowUp size={24} className="text-black/80" />
         </motion.button>
@@ -381,61 +140,29 @@ const ScrollToTop = () => {
   );
 };
 
-// =========================================
-// COMPONENTS
-// =========================================
-
-// HELPERS FOR MENU ICON
 const Path = (props: SVGMotionProps<SVGPathElement>) => (
-  <motion.path
-    fill="transparent"
-    strokeWidth="3"
-    stroke="black"
-    strokeLinecap="round"
-    {...props}
-  />
+  <motion.path fill="transparent" strokeWidth="3" stroke="black" strokeLinecap="round" {...props} />
 );
 
 const MenuToggle = ({ toggle, isOpen }: { toggle: () => void, isOpen: boolean }) => (
   <button onClick={toggle} className="outline-none border-none cursor-pointer bg-transparent p-2 z-[10002] relative flex items-center justify-center">
     <svg width="23" height="23" viewBox="0 0 23 23">
-      <Path
-        variants={{
-          closed: { d: "M 2 2.5 L 20 2.5" },
-          open: { d: "M 3 16.5 L 17 2.5" }
-        }}
-        animate={isOpen ? "open" : "closed"}
-      />
-      <Path
-        d="M 2 9.423 L 20 9.423"
-        variants={{
-          closed: { opacity: 1 },
-          open: { opacity: 0 }
-        }}
-        transition={{ duration: 0.1 }}
-        animate={isOpen ? "open" : "closed"}
-      />
-      <Path
-        variants={{
-          closed: { d: "M 2 16.346 L 20 16.346" },
-          open: { d: "M 3 2.5 L 17 16.346" }
-        }}
-        animate={isOpen ? "open" : "closed"}
-      />
+      <Path variants={{ closed: { d: "M 2 2.5 L 20 2.5" }, open: { d: "M 3 16.5 L 17 2.5" } }} animate={isOpen ? "open" : "closed"} />
+      <Path d="M 2 9.423 L 20 9.423" variants={{ closed: { opacity: 1 }, open: { opacity: 0 } }} transition={{ duration: 0.1 }} animate={isOpen ? "open" : "closed"} />
+      <Path variants={{ closed: { d: "M 2 16.346 L 20 16.346" }, open: { d: "M 3 2.5 L 17 16.346" } }} animate={isOpen ? "open" : "closed"} />
     </svg>
   </button>
 );
 
-
-// UPDATED: Mobile Menu Overlay
-const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen: boolean, onClose: () => void, navigate: (page: string) => void, currentPage: string }) => {
+const MobileMenuOverlay = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     useScrollLock(isOpen);
+    const location = useLocation();
 
     const menuItems = [
-        { label: 'Work', href: 'home' },
-        { label: 'Reel', href: 'reel' },
-        { label: 'Play', href: 'play' },
-        { label: 'About', href: 'info' },
+        { label: 'Work', href: '/' },
+        { label: 'Reel', href: '/reel' },
+        { label: 'Play', href: '/play' },
+        { label: 'About', href: '/info' },
     ];
 
     const menuVariants = {
@@ -448,37 +175,29 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
         <AnimatePresence>
             {isOpen && (
                 <motion.nav
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    variants={menuVariants}
+                    initial="hidden" animate="visible" exit="exit" variants={menuVariants}
                     className="fixed inset-0 top-0 left-0 w-full h-[100dvh] flex flex-col items-center justify-center z-[9999]"
-                    style={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)', 
-                        backdropFilter: 'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)',
-                        touchAction: 'none'
-                    }}
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.95)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', touchAction: 'none' }}
                 >
                     <div className="flex flex-col items-center gap-6">
                         {menuItems.map((item, index) => {
-                            const isActive = currentPage === item.href;
-                            
+                            const isActive = location.pathname === item.href;
                             return (
-                                <motion.a
+                                <Link
                                     key={item.label}
-                                    onClick={() => {
-                                        onClose();
-                                        navigate(item.href);
-                                    }}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.05 + (index * 0.05), duration: 0.2, ease: "easeOut" }}
+                                    to={item.href}
+                                    onClick={onClose}
                                     className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-normal' : 'text-[#777] font-[250]'}`}
                                     style={{ fontFamily: "'Funnel Display', sans-serif" }}
                                 >
-                                    {item.label}
-                                </motion.a>
+                                    <motion.span
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: 0.05 + (index * 0.05), duration: 0.2 }}
+                                    >
+                                        {item.label}
+                                    </motion.span>
+                                </Link>
                             );
                         })}
                     </div>
@@ -488,197 +207,127 @@ const MobileMenuOverlay = ({ isOpen, onClose, navigate, currentPage }: { isOpen:
     );
 };
 
-// UPDATED: Image Modal Overlay
-const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
-    const isMobile = useIsMobile();
-    useScrollLock(!!src && isMobile);
-    
-    const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
-const [isPlaying, setIsPlaying] = useState(false);
-    return (
-        <AnimatePresence>
-            {src && (
-      <motion.div 
-        className="fixed inset-0 z-[10000] flex items-center justify-center" 
-        onClick={onClose}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.4 }}
-        style={{ 
-          backgroundColor: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(4px)',
-          WebkitBackdropFilter: 'blur(4px)',
-        }}
-      >
-        <motion.div 
-          className="fix-safari-radius relative max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-hidden"
-          initial={{ scale: 0.3, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.1, opacity: 0 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {isVideo ? (
-            <video 
-              src={src} 
-              autoPlay 
-              loop 
-              muted 
-              playsInline
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)} 
-              onClick={onClose}
-              className={`
-                max-w-full max-h-[85vh] object-contain shadow-2xl cursor-pointer transition-all duration-500 ease-out
-                ${!isPlaying ? 'blur-[8px] scale-105' : 'blur-0 scale-100'}
-              `}
-            />
-          ) : (
-            <img 
-              src={src} 
-              alt="Full size" 
-              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity" 
-              onClick={onClose} 
-            />
-          )}
-        </motion.div>
-      </motion.div>
-    )}
-
-        </AnimatePresence>
-    );
-};
-
-// UPDATED HEADER: Includes Animated Burger + FIX FOR HOVER JITTER
-const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPage: string, navigate: (page: string) => void, isMenuOpen: boolean, onToggleMenu: () => void }) => {
+const Header = ({ isMenuOpen, onToggleMenu }: { isMenuOpen: boolean, onToggleMenu: () => void }) => {
   const [animStart, setAnimStart] = useState(false);
+  const location = useLocation();
 
   useEffect(() => { setTimeout(() => setAnimStart(true), 500); }, []);
   
-  const handleNav = (page: string) => { 
-      if(isMenuOpen) onToggleMenu();
-      navigate(page); 
-  };
-  
-  const navLinkClasses = (page: string) => 
-    `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
+  const navLinkClasses = (path: string) => {
+    const isActive = location.pathname === path;
+    return `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
     before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0
     after:content-[''] after:absolute after:w-full after:h-[1px] after:bottom-0 after:left-0 after:bg-black after:scale-x-0 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left
-    ${currentPage === page ? 'text-black' : ''}`;
+    ${isActive ? 'text-black' : ''}`;
+  }
 
   return (
     <header className={`relative w-full pt-[40px] pb-[10px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
       <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
-        
         <div className="block transition-transform duration-300 ease-in-out hover:-translate-y-1.5 z-[10002] relative">
-          <a onClick={() => handleNav('home')} className="cursor-pointer block">
+          <Link to="/" className="cursor-pointer block">
             <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = '')} />
-          </a>
+          </Link>
         </div>
-        
         <nav className="hidden lg:block">
           <ul className="flex gap-8 list-none m-0 p-0">
-            <li><a onClick={() => handleNav('home')} className={navLinkClasses('home')}>Work</a></li>
-            <li><a onClick={() => handleNav('reel')} className={navLinkClasses('reel')}>Reel</a></li>
-            <li><a onClick={() => handleNav('play')} className={navLinkClasses('play')}>Play</a></li>
-            <li><a onClick={() => handleNav('info')} className={navLinkClasses('info')}>About</a></li>
+            <li><Link to="/" className={navLinkClasses('/')}>Work</Link></li>
+            <li><Link to="/reel" className={navLinkClasses('/reel')}>Reel</Link></li>
+            <li><Link to="/play" className={navLinkClasses('/play')}>Play</Link></li>
+            <li><Link to="/info" className={navLinkClasses('/info')}>About</Link></li>
           </ul>
         </nav>
-        
         <div className="lg:hidden z-[10002]">
             <MenuToggle toggle={onToggleMenu} isOpen={isMenuOpen} />
         </div>
-
       </div>
     </header>
   );
 };
 
-// UPDATED FOOTER
 const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
-    
   const footerContent = (
       <>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
           <div className="flex gap-[25px]">
-            <a 
-              href="https://www.behance.net/f1nal" 
-              target="_blank" 
-              rel="noreferrer" 
-              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
-            >
-              Behance
-            </a>
-
-            <a 
-              href="https://www.linkedin.com/in/f1nal" 
-              target="_blank" 
-              rel="noreferrer" 
-              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
-            >
-              LinkedIn
-            </a>
-
-            <a 
-              href="https://www.instagram.com/f1nal0139" 
-              target="_blank" 
-              rel="noreferrer" 
-              className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block"
-            >
-              Instagram
-            </a>
+            {['Behance', 'LinkedIn', 'Instagram'].map(net => (
+                <a key={net} href={`https://www.${net.toLowerCase()}.com/`} target="_blank" rel="noreferrer" 
+                   className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
+                    {net}
+                </a>
+            ))}
           </div>
-
           <div className="text-[20px] text-black hover:-translate-y-1.5 transition-transform duration-300">
             <a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a>
           </div>
         </div>
-
         <div className="w-full h-[1px] bg-black/15 mb-[15px]"></div>
-
         <div className="flex justify-between">
           <div className="text-[20px] text-black opacity-50">2025 | Oleg Shmarov®</div>
         </div>
       </>
   );
-
   const containerClasses = "pt-10 pb-0 overflow-hidden relative"; 
-
-  if (forceVisible) {
-      return (
-          <div className={containerClasses}>
-              {footerContent}
-          </div>
-      );
-  }
+  if (forceVisible) return <div className={containerClasses}>{footerContent}</div>;
 
   return (
       <motion.footer 
         className={containerClasses}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, amount: 0.2 }}
+        initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }}
       >
-        <motion.div 
-            variants={{
-                hidden: { y: "100%" },
-                visible: { y: "0%", transition: { duration: 1.0, ease: [0.22, 1, 0.36, 1] } }
-            }}
-        >
+        <motion.div variants={{ hidden: { y: "100%" }, visible: { y: "0%", transition: { duration: 1.0, ease: [0.22, 1, 0.36, 1] } } }}>
             {footerContent}
         </motion.div>
       </motion.footer>
   );
 };
 
+// =========================================
+// COMPLEX COMPONENTS (Video, Modal)
+// =========================================
+
+const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
+    const isMobile = useIsMobile();
+    useScrollLock(!!src && isMobile);
+    const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    return (
+        <AnimatePresence>
+            {src && (
+              <motion.div 
+                className="fixed inset-0 z-[10000] flex items-center justify-center" 
+                onClick={onClose}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+                style={{ backgroundColor: 'rgba(255, 255, 255, 0.85)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+              >
+                <motion.div 
+                  className="fix-safari-radius relative max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-hidden"
+                  initial={{ scale: 0.3, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.1, opacity: 0 }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {isVideo ? (
+                    <video 
+                      src={src} autoPlay loop muted playsInline
+                      onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onClick={onClose}
+                      className={`max-w-full max-h-[85vh] object-contain shadow-2xl cursor-pointer transition-all duration-500 ease-out ${!isPlaying ? 'blur-[8px] scale-105' : 'blur-0 scale-100'}`}
+                    />
+                  ) : (
+                    <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity" onClick={onClose} />
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
 
 const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-
-  // Используем useRef для таймера, чтобы он не сбрасывался при ре-рендере (например, при обновлении прогрессбара)
   const hideTimeoutRef = useRef<any>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -687,39 +336,28 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const [progress, setProgress] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
-  
-  // Smart Scrubbing States
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState(0);
 
-
   useEffect(() => {
-     if(videoRef.current) {
-         setVolume(videoRef.current.muted ? 0 : videoRef.current.volume);
-     }
-     
-     // Очистка таймера при размонтировании
-     return () => {
-         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-     };
+     if(videoRef.current) setVolume(videoRef.current.muted ? 0 : videoRef.current.volume);
+     return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
   }, []);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
-
     if (videoRef.current.paused) {
         videoRef.current.play();
         setIsPlaying(true);
-        handleActivity(); // Запускаем таймер скрытия
+        handleActivity();
     } else {
         videoRef.current.pause();
         setIsPlaying(false);
-        setUiHidden(false); // Показываем интерфейс
+        setUiHidden(false);
         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     }
   };
-
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -727,13 +365,8 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     const newMuted = !videoRef.current.muted;
     videoRef.current.muted = newMuted;
     setIsMuted(newMuted);
-    
-    if (!newMuted && volume === 0) {
-        videoRef.current.volume = 1;
-        setVolume(1);
-    } else if (newMuted) {
-        setVolume(0);
-    }
+    if (!newMuted && volume === 0) { videoRef.current.volume = 1; setVolume(1); }
+    else if (newMuted) { setVolume(0); }
   };
   
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -749,14 +382,10 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const toggleFullscreen = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!videoRef.current) return;
-    if ((videoRef.current as any).webkitEnterFullscreen) {
-        (videoRef.current as any).webkitEnterFullscreen();
-    } else if (containerRef.current) {
-      if (!document.fullscreenElement) {
+    if (containerRef.current && !document.fullscreenElement) {
         containerRef.current.requestFullscreen?.();
-      } else {
+    } else {
         document.exitFullscreen?.();
-      }
     }
   };
 
@@ -766,29 +395,21 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     }
   };
 
-  // --- SMART SCRUBBING LOGIC ---
-  const formatTime = (seconds: number) => {
-      if (!seconds || isNaN(seconds)) return "00:00";
-      const m = Math.floor(seconds / 60);
-      const s = Math.floor(seconds % 60);
-      return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
-  };
-
   const calculateProgress = (clientX: number) => {
       if (!progressBarRef.current || !videoRef.current) return { time: 0, percent: 0, x: 0 };
       const rect = progressBarRef.current.getBoundingClientRect();
-      let x = clientX - rect.left;
-      x = Math.max(0, Math.min(x, rect.width)); 
+      const x = Math.max(0, Math.min(clientX - rect.left, rect.width)); 
       const percent = x / rect.width;
-      const time = percent * videoRef.current.duration;
-      return { time, percent: percent * 100, x };
+      return { time: percent * videoRef.current.duration, percent: percent * 100, x };
   };
 
   const handleMouseMove = useCallback((e: MouseEvent | React.MouseEvent) => {
       if (!progressBarRef.current) return;
       const { time, percent, x } = calculateProgress(e.clientX);
       
-      setHoverTime(formatTime(time));
+      const m = Math.floor(time / 60);
+      const s = Math.floor(time % 60);
+      setHoverTime(`${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`);
       setTooltipPos(x);
 
       if (isDragging && videoRef.current) {
@@ -800,9 +421,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const handleMouseDown = (e: React.MouseEvent) => {
       e.stopPropagation();
       setIsDragging(true);
-      if(videoRef.current) {
-          videoRef.current.pause(); 
-      }
+      if(videoRef.current) videoRef.current.pause(); 
       handleMouseMove(e); 
   };
 
@@ -813,7 +432,6 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
               if (isPlaying && videoRef.current) videoRef.current.play(); 
           }
       };
-      
       if (isDragging) {
           window.addEventListener('mousemove', handleMouseMove as any);
           window.addEventListener('mouseup', handleGlobalMouseUp);
@@ -824,221 +442,80 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
       }
   }, [isDragging, isPlaying, handleMouseMove]);
   
-  // --- ACTIVITY & AUTO HIDE LOGIC ---
   const handleActivity = () => {
     setUiHidden(false);
-    
-    // Сбрасываем старый таймер
-    if (hideTimeoutRef.current) {
-        clearTimeout(hideTimeoutRef.current);
-    }
-
-    // Если видео играет, ставим новый таймер на 3 секунды
-    if (isPlaying) {
-        hideTimeoutRef.current = setTimeout(() => {
-            setUiHidden(true);
-        }, 3000); // 3 секунды задержки
-    }
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (isPlaying) hideTimeoutRef.current = setTimeout(() => setUiHidden(true), 3000);
   };
   
-  // Обработчик ухода мышки с плеера
   const handleMouseLeave = () => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      if (isPlaying && !isDragging) {
-          // Скрываем сразу, если видео играет и мы не перематываем
-          setUiHidden(true);
-      }
-      setIsVolumeHovered(false); // Также скрываем громкость
+      if (isPlaying && !isDragging) setUiHidden(true);
+      setIsVolumeHovered(false);
   };
-
-  const particles = useMemo(() => [...Array(12)].map((_, i) => ({
-      id: i,
-      x: (Math.random() - 0.5) * 250,
-      y: (Math.random() - 0.5) * 250,
-      duration: 2 + Math.random() * 1.5,
-      delay: Math.random() * 2
-  })), []);
   
   const VolumeIcon = volume === 0 || isMuted ? VolumeX : (volume < 0.5 ? Volume1 : Volume2);
 
   return (
     <div 
       className={`group fix-safari-radius relative w-full aspect-video bg-black rounded-[18px] shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
-      ref={containerRef} 
-      onMouseMove={handleActivity} 
-      onMouseLeave={handleMouseLeave} // Добавлен обработчик выхода
-      onClick={handleActivity} 
-      onDoubleClick={() => toggleFullscreen()}
+      ref={containerRef} onMouseMove={handleActivity} onMouseLeave={handleMouseLeave} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
     >
       <video 
-        ref={videoRef} 
-        className={`w-full h-full object-cover block transition-all duration-500 ${!isPlaying ? 'video-blur' : 'video-clear'}`}
-        playsInline 
-        muted={isMuted} 
-        poster={poster} 
-        onClick={togglePlay} 
-        onTimeUpdate={handleTimeUpdate}
+        ref={videoRef} className={`w-full h-full object-cover block transition-all duration-500 ${!isPlaying ? 'video-blur' : 'video-clear'}`}
+        playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
       >
         <source src={src} type="video/mp4" />
       </video>
       
-      {/* PLAY BUTTON CENTER */}
-      <div 
-        className={`absolute inset-0 flex justify-center items-center bg-black/5 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
-        onClick={togglePlay}
-      >
+      <div className={`absolute inset-0 flex justify-center items-center bg-black/5 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`} onClick={togglePlay}>
         <div className="relative flex items-center justify-center">
-            {/* PARTICLES SYSTEM */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                 {particles.map((p) => (
-                    <motion.div
-                        key={p.id}
-                        className="absolute w-2 h-2 bg-white rounded-full opacity-0"
-                        animate={{
-                            x: [0, p.x],
-                            y: [0, p.y],
-                            opacity: [0, 0.6, 0],
-                            scale: [0.5, 0]
-                        }}
-                        transition={{
-                            duration: p.duration,
-                            repeat: Infinity,
-                            delay: p.delay,
-                            ease: "easeOut"
-                        }}
-                    />
-                 ))}
-                 {[...Array(3)].map((_, i) => (
-                    <motion.div
-                        key={`ring-${i}`}
-                        className="absolute rounded-full border border-white/20"
-                        initial={{ width: 100, height: 100, opacity: 0 }}
-                        animate={{ width: 200, height: 200, opacity: 0 }}
-                        transition={{
-                            duration: 2,
-                            repeat: Infinity,
-                            delay: i * 0.6,
-                            ease: "easeOut",
-                            times: [0, 1]
-                        }}
-                        style={{ opacity: [0.8, 0] } as any}
-                    />
-                 ))}
-            </div>
-
             <button className="w-[100px] h-[100px] lg:w-[130px] lg:h-[130px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-105 shadow-[0_0_50px_rgba(255,255,255,0.3)] relative z-20">
                 <div className="pl-1.5"><Play fill="black" stroke="none" size={42} /></div>
             </button>
         </div>
       </div>
 
-      {/* CONTROLS BAR */}
-      <div 
-        className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* PROGRESS BAR WITH SMART SCRUBBING */}
-        <div 
-            className="flex-grow h-5 flex items-center cursor-pointer group/seek relative" 
-            ref={progressBarRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={() => setHoverTime(null)}
-        >
-          {/* Timeline Tooltip */}
+      <div className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`} onClick={(e) => e.stopPropagation()}>
+        <div className="flex-grow h-5 flex items-center cursor-pointer group/seek relative" ref={progressBarRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverTime(null)}>
           <AnimatePresence>
              {(hoverTime || isDragging) && (
-                 <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-none transform -translate-x-1/2"
-                    style={{ left: tooltipPos }}
-                 >
-                     {hoverTime}
-                 </motion.div>
+                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-none transform -translate-x-1/2" style={{ left: tooltipPos }}>{hoverTime}</motion.div>
              )}
           </AnimatePresence>
-
-          {/* Background Track */}
           <div className="w-full h-1 bg-white/30 rounded-sm relative transition-all group-hover/seek:h-1.5 overflow-hidden">
-            {/* Filled Track */}
             <div className="h-full bg-white rounded-sm relative" style={{ width: `${progress}%` }}></div>
           </div>
-          
-          {/* Thumb (always visible on hover or drag) */}
-          <div 
-            className="absolute h-3 w-3 bg-white rounded-full shadow-md top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-100 ease-out"
-            style={{ left: `${progress}%`, marginLeft: '-6px', transform: (isDragging || hoverTime) ? 'translateY(-50%) scale(1)' : 'translateY(-50%) scale(0)' }}
-          ></div>
+          <div className="absolute h-3 w-3 bg-white rounded-full shadow-md top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-100 ease-out" style={{ left: `${progress}%`, marginLeft: '-6px', transform: (isDragging || hoverTime) ? 'translateY(-50%) scale(1)' : 'translateY(-50%) scale(0)' }}></div>
         </div>
 
-        {/* RIGHT CONTROLS */}
         <div className="flex items-center gap-4 text-white relative">
-          
-          {/* VOLUME CONTROL (VERTICAL POPUP) */}
-          <div 
-            className="relative flex items-center justify-center group/vol"
-            onMouseEnter={() => setIsVolumeHovered(true)}
-            onMouseLeave={() => setIsVolumeHovered(false)}
-          >
-              {/* VERTICAL SLIDER CONTAINER */}
-              <div 
-                className={`
-                    absolute bottom-[140%] left-1/2 -translate-x-1/2
-                    w-8 h-24 
-                    bg-black/60 backdrop-blur-md rounded-full 
-                    flex items-center justify-center 
-                    transition-all duration-300 origin-bottom 
-                    ${isVolumeHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible'}
-                `}
-              >
-                  <input 
-                    type="range" 
-                    min="0" max="1" step="0.05"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    // Поворачиваем слайдер на 90 градусов против часовой стрелки
-                    className="volume-slider w-16 h-1 absolute -rotate-90 origin-center cursor-pointer"
-                  />
+          <div className="relative flex items-center justify-center group/vol" onMouseEnter={() => setIsVolumeHovered(true)} onMouseLeave={() => setIsVolumeHovered(false)}>
+              <div className={`absolute bottom-[140%] left-1/2 -translate-x-1/2 w-8 h-24 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center transition-all duration-300 origin-bottom ${isVolumeHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible'}`}>
+                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} className="volume-slider w-16 h-1 absolute -rotate-90 origin-center cursor-pointer" />
               </div>
-
-              <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all z-20 relative" onClick={toggleMute}>
-                  <VolumeIcon size={24} />
-              </button>
+              <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all z-20 relative" onClick={toggleMute}><VolumeIcon size={24} /></button>
           </div>
-
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}>
-            <Maximize size={24} />
-          </button>
+          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}><Maximize size={24} /></button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- PAGE: HOME (WORK) ---
-interface Project {
-    id: string | number;
-    title: string;
-    category: string;
-    video: string;
-    img: string;
-    link: string;
-    isExternal?: boolean;
-}
+// =========================================
+// PAGES
+// =========================================
 
-const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: string) => void }) => {
+const ProjectCard = ({ project }: { project: any }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
     const isMobile = useIsMobile();
-
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!isMobile || !videoRef.current || !containerRef.current) return;
-		
-
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
@@ -1050,10 +527,8 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                         setIsHovered(false);
                     }
                 });
-            },
-            { threshold: 0.6 }
+            }, { threshold: 0.6 }
         );
-
         observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, [isMobile]);
@@ -1063,12 +538,7 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
         setIsHovered(true);
         if (videoRef.current) {
             videoRef.current.currentTime = 0;
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    // Autoplay was prevented
-                });
-            }
+            videoRef.current.play().catch(() => {});
         }
     };
 
@@ -1082,18 +552,16 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
     };
 
     const handleClick = (e: React.MouseEvent) => {
-        if (!project.isExternal) {
-            e.preventDefault();
-            navigate(project.link);
+        e.preventDefault();
+        if (project.isExternal) {
+            window.location.href = project.link;
+        } else {
+            navigate('/' + project.link);
         }
     };
 
     return (
-        <a 
-            href={project.isExternal ? project.link : undefined} 
-            onClick={handleClick} 
-            className="block w-full h-full"
-        >
+        <a href={project.isExternal ? project.link : '/' + project.link} onClick={handleClick} className="block w-full h-full">
             <div 
                 ref={containerRef}
                 className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu"
@@ -1101,32 +569,14 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
             >
-                {/* 1. Background Image */}
                 <div className="absolute inset-0 z-0">
-                    <img 
-                        src={project.img} 
-                        alt="" 
-                        className="w-full h-full object-cover block opacity-100"
-                        loading="lazy"
-                    />
+                    <img src={project.img} alt="" className="w-full h-full object-cover block opacity-100" loading="lazy" />
                 </div>
-
-                {/* 2. Video Layer */}
                 <div className="absolute inset-0 z-10 transition-opacity duration-0 ease-in-out" style={{ opacity: isHovered ? 1 : 0 }}>
-                    <video 
-					    poster={project.img}
-                        ref={videoRef}
-                        playsInline 
-                        loop 
-                        muted
-                        preload="auto"
-                        className="w-full h-full object-cover block"
-                    >
+                    <video poster={project.img} ref={videoRef} playsInline loop muted preload="auto" className="w-full h-full object-cover block">
                         <source src={project.video} type="video/mp4" />
                     </video>
                 </div>
-
-                {/* 5. Text Content */}
                 <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
                     <h3 className="text-[32px] lg:text-[32px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
                     <p className="text-[20px] opacity-70 font-normal drop-shadow-md">{project.category}</p>
@@ -1136,74 +586,54 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
     );
 };
 
-const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
+const WorkPage = () => {
   const gridRef = useRef<HTMLDivElement>(null);
-  
-  const initialProjects: Project[] = [
+  const initialProjects = [
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' },
 	{ id: 5, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'Lkt' }
-	
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
-  
 
+  // Dynamic Loading Logic (kept from original)
   useEffect(() => {
     let isMounted = true;
-
     const fetchProject = async (id: number) => {
-        const htmlPath = `project_${id}.html`;
         try {
-            const response = await fetch(htmlPath);
+            const response = await fetch(`project_${id}.html`);
             if (response.ok) {
                 const text = await response.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(text, 'text/html');
-                
                 const categoryMeta = doc.querySelector('meta[name="category"]');
                 if (!categoryMeta) return null; 
-
-                const title = doc.title || `Project ${id}`;
-                const category = categoryMeta.getAttribute('content') || 'Work';
-                
                 return {
                     id: `auto-${id}`,
-                    title: title,
-                    category: category,
+                    title: doc.title || `Project ${id}`,
+                    category: categoryMeta.getAttribute('content') || 'Work',
                     img: `img/project_${id}.jpg`,
                     video: `vid/project_${id}.mp4`,
-                    link: htmlPath,
+                    link: `project_${id}.html`,
                     isExternal: true
                 };
             }
         } catch {}
         return null;
-		
     };
-
     const loadSequence = async () => {
-        const maxChecks = 10; 
-        for (let i = 5; i <= 5 + maxChecks; i++) {
+        for (let i = 5; i <= 15; i++) {
             if (!isMounted) break;
-            
             const project = await fetchProject(i);
             if (project) {
-                setProjects(prev => {
-                    if (prev.some(p => p.id === project.id)) return prev;
-                    return [...prev, project];
-                });
+                setProjects(prev => prev.some(p => p.id === project.id) ? prev : [...prev, project]);
                 await new Promise(r => setTimeout(r, 200)); 
-            } else {
-                break;
-            }
+            } else break;
         }
     };
-
     loadSequence();
-
     return () => { isMounted = false; };
   }, []);
 
@@ -1258,14 +688,10 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
                         className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
                         initial={{ opacity: 0, y: 50 }} 
                         animate={{ opacity: 1, y: 0 }} 
-                        transition={{ 
-                            duration: 0.5, 
-                            ease: "easeOut",
-                            delay: 0.2 + (i * 0.15) 
-                        }}
+                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 + (i * 0.15) }}
                         whileHover={{ scale: 1.02, transition: { duration: 0.4 } }}
                     >
-                        <ProjectCard project={p} navigate={navigate} />
+                        <ProjectCard project={p} />
                     </motion.div>
                 ))}
             </AnimatePresence>
@@ -1275,86 +701,24 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
   );
 };
 
-// UPDATED: PlayPage now supports Images (JPG), Animations (GIF), and Video (MP4)
-interface MediaItem {
-    id: string; // Changed to string to handle complex IDs
-    src: string;
-    type: 'image' | 'video';
-    category: 'artwork' | 'gambling' | 'experimental' | 'general';
-}
-
-const FilterButton = ({ 
-    active, 
-    onClick, 
-    label, 
-    icon: Icon 
-}: { 
-    active: boolean; 
-    onClick: () => void; 
-    label: string; 
-    icon: any; 
-}) => {
-    return (
-        <motion.button
-            onClick={onClick}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className={`
-                relative flex items-center 
-                gap-1.5 lg:gap-2               
-                px-3 py-1.5 lg:px-4 lg:py-2    
-                rounded-full 
-                transition-all duration-300 backdrop-blur-md shadow-lg
-                border
-                ${active 
-                    ? 'bg-black/100 border-white/50 text-white shadow-[(0,1,0,1.1)]' 
-                    : 'bg-black/2 border-black/1 text-neutral-500 hover:bg-white/50 hover:shadow-[0_4px_20px_rgba(0,0,0,0.1)]'
-                }
-            `}
-        >
-            <Icon className="w-[14px] h-[14px] lg:w-[18px] lg:h-[18px]" strokeWidth={2} />
-            
-            <span className="font-medium text-xs lg:text-sm leading-none pt-[1px]">{label}</span>
-        </motion.button>
-    );
-};
-
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  
-  const isMobile = useIsMobile(); 
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     let isMounted = true;
-    
-    // --- НАЧАЛО БЛОКА ЗАГРУЗКИ ---
-    const checkImage = (src: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve(true);
-            img.onerror = () => resolve(false);
-            img.src = src;
-        });
-    };
-
-    const checkVideo = async (src: string): Promise<boolean> => {
-        try {
-            const res = await fetch(src, { method: 'HEAD' });
-            if (!res.ok) return false;
-            const type = res.headers.get('content-type');
-            return type ? type.toLowerCase().startsWith('video') : false;
-        } catch {
-            return false;
+    const checkFile = (src: string, type: 'video'|'image'): Promise<boolean> => {
+        if(type === 'image') {
+            return new Promise(r => { const img = new Image(); img.onload = () => r(true); img.onerror = () => r(false); img.src = src; });
+        } else {
+            return fetch(src, { method: 'HEAD' }).then(res => res.ok && res.headers.get('content-type')?.startsWith('video')).catch(() => false);
         }
     };
 
     const loadMedia = async () => {
-        const MAX_CHECK = 15; 
-        const promises = [];
-        const items: MediaItem[] = [];
-
-        const pathsToCheck = [
+        const items: any[] = [];
+        const paths = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'png', type: 'image', cat: 'artwork' },
@@ -1365,299 +729,112 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'anim/Experimental/anim_', ext: 'png', type: 'image', cat: 'experimental' },
         ];
 
-        for (const pathConfig of pathsToCheck) {
-            for (let i = 1; i <= MAX_CHECK; i++) {
-                const src = `${pathConfig.prefix}${i}.${pathConfig.ext}`;
-                const checkFn = pathConfig.type === 'video' ? checkVideo : checkImage;
-                
-                promises.push(
-                    checkFn(src).then(exists => {
-                        if (exists && isMounted) {
-                            items.push({
-                                id: `${pathConfig.cat}-${pathConfig.type}-${i}-${pathConfig.ext}`,
-                                src: src,
-                                type: pathConfig.type as 'image' | 'video',
-                                category: pathConfig.cat as any
-                            });
-                        }
-                    })
-                );
+        for (const p of paths) {
+            for (let i = 1; i <= 15; i++) {
+                const src = `${p.prefix}${i}.${p.ext}`;
+                checkFile(src, p.type as any).then(exists => {
+                    if (exists && isMounted) {
+                        setMediaItems(prev => {
+                             const newItem = { id: `${p.cat}-${p.type}-${i}-${p.ext}`, src, type: p.type, category: p.cat };
+                             const unique = [...prev, newItem].filter((v,i,a) => a.findIndex(t => t.src === v.src) === i);
+                             return unique.sort((a,b) => (parseInt(a.src.match(/\d+/)?.[0]||'0') - parseInt(b.src.match(/\d+/)?.[0]||'0')));
+                        });
+                    }
+                });
             }
         }
-
-        await Promise.all(promises);
-
-        if (isMounted) {
-            const uniqueItems = Array.from(new Map(items.map(item => [item.src, item])).values());
-            uniqueItems.sort((a, b) => {
-                 const getNum = (s: string) => parseInt(s.match(/\d+/)?.[0] || '0');
-                 return getNum(a.src) - getNum(b.src);
-            });
-            setMediaItems(uniqueItems);
-        }
     };
-
     loadMedia();
     return () => { isMounted = false; };
   }, []);
-  // --- КОНЕЦ БЛОКА ЗАГРУЗКИ ---
 
-  const handleLoadError = (id: string) => {
-      setMediaItems(prev => prev.filter(item => item.id !== id));
-  };
+  const toggleFilter = (f: string) => setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
+  const filtered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
 
-  const toggleFilter = (filter: string) => {
-      setActiveFilters(prev => {
-          if (prev.includes(filter)) {
-              return prev.filter(f => f !== filter);
-          } else {
-              return [...prev, filter];
-          }
-      });
-  };
-
-  const filteredItems = useMemo(() => {
-      if (activeFilters.length === 0) return mediaItems;
-      return mediaItems.filter(item => activeFilters.includes(item.category));
-  }, [mediaItems, activeFilters]);
+  const FilterBtn = ({ label, icon: Icon, val }: any) => (
+      <button onClick={() => toggleFilter(val)} className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${activeFilters.includes(val) ? 'bg-black text-white' : 'bg-white text-gray-500'}`}>
+          <Icon size={16} /> <span className="text-sm">{label}</span>
+      </button>
+  );
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <motion.div 
-            className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[30px] gap-4 lg:gap-6"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-        >
-            <div className="flex-1">
-                <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">Playground</h1>
-                <div className="text-[16px] text-[#888] mt-2.5">Experiments & Styleframes</div>
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 lg:gap-3 w-full lg:w-auto">
-                <FilterButton 
-                    label="Artwork" 
-                    icon={Brush} 
-                    active={activeFilters.includes('artwork')} 
-                    onClick={() => toggleFilter('artwork')} 
-                />
-                <FilterButton 
-                    label="Gambling" 
-                    icon={Dices} 
-                    active={activeFilters.includes('gambling')} 
-                    onClick={() => toggleFilter('gambling')} 
-                />
-                <FilterButton 
-                    label="Experimental" 
-                    icon={FlaskConical} 
-                    active={activeFilters.includes('experimental')} 
-                    onClick={() => toggleFilter('experimental')} 
-                />
+        <motion.div className="flex flex-col lg:flex-row justify-between items-end mb-[30px] gap-6" initial={{opacity:0,y:50}} animate={{opacity:1,y:0}} transition={{delay:0.3}}>
+            <div><h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Playground</h1><div className="text-[#888] mt-2">Experiments & Styleframes</div></div>
+            <div className="flex gap-3 flex-wrap">
+                <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+                <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+                <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
             </div>
         </motion.div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px] min-h-[80vh]">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px]">
             <AnimatePresence mode="popLayout">
-            {filteredItems.map((item, i) => (
-                <motion.div 
-                    key={item.id} 
-                    layout
-                    className={`relative rounded-[18px] overflow-hidden bg-black h-full group ${!isMobile ? 'cursor-pointer' : ''}`}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.3 }}
-                    whileHover={!isMobile ? { scale: 1.03 } : {}}
-                    onClick={() => {
-                        if (!isMobile) {
-                            onOpenImage(item.src);
-                        }
-                    }} 
-                >
-                    {item.type === 'video' ? (
-                        <video 
-                            src={item.src} 
-                            autoPlay 
-                            loop 
-                            muted 
-                            playsInline 
-                            className="w-full h-full block object-cover pointer-events-none" 
-                            onError={() => handleLoadError(item.id)}
-                        />
-                    ) : (
-                        <img 
-                            src={item.src} 
-                            alt={`Experiment ${i}`} 
-                            className="w-full h-full block object-cover" 
-                            onError={() => handleLoadError(item.id)}
-                        />
-                    )}
-                </motion.div>
-            ))}
+                {filtered.map((item, i) => (
+                    <motion.div key={item.id} layout initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
+                        className="relative rounded-[18px] overflow-hidden bg-black aspect-square cursor-pointer"
+                        onClick={() => !isMobile && onOpenImage(item.src)}
+                    >
+                        {item.type === 'video' ? <video src={item.src} autoPlay loop muted playsInline className="w-full h-full object-cover pointer-events-none" /> : <img src={item.src} className="w-full h-full object-cover" />}
+                    </motion.div>
+                ))}
             </AnimatePresence>
-            
-            {filteredItems.length === 0 && (
-                <div className="col-span-full flex justify-center items-center h-[200px] text-neutral-400">
-                    
-                </div>
-            )}
         </div>
-        
         <Footer />
     </div>
   );
 };
 
 const ReelPage = () => (
-    <motion.div 
-        className="w-full"
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-    >
-      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10"> 
-          <div className="flex-1 min-w-[300px]">
-            <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">Showreel</h1>
-            <div className="text-[16px] text-[#888] mt-2.5">Selected Works</div>
-          </div>
-        </div>
+    <motion.div className="w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full mb-[30px]">
+        <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Showreel</h1>
+        <div className="text-[#888] mt-2.5">Selected Works</div>
       </div>
       <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[80px]">
         <VideoPlayer src="https://video.f1nal.me/showreel2022.mp4" poster="img/preview1.png" />
       </div>
-      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-          <Footer forceVisible={true} />
-      </div>
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"><Footer forceVisible={true} /></div>
     </motion.div>
 );
 
-const AboutPage = () => {
-    const textRevealVariant: Variants = {
-        hidden: { opacity: 0, y: 30 },
-        visible: { 
-            opacity: 1, 
-            y: 0,
-            transition: { duration: 0.6, ease: "easeOut" }
-        }
-    };
-
-    return (
-        <motion.div 
-            className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-        >
-            <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[40px]">
-                <div className="flex-none w-full lg:w-[40%] max-w-[500px]">
-                    <img src="img/me.png" alt="Oleg Shmarov" className="w-full h-auto rounded-[18px] grayscale hover:grayscale-0 transition-all duration-500" onError={(e) => e.currentTarget.src = 'img/me.png'} />
-                </div>
-                <div className="flex-0 pt-0">
-                    <div className="text-[18px] lg:text-[18px] leading-[1.5]">
-                        <motion.p 
-                            className="mb-3"
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true }}
-                            variants={textRevealVariant}
-                        >
-                            Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.
-                        </motion.p>
-                        <motion.p 
-                            className="mb-3"
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true }}
-                            variants={textRevealVariant}
-                        >
-                            My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.
-                        </motion.p>
-                        <motion.p
-                            initial="hidden"
-                            whileInView="visible"
-                            viewport={{ once: true }}
-                            variants={textRevealVariant}
-                        >
-                            Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.
-                        </motion.p>
-                    </div>
-                </div>
+const AboutPage = () => (
+    <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[40px]">
+            <div className="w-full lg:w-[100%] max-w-[500px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
+            <div className="text-[18px] leading-[1.5]">
+                <p className="mb-3">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer with a deep interest in animation and visual development.</p>
+                <p className="mb-3">My career began in the television industry, where I worked with large companies performing a wide range of tasks that gave me valuable experience and versatile skills.</p>
+                <p>Now I work on freelance projects and cooperate with leading studios to create projects of various sizes and complexities.</p>
             </div>
-            
-            <div className="w-full h-[1px] bg-black/15 my-[40px]" />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-[50px] mb-[40px]">
-                <div>
-                    <motion.div 
-                        className="mb-10"
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        variants={textRevealVariant}
-                    >
-                        <h3 className="text-[18px] font-bold underline mb-1">Software</h3>
-                        <p className="text-[18px] leading-relaxed text-[#222]">Cinema 4D, Redshift, Adobe Creative Suite</p>
-                    </motion.div>
-
-                    <motion.div
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true }}
-                        variants={textRevealVariant}
-                    >
-                        <div className="mb-10">
-                            <h3 className="text-[18px] font-bold underline mb-1">Awards</h3>
-                            <ul className="list-none p-0 space-y-1">
-                                <li className="text-[18px] text-[#222]">Promax Awards 2021 - Best internal marketing - Gold // TNT Design Showreel</li>
-                                <li className="text-[18px] text-[#222]">World Brand Design Awards 2023 / UK - Bronze // Gravix glue</li>
-                            </ul>
-                        </div>
-                        <div className="mb-1">
-                            <h3 className="text-[18px] font-bold underline mb-1">Social Media</h3>
-                            <div className="flex gap-5">
-                                <a href="https://www.instagram.com/f1nal0139" className="text-[18px] hover:opacity-60 transition-opacity">Instagram</a>
-                                <a href="https://www.behance.net/f1nal" className="text-[18px] hover:opacity-60 transition-opacity">Behance</a>
-                                <a href="https://www.linkedin.com/in/f1nal" className="text-[18px] hover:opacity-60 transition-opacity">LinkedIn</a>
-                            </div>
-                        </div>
-                    </motion.div>
-                </div>
-                
-                <motion.div 
-                    className="mb-10"
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: true }}
-                    variants={textRevealVariant}
-                >
-                    <h3 className="text-[18px] font-bold underline mb-1">For work inquiries, please contact at:</h3>
-                    <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com" className="hover:opacity-60 transition-opacity">shmarov.oleg@gmail.com</a></p>
-                </motion.div>
+        </div>
+        <div className="w-full h-[1px] bg-black/15 my-[40px]" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-[50px] mb-[40px]">
+            <div>
+                <div className="mb-10"><h3 className="text-[18px] font-bold underline mb-1">Software</h3><p className="text-[18px]">Cinema 4D, Redshift, Adobe Creative Suite</p></div>
+                <div className="mb-10"><h3 className="text-[18px] font-bold underline mb-1">Awards</h3><ul className="text-[18px]"><li>Promax Awards 2021 - Gold</li><li>World Brand Design Awards 2023 - Bronze</li></ul></div>
             </div>
-            <Footer />
-        </motion.div>
-    );
-};
+            <div>
+                <h3 className="text-[18px] font-bold underline mb-1">Contact</h3>
+                <p className="text-[18px]"><a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a></p>
+            </div>
+        </div>
+        <Footer />
+    </motion.div>
+);
 
-const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, navigate, children }: any) => {
+// --- PROJECT TEMPLATE ---
+const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, children }: any) => {
     return (
-        <motion.div 
-            initial={{opacity:0, y: 50}} 
-            animate={{opacity:1, y: 0}} 
-            exit={{opacity:0}} 
-            transition={{duration:0.5, ease: "easeOut"}} 
-            className="w-full"
-        >
+        <motion.div initial={{opacity:0, y: 50}} animate={{opacity:1, y: 0}} exit={{opacity:0}} transition={{duration:0.5}} className="w-full">
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                {/* --- FIX: Changed items-end to items-start here --- */}
                 <div className="flex flex-wrap justify-between items-start mb-[30px] gap-10">
                     <div className="flex-1 min-w-[300px]">
-                        <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 text-black">{title}</h1>
+                        <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5">{title}</h1>
                         <div className="text-[16px] text-[#888] mt-2.5">{meta}</div>
                     </div>
+                    {/* APPLIED POPPINS FONT HERE */}
                     <div className="flex-none w-full lg:w-[45%] min-w-[300px]">
-                        <p className="text-[16px] leading-[1.6] text-black" dangerouslySetInnerHTML={{__html: desc}} />
+                        <p className="text-[16px] leading-[1.6] text-black font-poppins" dangerouslySetInnerHTML={{__html: desc}} />
                     </div>
                 </div>
             </div>
@@ -1667,211 +844,101 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 </div>
             )}
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                
-                {gallery && gallery.length > 0 && (
+                {gallery?.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px]">
                         {gallery.map((item: any, i: number) => (
                             <div key={i} className={`relative overflow-hidden rounded-[18px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
-                                {item.video ? (
-                                    <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[18px]"><source src={item.video} type="video/mp4"/></video>
-                                ) : (
-                                    <img src={item.img} alt="Gallery" className="w-full h-auto block rounded-[18px]" />
-                                )}
+                                {item.video ? <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[18px]"><source src={item.video} type="video/mp4"/></video> : <img src={item.img} className="w-full h-auto block rounded-[18px]" />}
                             </div>
                         ))}
                     </div>
                 )}
-
-                {children && (
-                    <div className="w-full mb-[100px] flex justify-center">
-                        {children}
-                    </div>
-                )}
-
+                {children && <div className="w-full mb-[100px] flex justify-center">{children}</div>}
+                
                 <div className="text-[20px] text-[#555] leading-[1.8] mb-[80px] max-w-[700px]">
                     {credits.map((line: string, i: number) => <p key={i} dangerouslySetInnerHTML={{__html: line}} />)}
                 </div>
-<div className="pt-10 mb-40 flex justify-between text-[16px] sm:text-[18px] lg:text-[30px] font-medium">
-    <a
-        onClick={() => navigate(prev.link)}
-        className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer"
-    >
-        <ArrowLeft size={22} /> {prev.label}
-    </a>
 
-    <a
-        onClick={() => navigate(next.link)}
-        className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all cursor-pointer"
-    >
-        {next.label} <ArrowRight size={22} />
-    </a>
-</div>
-
+                <div className="pt-10 mb-40 flex justify-between text-[16px] sm:text-[18px] lg:text-[30px] font-medium">
+                    <Link to={'/' + prev.link} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all">
+                        <ArrowLeft size={22} /> {prev.label}
+                    </Link>
+                    <Link to={'/' + next.link} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all">
+                        {next.label} <ArrowRight size={22} />
+                    </Link>
+                </div>
                 <Footer />
             </div>
         </motion.div>
     );
 };
 
-// =========================================
-// HELPER: ANIMATED IMAGE BLOCK (MODIFIED)
-// =========================================
-const ImageBlock = ({ src, alt, className = "", onClick }: { src: string, alt: string, className?: string, onClick?: () => void }) => (
-    <motion.div
-        className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`}
-        onClick={onClick}
-        initial={{ opacity: 0, y: 40 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-15%" }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-    >
-        <img 
-            src={src} 
-            alt={alt} 
-            loading="lazy"
-            className="w-full h-full object-cover block transition-transform duration-700 hover:scale-[1.02]" 
-        />
+// --- PROJECTS ---
+const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
+    <motion.div className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`} onClick={onClick} initial={{ opacity: 0, y: 40 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-15%" }} transition={{ duration: 0.6 }}>
+        <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover block transition-transform duration-700 hover:scale-[1.02]" />
     </motion.div>
 );
 
-// =========================================
-// UPDATED PAGE: ELF BAR CASE STUDY (MODIFIED)
-// =========================================
-const ElfBar = ({ navigate, onOpenImage }: { navigate: (page: string) => void, onOpenImage: (src: string) => void }) => (
+const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
-        navigate={navigate}
-        title="Elf Bar Promotion"
-        meta="Personal / 2022" 
+        title="Elf Bar Promotion" meta="Personal / 2022" 
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_13.png' }}
         gallery={[]} 
-        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
-        prev={{ label: 'LKT group', link: 'Lkt' }}
-        next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design']}
+        prev={{ label: 'LKT group', link: 'Lkt' }} next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
-        {/* === CUSTOM BEHANCE STYLE GRID === */}
         <div className="flex flex-col gap-2 lg:gap-8 w-full mb-[60px]">
-            
-            {/* 1. Hero Image */}
             <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
-
-            {/* 2. Split View (Details) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                 <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
                 <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
             </div>
-
-            {/* 3. Full Width Break */}
+            {/* ... Other images ... */}
             <ImageBlock src="work/elfbar/img_4.png" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
-
-            {/* 4. Triple Grid (Texture/Materials) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
-                <ImageBlock src="work/elfbar/img_5.png" alt="Material 1" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
-                <ImageBlock src="work/elfbar/img_6.png" alt="Material 2" onClick={() => onOpenImage('work/elfbar/img_6.png')} />
-                <ImageBlock src="work/elfbar/img_7.png" alt="Material 3" onClick={() => onOpenImage('work/elfbar/img_7.png')} />
-            </div>
-
-            {/* 5. Large Impact Shot */}
-            <ImageBlock src="work/elfbar/img_8.png" alt="Process" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
-
-            {/* 6. Asymmetrical Split */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 lg:gap-8">
-                <div className="lg:col-span-2">
-                    <ImageBlock src="work/elfbar/img_9.png" alt="Vertical Detail" className="h-full" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
-                </div>
-                <div className="lg:col-span-3">
-                    <ImageBlock src="work/elfbar/img_10.png" alt="Horizontal Context" className="h-full" onClick={() => onOpenImage('work/elfbar/img_10.png')} />
-                </div>
-            </div>
-
-            {/* 7. Full Width */}
-            <ImageBlock src="work/elfbar/img_11.png" alt="Render" onClick={() => onOpenImage('work/elfbar/img_11.png')} />
-
-            {/* 8. Split View */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-                <ImageBlock src="work/elfbar/img_12.png" alt="Variant Blue" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
-                <ImageBlock src="work/elfbar/img_13.png" alt="Variant Red" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
-            </div>
-
-            {/* 9. Full Width */}
-            <ImageBlock src="work/elfbar/img_14.png" alt="Atmosphere" onClick={() => onOpenImage('work/elfbar/img_14.png')} />
-
-            {/* 10. Triple Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-4">
-                <ImageBlock src="work/elfbar/img_15.png" alt="Detail 1" onClick={() => onOpenImage('work/elfbar/img_15.png')} />
-                <ImageBlock src="work/elfbar/img_16.png" alt="Detail 2" onClick={() => onOpenImage('work/elfbar/img_16.png')} />
-                <ImageBlock src="work/elfbar/img_17.png" alt="Detail 3" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
-            </div>
-
-            {/* 11. Two Large Shots Stacked */}
-            <ImageBlock src="work/elfbar/img_18.png" alt="Pre-final" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
-            <ImageBlock src="work/elfbar/img_19.png" alt="Final Packshot" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
-
         </div>
     </ProjectPage>
 );
-// -----------------------------------------------------
 
-const FootballDynamics = ({ navigate }: any) => (
+const FootballDynamics = () => (
     <ProjectPage 
-        navigate={navigate}
-        title="Football Dynamics"
-        meta="Personal Project / 2025"
-        desc="An exploration of motion and energy within the context of sports. This project focuses on the raw dynamics of football, capturing the intensity of the game through advanced simulation and rendering techniques."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Simulation+Detail' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Dynamics+Wide+Shot', full: true }]}
-        credits={['<strong>Design & Animation:</strong> Oleg Shmarov', '<strong>Tools:</strong> Houdini, Redshift, Nuke, Marvelous Designer']}
-        prev={{ label: 'ELF BAR', link: 'elfbar' }}
-        next={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
+        title="Football Dynamics" meta="Personal Project / 2025"
+        desc="An exploration of motion and energy within the context of sports."
+        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Dynamics+Wide+Shot', full: true }]}
+        credits={['<strong>Design & Animation:</strong> Oleg Shmarov']}
+        prev={{ label: 'ELF BAR', link: 'elfbar' }} next={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
     />
 );
 
-const Puma = ({ navigate }: any) => (
+const Puma = () => (
     <ProjectPage 
-        navigate={navigate}
-        title="Puma Running AW24"
-        meta="Studio: Inertia Studios / 2024"
-        desc="Highlighting the technology behind Puma's new MagMax series. A dynamic campaign emphasizing cushion, return, and speed through abstract material simulations and high-impact visuals."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Shoe+Detail' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Campaign+Wide+View', full: true }]}
-        credits={['<strong>Studio:</strong> Inertia Studios', '<strong>Role:</strong> 3D Motion Designer', '<strong>Client:</strong> Puma']}
-        prev={{ label: 'Football Dynamics', link: 'football-dynamics' }}
-        next={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
+        title="Puma Running AW24" meta="Studio: Inertia Studios / 2024"
+        desc="Highlighting the technology behind Puma's new MagMax series."
+        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Campaign+Wide+View', full: true }]}
+        credits={['<strong>Studio:</strong> Inertia Studios', '<strong>Client:</strong> Puma']}
+        prev={{ label: 'Football Dynamics', link: 'football-dynamics' }} next={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
     />
 );
 
-const Sber = ({ navigate }: any) => (
+const Sber = () => (
     <ProjectPage 
-        navigate={navigate}
-        title="SBER Creative Frame"
-        meta="Combine"
-        desc="In 2020, Sber completely changed its positioning, removing the 'bank' label and transforming into a full-fledged ecosystem of services. The new brand united technology, convenience, and user care — embedding these values into its design.<br/><br/>After a few years, the design system required further fine-tuning. This led to the development of a new creative framework — a visual language focused on 3D, designed to strengthen relationships with users and refresh Sber's visual communication.<br/><br/>Together with Combine studio, I have developed many unique images that helped Sber to change its visual style."
-        video={{ 
-            src: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', 
-            poster: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png'
-        }}
-        gallery={[
-            { img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, 
-            { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }, 
-            { img: 'https://placehold.co/700x700/EEE/31343C?text=Process+Detail' }, 
-            { img: 'https://placehold.co/700x700/EEE/31343C?text=Texture+Detail' }
-        ]}
-        credits={['<strong>Art Direction & Design:</strong> Oleg Shmarov', '<strong>Music & Sound Design:</strong> Blink Audio', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
-        prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
-        next={{ label: 'LKT group', link: 'Lkt' }}
+        title="SBER Creative Frame" meta="Combine"
+        desc="In 2020, Sber completely changed its positioning..."
+        video={{ src: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', poster: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }}
+        gallery={[{ img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }]}
+        credits={['<strong>Art Direction:</strong> Oleg Shmarov']}
+        prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }} next={{ label: 'LKT group', link: 'Lkt' }}
     />
 );
 
-const Lkt = ({ navigate }: { navigate: (page: string) => void }) => (
+const Lkt = () => (
     <ProjectPage 
-        navigate={navigate}
-        title="LKT group"
-        meta="Comercial / 2024" 
-        desc="LKT GROUP develops and implements comprehensive industrial solutions that meet individual customer needs and meet the demands of the modern market. All stages of work are carried out by highly qualified personnel, and processes are controlled using advanced methodologies and quality standards."
-        gallery={[]} 
-        credits={['<strong>Client:</strong> LKT Company', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
-        prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
-        next={{ label: 'Elf Bar', link: 'elfbar' }}
+        title="LKT group" meta="Comercial / 2024" 
+        desc="LKT GROUP develops and implements comprehensive industrial solutions..."
+        gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
+        prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
     >
-        {/* === CUSTOM BEHANCE STYLE GRID === */}
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 			<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
 			<PDFViewer pdfUrl="./GOLDENDIE_RU.pdf" />
@@ -1880,76 +947,39 @@ const Lkt = ({ navigate }: { navigate: (page: string) => void }) => (
     </ProjectPage>
 );
 
+// =========================================
+// MAIN APP COMPONENT
+// =========================================
 export default function App() {
-  const [currentPage, setCurrentPage] = useState('home');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [playModalSrc, setPlayModalSrc] = useState<string | null>(null);
-
-  useContentProtection(); 
-
-  useEffect(() => {
-    document.title = "F1NAL EDITING - OLEG SHMAROV - 3D ARTIST";
-    const link = document.querySelector("link[rel~='icon']") || document.createElement('link');
-    (link as HTMLLinkElement).type = 'image/webp';
-    (link as HTMLLinkElement).rel = 'icon';
-    (link as HTMLLinkElement).href = 'img/favicon.webp';
-    document.getElementsByTagName('head')[0].appendChild(link);
-  }, []);
   
-  const renderPage = () => {
-    switch(currentPage) {
-      case 'home': return <WorkPage navigate={setCurrentPage} />;
-      case 'reel': return <ReelPage />;
-      case 'play': return <PlayPage onOpenImage={setPlayModalSrc} />;
-      case 'info': return <AboutPage />;
-      case 'elfbar': return <ElfBar navigate={setCurrentPage} onOpenImage={setPlayModalSrc} />;
-      case 'football-dynamics': return <FootballDynamics navigate={setCurrentPage} />;
-      case 'puma-magmax': return <Puma navigate={setCurrentPage} />;
-      case 'sber-creative-frame': return <Sber navigate={setCurrentPage} />;
-      case 'Lkt': return <Lkt navigate={setCurrentPage} />;
-      default: return <WorkPage navigate={setCurrentPage} />;
-    }
-  };
-
-  useEffect(() => { 
-      smoothScrollToTop(1200); 
-  }, [currentPage]);
-
+  useContentProtection(); 
   useIntroAnimation();
 
   const isBlurActive = isMenuOpen || !!playModalSrc;
 
+  useEffect(() => {
+    document.title = "F1NAL EDITING - OLEG SHMAROV - 3D ARTIST";
+    const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement || document.createElement('link');
+    link.type = 'image/webp'; link.rel = 'icon'; link.href = 'img/favicon.webp';
+    document.head.appendChild(link);
+  }, []);
+
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: GLOBAL_STYLES }} />
-      <MobileMenuOverlay 
-        isOpen={isMenuOpen} 
-        onClose={() => setIsMenuOpen(false)} 
-        navigate={setCurrentPage}
-        currentPage={currentPage}
-      />
-      
-      <ImageModalOverlay
-        src={playModalSrc}
-        onClose={() => setPlayModalSrc(null)}
-      />
+      <ScrollToTopOnNavigate />
+      <MobileMenuOverlay isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+      <ImageModalOverlay src={playModalSrc} onClose={() => setPlayModalSrc(null)} />
 	  
 	  <div className="ios-safearea-overlay"></div>
 
       <div className="min-h-screen w-full flex flex-col bg-transparent">
-        
         <div className="relative z-[10005]">
-             <Header 
-                currentPage={currentPage} 
-                navigate={setCurrentPage} 
-                isMenuOpen={isMenuOpen}
-                onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} 
-            />
+             <Header isMenuOpen={isMenuOpen} onToggleMenu={() => setIsMenuOpen(!isMenuOpen)} />
         </div>
 
-        <div 
-            id="content-holder" 
-            className="flex-grow pt-[40px] relative flex flex-col"
+        <div id="content-holder" className="flex-grow pt-[40px] relative flex flex-col"
             style={{
                 filter: isBlurActive ? 'blur(4px)' : 'none',
                 backgroundColor: isBlurActive ? 'rgba(255, 255, 255, 1)' : 'transparent', 
@@ -1958,19 +988,25 @@ export default function App() {
             }}
         >
             <AnimatePresence mode="wait">
-                <motion.div
-                    key={currentPage}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="w-full flex-grow">
-                    {renderPage()}
-                </motion.div>
+                <Routes>
+                    <Route path="/" element={<WorkPage />} />
+                    <Route path="/reel" element={<ReelPage />} />
+                    <Route path="/play" element={<PlayPage onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/info" element={<AboutPage />} />
+                    
+                    {/* PROJECTS ROUTES */}
+                    <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/football-dynamics" element={<FootballDynamics />} />
+                    <Route path="/puma-magmax" element={<Puma />} />
+                    <Route path="/sber-creative-frame" element={<Sber />} />
+                    <Route path="/Lkt" element={<Lkt />} />
+
+                    {/* Fallback */}
+                    <Route path="*" element={<WorkPage />} />
+                </Routes>
             </AnimatePresence>
         </div>
-        
-        <ScrollToTop />
+        <ScrollToTopButton />
       </div>
     </>
   );
