@@ -1856,7 +1856,7 @@ const Sber = ({ navigate }: any) => (
     />
 );
 
-const Lkt = ({ navigate, onOpenImage }: { navigate: (page: string) => void, onOpenImage: (src: string) => void }) => (
+const Lkt = ({ navigate }: { navigate: (page: string) => void }) => (
     <ProjectPage 
         navigate={navigate}
         title="LKT group"
@@ -1902,7 +1902,7 @@ export default function App() {
       case 'football-dynamics': return <FootballDynamics navigate={setCurrentPage} />;
       case 'puma-magmax': return <Puma navigate={setCurrentPage} />;
       case 'sber-creative-frame': return <Sber navigate={setCurrentPage} />;
-      case 'Lkt': return <Lkt navigate={setCurrentPage} onOpenImage={setPlayModalSrc} />;
+      case 'Lkt': return <Lkt navigate={setCurrentPage} />;
       default: return <WorkPage navigate={setCurrentPage} />;
     }
   };

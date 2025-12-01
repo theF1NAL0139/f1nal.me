@@ -38,7 +38,12 @@ const PDF_STYLES = `
 
 const VISUAL_PADDING = 50; 
 const SWIPE_THRESHOLD = 100; 
-const ANIMATION_CONFIG = { type: "spring", stiffness: 300, damping: 30, mass: 0.8 };
+const ANIMATION_CONFIG = {
+    type: 'spring' as const, // <--- Add 'as const' here
+    stiffness: 300,
+    damping: 30,
+    mass: 1
+};
 const NO_ANIMATION = { duration: 0 };
 
 const GlassButton = React.memo(({ onClick, disabled, children, className = "", title }: any) => (
