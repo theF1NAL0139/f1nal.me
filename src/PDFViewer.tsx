@@ -7,60 +7,98 @@ import { Document, Page, pdfjs } from 'react-pdf';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
+// --- Styles ---
 const PDF_STYLES = `
-.react-pdf__Page__canvas {
-  display: block;
-  user-select: none;
-  pointer-events: none;
-  width: 100% !important; 
-  height: auto !important;
-}
-.react-pdf__Page__textContent, 
-.react-pdf__Page__annotations {
-  display: none !important;
-}
-.pdf-container::-webkit-scrollbar {
-  display: none;
-}
-.pdf-container {
-  scrollbar-width: none;
-}
+  .react-pdf__Page__canvas {
+    display: block;
+    user-select: none;
+    pointer-events: none;
+    width: 100% !important; 
+    height: 100% !important;
+    object-fit: contain;
+  }
+  .react-pdf__Page__textContent, 
+  .react-pdf__Page__annotations {
+    display: none !important;
+  }
+  .pdf-container::-webkit-scrollbar {
+    display: none;
+  }
+  .pdf-container {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
 `;
 
-const GlassButton = ({ onClick, disabled, children, className = "", title }: any) => (
+const VISUAL_PADDING = 50; 
+const SWIPE_THRESHOLD = 100; 
+const ANIMATION_CONFIG = { type: "spring", stiffness: 300, damping: 30, mass: 0.8 };
+const NO_ANIMATION = { duration: 0 };
+
+const GlassButton = React.memo(({ onClick, disabled, children, className = "", title }: any) => (
   <button 
     onClick={onClick} disabled={disabled} title={title}
     className={`p-2 lg:p-3 rounded-full bg-white/60 backdrop-blur-md border border-white/50 shadow-sm text-neutral-700 hover:bg-white hover:scale-105 hover:shadow-md active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center z-50 ${className}`}
   >
     {children}
   </button>
-);
+));
 
-const VISUAL_PADDING = 50; 
+// --- NEW COMPONENT: Handles the fade-in opacity logic ---
+const FadePage = React.memo(({ onRenderSuccess, pageNumber, scale, ...props }: any) => {
+    const [isLoaded, setIsLoaded] = useState(false);
 
-const SmartPage = ({ 
-    pageNumber, 
-    width, 
-    targetScale,
-    direction,
-    isMobile
-}: { 
-    pageNumber: number, 
-    width: number, 
-    targetScale: number,
-    direction: number,
-    isMobile: boolean
-}) => {
+    // Сбрасываем прозрачность если изменилась страница или масштаб
+    useEffect(() => {
+        setIsLoaded(false);
+    }, [pageNumber, scale]);
+
+    const handleSuccess = useCallback((page: any) => {
+        setIsLoaded(true); // Включаем прозрачность
+        if (onRenderSuccess) onRenderSuccess(page); // Прокидываем колбэк дальше
+    }, [onRenderSuccess]);
+
+    return (
+        <div 
+            className={`transition-opacity duration-300 ease-in-out w-full h-full flex items-center justify-center ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+        >
+            <Page 
+                pageNumber={pageNumber} 
+                scale={scale}
+                onRenderSuccess={handleSuccess}
+                {...props} 
+            />
+        </div>
+    );
+});
+
+interface SmartPageProps { 
+    pageNumber: number; 
+    width: number; 
+    targetScale: number;
+    direction: number;
+    isMobile: boolean;
+    aspectRatio?: number;
+}
+
+const SmartPage = React.memo(({ 
+    pageNumber, width, targetScale, direction, isMobile, aspectRatio = 1.414 
+}: SmartPageProps) => {
+    const calculatedMinHeight = width * aspectRatio;
+
     if (isMobile) {
         return (
-            <div className="relative bg-white shadow-sm overflow-hidden" style={{ width, minHeight: width * 1.414 }}>
-                <Page 
-                    pageNumber={pageNumber} 
-                    width={width} 
-                    scale={targetScale}
-                    loading={null}
-                    renderTextLayer={false} 
-                    renderAnnotationLayer={false}
+            <div className="relative bg-white shadow-sm" style={{ width, minHeight: calculatedMinHeight }}>
+                {/* Используем FadePage вместо Page */}
+                <FadePage 
+                    pageNumber={pageNumber} width={width} scale={targetScale}
+                    loading={null} renderTextLayer={false} renderAnnotationLayer={false}
                     devicePixelRatio={Math.min(window.devicePixelRatio, 2)} 
                 />
             </div>
@@ -76,11 +114,8 @@ const SmartPage = ({
         const activeState = activeSlot === 'A' ? stateA : stateB;
         if (pageNumber !== activeState.page || targetScale !== activeState.scale) {
             isPendingRef.current = true;
-            if (activeSlot === 'A') {
-                setStateB({ page: pageNumber, scale: targetScale });
-            } else {
-                setStateA({ page: pageNumber, scale: targetScale });
-            }
+            if (activeSlot === 'A') setStateB({ page: pageNumber, scale: targetScale });
+            else setStateA({ page: pageNumber, scale: targetScale });
         }
     }, [pageNumber, targetScale, activeSlot, stateA, stateB]);
 
@@ -96,51 +131,46 @@ const SmartPage = ({
         }
     }, [activeSlot, stateA, stateB, pageNumber, targetScale]);
 
-    const getSlotStyles = (slotName: 'A' | 'B') => {
+    const getSlotStyle = useCallback((slotName: 'A' | 'B') => {
         const isActive = activeSlot === slotName;
         const isPageChange = stateA.page !== stateB.page;
-        
-        const baseStyle: React.CSSProperties = {
-            position: 'absolute',
+        return {
+            position: isActive ? 'relative' : 'absolute',
             top: 0, left: 0, width: '100%', height: '100%',
-            backgroundColor: 'white',
-            transition: 'opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)',
-            willChange: 'opacity, transform',
-            zIndex: isActive ? 10 : 1,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: 'transparent', 
+            // Это анимация для слотов (Double Buffering), она не влияет на Fade-in загрузки
+            transition: 'opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
             opacity: isActive ? 1 : 0,
-        };
-
-        if (isActive) {
-            return { ...baseStyle, transform: 'translateX(0px)' };
-        }
-
-        if (isPageChange) {
-            const xOffset = direction === 1 ? '50px' : '-50px';
-            return { ...baseStyle, transform: `translateX(${xOffset})` };
-        } else {
-            return { ...baseStyle, transform: 'translateX(0px)' };
-        }
-    };
+            zIndex: isActive ? 10 : 1,
+            transform: isActive 
+                ? 'translateX(0px)' 
+                : (isPageChange ? `translateX(${direction === 1 ? '50px' : '-50px'})` : 'translateX(0px)'),
+            pointerEvents: isActive ? 'auto' : 'none',
+        } as React.CSSProperties;
+    }, [activeSlot, stateA.page, stateB.page, direction]);
 
     return (
-        <div className="relative bg-white shadow-sm overflow-hidden" style={{ width, minHeight: width * 1.414 }}>
-            <div style={getSlotStyles('A')}>
-                <Page 
+        <div className="relative flex items-center justify-center bg-white shadow-sm" style={{ width, minHeight: calculatedMinHeight }}>
+            <div style={getSlotStyle('A')}>
+                {/* Используем FadePage вместо Page */}
+                <FadePage 
                     pageNumber={stateA.page} width={width} scale={stateA.scale}
                     onRenderSuccess={handleRenderSuccess} loading={null}
-                    renderTextLayer={false} renderAnnotationLayer={false}
+                    renderTextLayer={false} renderAnnotationLayer={false} devicePixelRatio={1} 
                 />
             </div>
-            <div style={getSlotStyles('B')}>
-                <Page 
+            <div style={getSlotStyle('B')}>
+                {/* Используем FadePage вместо Page */}
+                <FadePage 
                     pageNumber={stateB.page} width={width} scale={stateB.scale}
                     onRenderSuccess={handleRenderSuccess} loading={null}
-                    renderTextLayer={false} renderAnnotationLayer={false}
+                    renderTextLayer={false} renderAnnotationLayer={false} devicePixelRatio={1} 
                 />
             </div>
         </div>
     );
-};
+});
 
 interface PDFViewerProps {
     pdfUrl: string;
@@ -149,44 +179,58 @@ interface PDFViewerProps {
 
 const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     useEffect(() => {
-        const styleSheet = document.createElement("style");
-        styleSheet.innerText = PDF_STYLES;
-        document.head.appendChild(styleSheet);
-        return () => { document.head.removeChild(styleSheet); };
+        if (!document.getElementById('pdf-viewer-styles')) {
+            const styleSheet = document.createElement("style");
+            styleSheet.id = 'pdf-viewer-styles';
+            styleSheet.innerText = PDF_STYLES;
+            document.head.appendChild(styleSheet);
+        }
     }, []);
 
     const displayFileName = useMemo(() => {
         if (fileName) return fileName; 
         try {
             const cleanUrl = pdfUrl.split('?')[0];
-            const nameFromUrl = cleanUrl.substring(cleanUrl.lastIndexOf('/') + 1);
-            return decodeURIComponent(nameFromUrl) || "Document.pdf";
-        } catch (e) {
-            return "Document.pdf";
-        }
+            return decodeURIComponent(cleanUrl.substring(cleanUrl.lastIndexOf('/') + 1)) || "Document.pdf";
+        } catch (e) { return "Document.pdf"; }
     }, [fileName, pdfUrl]);
 
     const containerRef = useRef<HTMLDivElement>(null);
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageIndex, setPageIndex] = useState(0); 
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+    const [isLandscapeDoc, setIsLandscapeDoc] = useState(false);
+    
+    // Ratios
+    const [pageRatio, setPageRatio] = useState(1.414); 
+    const [coverRatio, setCoverRatio] = useState(1.414);
+    const [backCoverRatio, setBackCoverRatio] = useState(1.414);
 
-    const getDevicePixelRatio = () => typeof window !== 'undefined' ? window.devicePixelRatio : 1;
+    // Visual State
     const [scale, setScale] = useState(1);
-    const [pdfRenderScale, setPdfRenderScale] = useState(1); 
     const [position, setPosition] = useState({ x: 0, y: 0 });
     
+    // Quality State
+    const getDevicePixelRatio = useCallback(() => typeof window !== 'undefined' ? window.devicePixelRatio : 1, []);
+    const [pdfRenderScale, setPdfRenderScale] = useState(1.5); 
+    const pdfRenderScaleRef = useRef(1.5);
+
+    // UI State
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [isGridView, setIsGridView] = useState(false);
     const [showUI, setShowUI] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [direction, setDirection] = useState(1);
+    const [isHovered, setIsHovered] = useState(false);
     
     const dragStartRef = useRef({ x: 0, y: 0 });
     const positionRef = useRef({ x: 0, y: 0 }); 
     const qualityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const scrollPosRef = useRef({ x: 0, y: 0 });
+
+    useEffect(() => { pdfRenderScaleRef.current = pdfRenderScale; }, [pdfRenderScale]);
+    useEffect(() => { positionRef.current = position; }, [position]);
 
     useEffect(() => {
         const checkMobile = () => {
@@ -194,191 +238,255 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
             setIsMobile(mobile);
             if (mobile) {
                 setShowUI(false);
-                setPdfRenderScale(Math.min(window.devicePixelRatio, 1.2));
+                setPdfRenderScale(Math.min(window.devicePixelRatio, 1.5));
             } else {
-                setPdfRenderScale(window.devicePixelRatio * 1.5);
+                setPdfRenderScale(Math.max(window.devicePixelRatio, 1.5));
             }
         };
         checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
+        let resizeTimer: any;
+        const handleResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(checkMobile, 200); };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     useEffect(() => {
         if (!containerRef.current) return;
-        const updateSize = () => {
-            if (containerRef.current) {
-                setContainerSize({
-                    width: containerRef.current.offsetWidth,
-                    height: containerRef.current.offsetHeight
-                });
+        const observer = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                setContainerSize({ width: entry.contentRect.width, height: entry.contentRect.height });
             }
-        };
-        const observer = new ResizeObserver(updateSize);
+        });
         observer.observe(containerRef.current);
-        updateSize();
         return () => observer.disconnect();
-    }, [isFullscreen]); 
-
-    useEffect(() => {
-        positionRef.current = position;
-    }, [position]);
+    }, []);
 
     useEffect(() => {
         const handleFullscreenChange = () => {
-            const isBrowserFullscreen = !!document.fullscreenElement;
-            
-            if (!isBrowserFullscreen && isFullscreen) {
-                setIsFullscreen(false);
-            }
+            if (!document.fullscreenElement && isFullscreen) setIsFullscreen(false);
         };
-        
         document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
     }, [isFullscreen]);
 
     useLayoutEffect(() => {
         if (!isFullscreen && scrollPosRef.current.y > 0) {
-            window.scrollTo({
-                top: scrollPosRef.current.y,
-                left: scrollPosRef.current.x,
-                behavior: "instant" 
-            });
+            window.scrollTo({ top: scrollPosRef.current.y, left: scrollPosRef.current.x, behavior: "instant" });
         }
     }, [isFullscreen]);
 
+    const handleDocumentLoadSuccess = useCallback(async (pdf: any) => {
+        setNumPages(pdf.numPages);
+        try {
+            const page1 = await pdf.getPage(1);
+            const viewport1 = page1.getViewport({ scale: 1 });
+            const ratio1 = viewport1.height / viewport1.width;
+            setCoverRatio(ratio1);
+
+            let lastRatio = ratio1;
+            if (pdf.numPages > 1) {
+                const pageLast = await pdf.getPage(pdf.numPages);
+                const viewportLast = pageLast.getViewport({ scale: 1 });
+                lastRatio = viewportLast.height / viewportLast.width;
+            }
+            setBackCoverRatio(lastRatio);
+
+            let isWide = viewport1.width > viewport1.height;
+            let standardRatio = ratio1;
+
+            if (!isWide && pdf.numPages > 1) {
+                const page2 = await pdf.getPage(2);
+                const viewport2 = page2.getViewport({ scale: 1 });
+                if (viewport2.width > viewport2.height) {
+                    isWide = true;
+                    standardRatio = viewport2.height / viewport2.width;
+                }
+            }
+            setIsLandscapeDoc(isWide);
+            setPageRatio(standardRatio);
+        } catch (error) { console.error("PDF Geometry check failed", error); }
+    }, []);
 
     const currentPages = useMemo(() => {
         if (!numPages) return [];
-        if (isMobile) return [pageIndex + 1];
+        if (isMobile || isLandscapeDoc) return [pageIndex + 1];
         if (pageIndex === 0) return [1];
         const left = pageIndex * 2;
         const right = left + 1;
         return right <= numPages ? [left, right] : [left];
-    }, [pageIndex, numPages, isMobile]);
+    }, [pageIndex, numPages, isMobile, isLandscapeDoc]);
+
+    const maxIndex = useMemo(() => {
+        if (!numPages) return 0;
+        return (isMobile || isLandscapeDoc) ? numPages - 1 : Math.ceil((numPages - 1) / 2); 
+    }, [numPages, isMobile, isLandscapeDoc]);
 
     const pdfPageWidth = useMemo(() => {
         const width = containerSize.width || 800;
         const height = containerSize.height || 600;
-        
         const padding = isFullscreen ? 0 : 32;
         const availableWidth = width - padding;
-        const availableHeight = height - (isFullscreen ? 10 : 40); 
+        const verticalPadding = isFullscreen ? 40 : 160;
+        const availableHeight = height - verticalPadding; 
 
-        const PAGE_ASPECT = 1.414;
-        const heightConstrainedWidth = availableHeight / PAGE_ASPECT;
+        let currentRatio = pageRatio;
+        if (pageIndex === 0) currentRatio = coverRatio;
+        else if (pageIndex === maxIndex && currentPages.length === 1) currentRatio = backCoverRatio;
 
-        if (isMobile) {
-            return Math.min(availableWidth, heightConstrainedWidth);
-        }
+        const heightConstrainedWidth = (availableHeight / currentRatio) * 0.95;
+        const isDoublePageMode = !isMobile && !isLandscapeDoc && currentPages.length === 2;
 
-        if ((pageIndex === 0 && !isMobile) || currentPages.length === 2) {
-            const widthConstrainedWidth = (availableWidth - 20) / 2;
-            return Math.min(widthConstrainedWidth, heightConstrainedWidth);
-        }
-
+        if (isDoublePageMode) return Math.min(availableWidth / 2, heightConstrainedWidth);
         return Math.min(availableWidth, heightConstrainedWidth);
+    }, [containerSize, isMobile, pageIndex, currentPages, isFullscreen, isLandscapeDoc, pageRatio, coverRatio, backCoverRatio, maxIndex]);
 
-    }, [containerSize, isMobile, pageIndex, currentPages, isFullscreen]);
-
-    const getBounds = () => {
+    const getBounds = useCallback(() => {
         if (!containerRef.current) return { maxX: 0, maxY: 0 };
-        const contentWidth = isMobile || currentPages.length === 1 
-            ? pdfPageWidth * scale 
-            : (pdfPageWidth * 2.1 + 20) * scale;
-        const contentHeight = (pdfPageWidth * 1.414) * scale;
-        const containerW = containerSize.width;
-        const containerH = containerSize.height;
-        const xOverflow = contentWidth - containerW;
-        const yOverflow = contentHeight - containerH;
-        const maxX = xOverflow > 0 ? (xOverflow / 2) + VISUAL_PADDING : 0;
-        const maxY = yOverflow > 0 ? (yOverflow / 2) + VISUAL_PADDING : 0;
-        return { maxX, maxY };
-    };
+        
+        let currentRatio = pageRatio;
+        if (pageIndex === 0) currentRatio = coverRatio;
+        else if (pageIndex === maxIndex && currentPages.length === 1) currentRatio = backCoverRatio;
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+        const contentWidth = (pdfPageWidth * currentPages.length) * scale;
+        const contentHeight = (pdfPageWidth * currentRatio) * scale;
+        
+        const xOverflow = contentWidth - containerSize.width;
+        const yOverflow = contentHeight - containerSize.height;
+        
+        return { 
+            maxX: xOverflow > 0 ? (xOverflow / 2) + VISUAL_PADDING : 0, 
+            maxY: yOverflow > 0 ? (yOverflow / 2) + VISUAL_PADDING : 0 
+        };
+    }, [pdfPageWidth, currentPages.length, scale, containerSize, pageRatio, coverRatio, backCoverRatio, pageIndex, maxIndex]);
+
+    const updateQualitySmart = useCallback((newVisualScale: number) => {
+        if (isMobile) return; 
+        if (qualityTimeoutRef.current) clearTimeout(qualityTimeoutRef.current);
+        
+        const dpr = getDevicePixelRatio();
+        if (newVisualScale <= 1.05) {
+             const optimalScale = Math.max(dpr, 1.5);
+             if (Math.abs(pdfRenderScaleRef.current - optimalScale) > 0.1) {
+                 setPdfRenderScale(optimalScale);
+             }
+             return;
+        }
+        qualityTimeoutRef.current = setTimeout(() => {
+            const neededScale = newVisualScale * dpr;
+            const currentRenderScale = pdfRenderScaleRef.current;
+            if (currentRenderScale < neededScale || currentRenderScale > neededScale * 2.0) {
+                 setPdfRenderScale(neededScale * 1.2); 
+            }
+        }, 400); 
+    }, [isMobile, getDevicePixelRatio]);
+
+    const resetTransform = useCallback(() => {
+        setScale(1); 
+        setPosition({ x: 0, y: 0 });
+        const baseScale = Math.max(getDevicePixelRatio(), 1.5);
+        setPdfRenderScale(baseScale);
+    }, [getDevicePixelRatio]);
+
+    const nextPage = useCallback(() => { 
+        if (pageIndex < maxIndex) { 
+            setDirection(1); 
+            setPageIndex(p => p + 1); 
+            resetTransform(); 
+        } else {
+            setPosition({x: 0, y: 0});
+        }
+    }, [pageIndex, maxIndex, resetTransform]);
+
+    const prevPage = useCallback(() => { 
+        if (pageIndex > 0) { 
+            setDirection(-1); 
+            setPageIndex(p => p - 1); 
+            resetTransform(); 
+        } else {
+            setPosition({x: 0, y: 0});
+        }
+    }, [pageIndex, resetTransform]);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
         setIsDragging(true);
         dragStartRef.current = { x: e.clientX - positionRef.current.x, y: e.clientY - positionRef.current.y };
-    };
+    }, []);
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
         if (!isDragging) return;
         e.preventDefault();
+        const { maxX, maxY } = getBounds();
+        
         let newX = e.clientX - dragStartRef.current.x;
         let newY = e.clientY - dragStartRef.current.y;
-        const { maxX, maxY } = getBounds();
+        
         const applyResistance = (pos: number, limit: number) => {
             if (pos > limit) return limit + (pos - limit) / 3;
             if (pos < -limit) return -limit + (pos - (-limit)) / 3;
             return pos;
         };
-        newX = applyResistance(newX, maxX);
-        newY = applyResistance(newY, maxY);
-        setPosition({ x: newX, y: newY });
-    };
+        
+        setPosition({ x: applyResistance(newX, maxX), y: applyResistance(newY, maxY) });
+    }, [isDragging, getBounds]);
 
-    const handleMouseUp = () => {
+    const handleMouseUp = useCallback(() => {
         setIsDragging(false);
         const { maxX, maxY } = getBounds();
+
+        if (scale <= 1.05) {
+            const currentX = positionRef.current.x;
+            if (currentX < -SWIPE_THRESHOLD) {
+                nextPage();
+                return;
+            } else if (currentX > SWIPE_THRESHOLD) {
+                prevPage();
+                return;
+            }
+        }
+
         const clampedX = Math.min(Math.max(positionRef.current.x, -maxX), maxX);
         const clampedY = Math.min(Math.max(positionRef.current.y, -maxY), maxY);
         if (clampedX !== positionRef.current.x || clampedY !== positionRef.current.y) {
             setPosition({ x: clampedX, y: clampedY });
+        } else if (scale <= 1.05 && positionRef.current.x !== 0) {
+             setPosition({ x: 0, y: 0 });
         }
-    };
+    }, [getBounds, scale, nextPage, prevPage]);
 
-    const updateQualitySmart = (newVisualScale: number) => {
-        if (isMobile) return; 
-
-        if (qualityTimeoutRef.current) clearTimeout(qualityTimeoutRef.current);
-        
-        qualityTimeoutRef.current = setTimeout(() => {
-            const dpr = getDevicePixelRatio();
-            const neededScale = newVisualScale * dpr;
-            
-            const isZoomedInNormal = newVisualScale >= 1;
-            const hasQualityGap = Math.abs(neededScale - pdfRenderScale) > 0.3; 
-
-            if (neededScale > pdfRenderScale) {
-                 setPdfRenderScale(neededScale * 1.2); 
-            } else if (hasQualityGap) {
-                 setPdfRenderScale(Math.max(neededScale, 2.0));
-            } else if (isZoomedInNormal && pdfRenderScale < dpr) {
-                 setPdfRenderScale(dpr * 1.2);
-            }
-        }, 500); 
-    };
-
-    // 1) ИСПРАВЛЕНИЕ: Добавлена проверка isGridView
     const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => { 
-        if (isGridView) return; // Если открыта сетка, не перехватываем скролл
-        
+        if (isGridView) return;
         e.preventDefault(); e.stopPropagation();
+        
         const container = containerRef.current;
         if (!container) return;
         const rect = container.getBoundingClientRect();
-        const mouseX = (e as any).clientX - rect.left;
-        const mouseY = (e as any).clientY - rect.top;
-        const delta = -(e.deltaY * 0.002); 
-        const targetScale = Math.min(Math.max(scale + delta * scale, 1.0), 4);
         
-        if (targetScale <= 1.05) {
-            if (scale === 1) return; 
+        const delta = -(e.deltaY * 0.002); 
+        const prevScale = scale;
+        const targetScale = Math.min(Math.max(prevScale + delta * prevScale, 1.0), 4);
+        
+        if (targetScale <= 1.05 && prevScale !== 1) {
             setScale(1);
             setPosition({ x: 0, y: 0 });
-            updateQualitySmart(1);
+            updateQualitySmart(1); 
             return;
         }
 
-        const contentX = (mouseX - position.x - (rect.width / 2)) / scale;
-        const contentY = (mouseY - position.y - (rect.height / 2)) / scale;
+        if (targetScale === prevScale) return;
+
+        const mouseX = (e as any).clientX - rect.left;
+        const mouseY = (e as any).clientY - rect.top;
+        
+        const contentX = (mouseX - positionRef.current.x - (rect.width / 2)) / prevScale;
+        const contentY = (mouseY - positionRef.current.y - (rect.height / 2)) / prevScale;
+        
         const newX = mouseX - (contentX * targetScale) - (rect.width / 2);
         const newY = mouseY - (contentY * targetScale) - (rect.height / 2);
         
         setScale(targetScale);
         setPosition({ x: newX, y: newY });
         updateQualitySmart(targetScale);
-    }, [scale, position, pdfRenderScale, isMobile, isGridView]);
+    }, [scale, isGridView, updateQualitySmart]);
 
     useEffect(() => {
         const el = containerRef.current;
@@ -387,16 +495,6 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         return () => el.removeEventListener('wheel', handleWheel as any);
     }, [handleWheel]);
 
-    const resetTransform = useCallback(() => {
-        setScale(1); 
-        setPosition({ x: 0, y: 0 });
-        const baseScale = isMobile 
-            ? Math.min(getDevicePixelRatio(), 1.2) 
-            : getDevicePixelRatio() * 1.5;
-        setPdfRenderScale(baseScale);
-    }, [isMobile]);
-
-    // Обернули в useCallback для стабильности в зависимостях
     const toggleFullscreen = useCallback(async () => {
         const container = containerRef.current;
         if (!container) return;
@@ -408,62 +506,36 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 else if ((container as any).webkitRequestFullscreen) await (container as any).webkitRequestFullscreen();
                 setIsFullscreen(true);
             } catch (err) { console.error(err); }
-            
-            setTimeout(() => resetTransform(), 500);
-
+            setTimeout(resetTransform, 500); 
         } else {
             try {
                 if (document.exitFullscreen) await document.exitFullscreen();
                 else if ((document as any).webkitExitFullscreen) await (document as any).webkitExitFullscreen();
             } catch (err) {}
             setIsFullscreen(false);
-            setTimeout(() => resetTransform(), 300);
+            setTimeout(resetTransform, 300);
         }
     }, [isFullscreen, resetTransform]);
 
-    const maxIndex = useMemo(() => {
-        if (!numPages) return 0;
-        return isMobile ? numPages - 1 : Math.ceil((numPages - 1) / 2); 
-    }, [numPages, isMobile]);
-
-    const nextPage = () => { 
-        if (pageIndex < maxIndex) { 
-            setDirection(1); 
-            setPageIndex(p => p + 1); 
-            resetTransform(); 
-        }
-    };
-    const prevPage = () => { 
-        if (pageIndex > 0) { 
-            setDirection(-1); 
-            setPageIndex(p => p - 1); 
-            resetTransform(); 
-        }
-    };
-
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // 2) ИСПРАВЛЕНИЕ: Добавлена обработка клавиши F
-            if (e.key === 'А' || e.key === 'а')  {
-                toggleFullscreen();
-                return;
-				
-				
+            if (!isHovered && !isFullscreen) return;
+            if (e.key === 'А' || e.key === 'а' || e.key === 'F' || e.key === 'f') {
+                toggleFullscreen(); return;
             }
-			if (e.key === 'F' || e.key === 'f')  {
-                toggleFullscreen();
-                return;
-				
-				
-            }
-
             if (isGridView) return;
             if (e.key === 'ArrowRight') nextPage();
             if (e.key === 'ArrowLeft') prevPage();
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [pageIndex, numPages, isGridView, toggleFullscreen]);
+    }, [isGridView, toggleFullscreen, nextPage, prevPage, isHovered, isFullscreen]);
+
+    const currentRenderRatio = useMemo(() => {
+         if (pageIndex === 0) return coverRatio;
+         if (pageIndex === maxIndex && currentPages.length === 1) return backCoverRatio;
+         return pageRatio;
+    }, [pageIndex, maxIndex, currentPages.length, coverRatio, backCoverRatio, pageRatio]);
 
     return (
         <div 
@@ -473,13 +545,17 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 height: isFullscreen ? '100vh' : (isMobile ? '65vh' : '1000px'),
                 cursor: isDragging ? 'grabbing' : 'grab'
             }}
-            onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
+            onMouseDown={handleMouseDown} 
+            onMouseMove={handleMouseMove} 
+            onMouseUp={handleMouseUp} 
+            onMouseLeave={() => { if (isDragging) handleMouseUp(); setIsHovered(false); }} 
+            onMouseEnter={() => setIsHovered(true)}
         >
             <div className="absolute top-4 left-4 right-4 flex justify-between z-20 pointer-events-none">
-                <div className={``}>
-                    <div 
+                <div className="pointer-events-auto">
+                    <button 
                         onClick={() => setIsGridView(true)}
-                        className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm pointer-events-auto flex items-center gap-3 cursor-pointer hover:bg-white transition-colors group"
+                        className="bg-white/90 backdrop-blur border border-black/5 px-4 py-2 rounded-full shadow-sm flex items-center gap-3 hover:bg-white transition-all group"
                     >
                         <BookOpen size={16} className="text-neutral-700 shrink-0 group-hover:scale-110 transition-transform"/>
                         <span className="font-medium text-xs sm:text-sm text-neutral-800 truncate max-w-[120px] sm:max-w-[300px]" title={displayFileName}>
@@ -487,25 +563,22 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                         </span>
                         <div className="w-px h-4 bg-neutral-300 shrink-0"></div>
                         <span className="text-xs font-bold text-neutral-500 font-mono shrink-0">
-                            {currentPages.length > 1 ? `${currentPages[0]}-${currentPages[1]}` : currentPages[0] || 1} / {numPages || '-'}
+                            {(isMobile || isLandscapeDoc) 
+                                ? currentPages[0] 
+                                : (currentPages.length > 1 ? `${currentPages[0]}-${currentPages[1]}` : currentPages[0] || 1)
+                            } / {numPages || '-'}
                         </span>
-                    </div>
+                    </button>
                 </div>
 
                 <div className="flex gap-2 pointer-events-auto">
                     <div className={`flex gap-2 transition-all duration-300 ${showUI ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         <GlassButton onClick={() => setIsGridView(true)}><Grid size={18} /></GlassButton>
-                        
                         {isMobile ? (
-                            <GlassButton onClick={() => window.open(pdfUrl, '_blank')} >
-                                <Download size={18} />
-                            </GlassButton>
+                            <GlassButton onClick={() => window.open(pdfUrl, '_blank')} ><Download size={18} /></GlassButton>
                         ) : (
-                            <GlassButton onClick={toggleFullscreen}>
-                                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-                            </GlassButton>
+                            <GlassButton onClick={toggleFullscreen}>{isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</GlassButton>
                         )}
-
                     </div>
                     <GlassButton onClick={() => setShowUI(!showUI)} className={!showUI ? "bg-white/80" : ""}>
                         {showUI ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -531,33 +604,33 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                         initial={{ opacity: 0, x: direction === 1 ? 60 : -60 }}
                         animate={{ opacity: 1, x: position.x, y: position.y, scale }}
                         exit={isMobile ? undefined : { opacity: 0, x: direction === 1 ? -60 : 60 }} 
-                        transition={{
-                            x: isDragging ? { type: "tween", duration: 0 } : (isMobile ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 }),
-                            y: isDragging ? { type: "tween", duration: 0 } : (isMobile ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 30, mass: 0.8 }),
-                            scale: { duration: 0.2 },
-                            opacity: { duration: isMobile ? 0.1 : 0.2 }
-                        }}
-                        className="flex origin-center will-change-transform absolute inset-0 flex items-center justify-center"
+                        transition={isDragging ? NO_ANIMATION : (isMobile ? NO_ANIMATION : ANIMATION_CONFIG)}
+                        style={{ willChange: 'transform' }} 
+                        className="flex origin-center absolute inset-0 flex items-center justify-center"
                     >
-                        <Document
-                            file={pdfUrl}
-                            onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                            loading={<div className="flex items-center gap-2 p-10"><div className="w-8 h-8 rounded-full border-2 border-neutral-300 border-t-black animate-spin"/></div>}
-                            className="flex justify-center gap-2"
-                        >
-                            {currentPages[0] && (
-                                <SmartPage 
-                                    key="slot-1" pageNumber={currentPages[0]} width={pdfPageWidth} 
-                                    targetScale={pdfRenderScale} direction={direction} isMobile={isMobile}
-                                />
-                            )}
-                            {!isMobile && currentPages[1] && (
-                                <SmartPage 
-                                    key="slot-2" pageNumber={currentPages[1]} width={pdfPageWidth} 
-                                    targetScale={pdfRenderScale} direction={direction} isMobile={isMobile}
-                                />
-                            )}
-                        </Document>
+                        <div className="flex justify-center shadow-xl rounded-sm overflow-visible bg-white">
+                            <Document
+                                file={pdfUrl}
+                                onLoadSuccess={handleDocumentLoadSuccess}
+                                loading={null} 
+                                className="flex"
+                            >
+                                {currentPages[0] && (
+                                    <SmartPage 
+                                        key={`p-${currentPages[0]}`} pageNumber={currentPages[0]} width={pdfPageWidth} 
+                                        targetScale={pdfRenderScale} direction={direction} isMobile={isMobile}
+                                        aspectRatio={currentRenderRatio}
+                                    />
+                                )}
+                                {!isMobile && !isLandscapeDoc && currentPages[1] && (
+                                    <SmartPage 
+                                        key={`p-${currentPages[1]}`} pageNumber={currentPages[1]} width={pdfPageWidth} 
+                                        targetScale={pdfRenderScale} direction={direction} isMobile={isMobile}
+                                        aspectRatio={pageRatio}
+                                    />
+                                )}
+                            </Document>
+                        </div>
                     </motion.div>
                 </AnimatePresence>
             </div>
@@ -587,39 +660,33 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                 </div>
             </div>
 
-            {/* Always rendered but hidden when not in use to support preloading */}
             <div 
                 className={`absolute inset-0 bg-[#f5f5f5]/95 backdrop-blur flex flex-col p-8 transition-all duration-300 ease-out origin-bottom ${
-                    isGridView 
-                    ? 'opacity-100 z-50 translate-y-0' 
-                    : 'opacity-0 -z-10 translate-y-10 pointer-events-none'
+                    isGridView ? 'opacity-100 z-50 translate-y-0' : 'opacity-0 -z-10 translate-y-10 pointer-events-none'
                 }`}
-                // Добавляем stopPropagation для колесика, чтобы быть уверенными, что оно не бабблится наверх,
-                // хотя проверка в handleWheel уже это решает. Это доп. защита.
                 onWheel={(e) => e.stopPropagation()} 
             >
                 <div className="flex justify-between items-center mb-6 shrink-0">
                     <h2 className="text-2xl font-light">Pages Overview</h2>
                     <button onClick={() => setIsGridView(false)} className="p-2 bg-white rounded-full hover:shadow-md transition-all"><X size={24}/></button>
                 </div>
-                <div className="overflow-y-auto flex-1 pb-10">
-                    {/* Only start rendering the document grid if numPages is known to avoid premature loading */}
+                <div className="overflow-y-auto overflow-x-hidden flex-1 pb-10 no-scrollbar">
                     {numPages && (
                         <Document file={pdfUrl} className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6">
                         {Array.from(new Array(numPages), (_el, index) => (
                             <div 
                                 key={`thumb-${index + 1}`} className="cursor-pointer group relative"
                                 onClick={() => {
-                                    if (isMobile) setPageIndex(index);
+                                    if (isMobile || isLandscapeDoc) setPageIndex(index);
                                     else setPageIndex(index === 0 ? 0 : Math.ceil(index / 2));
                                     setIsGridView(false);
                                 }}
                             >
                                 <div className="rounded-lg overflow-hidden shadow-sm group-hover:shadow-xl group-hover:scale-105 transition-all border border-black/5 bg-white">
-                                    <Page 
+                                    <FadePage 
                                         pageNumber={index + 1} width={200} renderMode="canvas" 
                                         renderTextLayer={false} renderAnnotationLayer={false}
-                                        loading={<div className="aspect-[1/1.4] bg-neutral-100 animate-pulse" />}
+                                        loading={<div className="aspect-[1/1.4] bg-neutral-100" />}
                                     />
                                 </div>
                                 <div className="text-center mt-2 text-xs font-mono text-neutral-500">{index + 1}</div>

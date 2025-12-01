@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMe
 import { 
   Play, 
   Volume2, 
+  Volume1,
   VolumeX, 
   Maximize, 
   ArrowUp, 
@@ -11,13 +12,88 @@ import {
   Dices,        
   FlaskConical  
 } from 'lucide-react';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import type { Variants, SVGMotionProps } from 'framer-motion';
+
+// Импорт PDFViewer (предполагается, что файл существует в той же директории)
+import PDFViewer from './PDFViewer'; 
+
 
 // =========================================
 // GLOBAL STYLES & CSS
 // =========================================
+
 const GLOBAL_STYLES = `
+/* FIX SAFARI/CHROME RADIUS BUG */
+.fix-safari-radius {
+  overflow: hidden;
+  border-radius: 18px;
+  isolation: isolate;
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  mask-image: radial-gradient(white, black);
+}
+
+.video-blur {
+  filter: blur(5px);
+  transform: scale(1.02);
+  transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+.video-clear {
+  filter: blur(0);
+  transform: scale(1);
+  transition: filter 0.5s ease, transform 0.5s ease;
+}
+
+/* --- СТИЛИ ПОЛЗУНКА ГРОМКОСТИ --- */
+input[type=range].volume-slider {
+  -webkit-appearance: none; 
+  background: transparent; 
+  cursor: pointer;
+}
+
+/* Track (полоса) */
+input[type=range].volume-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
+
+/* Thumb (кружок) */
+input[type=range].volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: white;
+  margin-top: -4px; /* центрируем относительно трека высотой 4px */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Firefox Styles */
+input[type=range].volume-slider::-moz-range-track {
+  width: 100%;
+  height: 4px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.3);
+  border-radius: 2px;
+}
+input[type=range].volume-slider::-moz-range-thumb {
+  height: 12px;
+  width: 12px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  cursor: pointer;
+}
+
+input[type=range].volume-slider:focus {
+  outline: none;
+}
+
 .ios-safearea-overlay {
     position: fixed;
     bottom: 0;
@@ -138,23 +214,19 @@ const useScrollLock = (lock: boolean) => {
   useLayoutEffect(() => {
     if (!lock) return;
 
-    // 1. Запоминаем текущую позицию скролла
     const scrollY = window.scrollY;
 
-    // 2. Фиксируем body, сдвигая его наверх на величину скролла
     document.body.style.position = 'fixed';
     document.body.style.top = `-${scrollY}px`;
     document.body.style.width = '100%';
     document.body.classList.add('scroll-locked');
 
-    // 3. Функция очистки (вызывается при закрытии)
     return () => {
       document.body.style.position = '';
       document.body.style.top = '';
       document.body.style.width = '';
       document.body.classList.remove('scroll-locked');
       
-      // 4. Мгновенно восстанавливаем скролл
       window.scrollTo(0, scrollY);
     };
   }, [lock]);
@@ -163,40 +235,34 @@ const useScrollLock = (lock: boolean) => {
 // Hook for Content Protection (Anti-Copy/Save)
 const useContentProtection = () => {
   useEffect(() => {
-    // 1. Отключаем контекстное меню (Правый клик)
     const handleContextMenu = (e: MouseEvent) => {
       e.preventDefault();
       return false;
     };
 
-    // 2. Отключаем перетаскивание изображений и другого контента
     const handleDragStart = (e: DragEvent) => {
       e.preventDefault();
       return false;
     };
 
-    // 3. Отключаем комбинации клавиш (Ctrl+C, Ctrl+S, F12 и т.д.)
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Блокируем F12
       if (e.key === 'F12') {
         e.preventDefault();
       }
       
-      // Блокируем комбинации с Ctrl (или Command на Mac)
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
-          case 'c': // Copy
-          case 's': // Save
-          case 'u': // View Source
-          case 'p': // Print
-          case 'i': // DevTools (обычно Ctrl+Shift+I)
+          case 'c':
+          case 's':
+          case 'u':
+          case 'p':
+          case 'i':
             e.preventDefault();
             e.stopPropagation();
             break;
         }
       }
       
-      // Дополнительно для DevTools (Ctrl+Shift+I / J / C)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
           if (['i', 'j', 'c'].includes(e.key.toLowerCase())) {
               e.preventDefault();
@@ -279,13 +345,13 @@ const ScrollToTop = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.button
-  layout // <-- Добавь это свойство, оно помогает сгладить изменение позиции
+  layout 
   onClick={() => smoothScrollToTop(800)}
   initial={{ opacity: 0, scale: 0 }}
   animate={{ opacity: 1, scale: 1 }}
   exit={{ opacity: 0, scale: 0 }}
-  whileTap={{ scale: 0.95 }} // Делаем эффект нажатия едва заметным (5%)
-  whileHover={{ scale: 1.1 }} // Можно убрать для мобильных, но не критично
+  whileTap={{ scale: 0.95 }} 
+  whileHover={{ scale: 1.1 }} 
   transition={{ 
     type: "spring",
     stiffness: 300,
@@ -424,52 +490,58 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
     useScrollLock(!!src && isMobile);
     
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
-
+const [isPlaying, setIsPlaying] = useState(false);
     return (
         <AnimatePresence>
             {src && (
-                <motion.div 
-                    className="fixed inset-0 z-[10000] flex items-center justify-center" 
-                    onClick={onClose}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.4 }}
-                    style={{ 
-                        backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                        backdropFilter: 'blur(4px)',
-                        WebkitBackdropFilter: 'blur(4px)',
-                    }}
-                >
-                    <motion.div 
-                        className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
-                        initial={{ scale: 0.3, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0.1, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {isVideo ? (
-                             <video 
-                                src={src} 
-                                autoPlay 
-                                loop 
-                                muted 
-                                playsInline
-                                onClick={onClose}
-                                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity"
-                             />
-                        ) : (
-                            <img 
-                                src={src} 
-                                alt="Full size" 
-                                className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity" 
-                                onClick={onClose} 
-                            />
-                        )}
-                    </motion.div>
-                </motion.div>
-            )}
+      <motion.div 
+        className="fixed inset-0 z-[10000] flex items-center justify-center" 
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.4 }}
+        style={{ 
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+        }}
+      >
+        <motion.div 
+          className="fix-safari-radius relative max-w-[90vw] max-h-[90vh] flex items-center justify-center overflow-hidden"
+          initial={{ scale: 0.3, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.1, opacity: 0 }}
+          transition={{ duration: 0.3, ease: "easeOut" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {isVideo ? (
+            <video 
+              src={src} 
+              autoPlay 
+              loop 
+              muted 
+              playsInline
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)} 
+              onClick={onClose}
+              className={`
+                max-w-full max-h-[85vh] object-contain shadow-2xl cursor-pointer transition-all duration-500 ease-out
+                ${!isPlaying ? 'blur-[8px] scale-105' : 'blur-0 scale-100'}
+              `}
+            />
+          ) : (
+            <img 
+              src={src} 
+              alt="Full size" 
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer hover:opacity-95 transition-opacity" 
+              onClick={onClose} 
+            />
+          )}
+        </motion.div>
+      </motion.div>
+    )}
+
         </AnimatePresence>
     );
 };
@@ -485,10 +557,6 @@ const Header = ({ currentPage, navigate, isMenuOpen, onToggleMenu }: { currentPa
       navigate(page); 
   };
   
-  // FIX APPLIED HERE:
-  // Added `before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0`
-  // This creates a larger, invisible hit area around the link. Even if the text moves up, 
-  // the cursor stays within this invisible box, preventing the hover loop (z-fighting).
   const navLinkClasses = (page: string) => 
     `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
     before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0
@@ -604,36 +672,74 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
 const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+
+  // Используем useRef для таймера, чтобы он не сбрасывался при ре-рендере (например, при обновлении прогрессбара)
+  const hideTimeoutRef = useRef<any>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [volume, setVolume] = useState(0); 
   const [progress, setProgress] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
-  let inactivityTimeout: any = null;
+  const [isVolumeHovered, setIsVolumeHovered] = useState(false);
+  
+  // Smart Scrubbing States
+  const [isDragging, setIsDragging] = useState(false);
+  const [hoverTime, setHoverTime] = useState<string | null>(null);
+  const [tooltipPos, setTooltipPos] = useState(0);
 
-const togglePlay = () => {
+
+  useEffect(() => {
+     if(videoRef.current) {
+         setVolume(videoRef.current.muted ? 0 : videoRef.current.volume);
+     }
+     
+     // Очистка таймера при размонтировании
+     return () => {
+         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+     };
+  }, []);
+
+  const togglePlay = () => {
     if (!videoRef.current) return;
 
     if (videoRef.current.paused) {
         videoRef.current.play();
         setIsPlaying(true);
-
-        clearTimeout(inactivityTimeout);
-        inactivityTimeout = setTimeout(() => setUiHidden(true), 200);
-
+        handleActivity(); // Запускаем таймер скрытия
     } else {
         videoRef.current.pause();
         setIsPlaying(false);
-        setUiHidden(false);
-        clearTimeout(inactivityTimeout);
+        setUiHidden(false); // Показываем интерфейс
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     }
-};
+  };
 
 
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
-    videoRef.current.muted = !videoRef.current.muted;
-    setIsMuted(videoRef.current.muted);
+    const newMuted = !videoRef.current.muted;
+    videoRef.current.muted = newMuted;
+    setIsMuted(newMuted);
+    
+    if (!newMuted && volume === 0) {
+        videoRef.current.volume = 1;
+        setVolume(1);
+    } else if (newMuted) {
+        setVolume(0);
+    }
+  };
+  
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = parseFloat(e.target.value);
+      setVolume(val);
+      if (videoRef.current) {
+          videoRef.current.volume = val;
+          videoRef.current.muted = val === 0;
+          setIsMuted(val === 0);
+      }
   };
 
   const toggleFullscreen = (e?: React.MouseEvent) => {
@@ -651,22 +757,94 @@ const togglePlay = () => {
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100 || 0);
+    if (videoRef.current && !isDragging) {
+        setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100 || 0);
+    }
   };
 
-  const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation();
-    if (!videoRef.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    videoRef.current.currentTime = ((e.clientX - rect.left) / rect.width) * videoRef.current.duration;
+  // --- SMART SCRUBBING LOGIC ---
+  const formatTime = (seconds: number) => {
+      if (!seconds || isNaN(seconds)) return "00:00";
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`;
   };
 
+  const calculateProgress = (clientX: number) => {
+      if (!progressBarRef.current || !videoRef.current) return { time: 0, percent: 0, x: 0 };
+      const rect = progressBarRef.current.getBoundingClientRect();
+      let x = clientX - rect.left;
+      x = Math.max(0, Math.min(x, rect.width)); 
+      const percent = x / rect.width;
+      const time = percent * videoRef.current.duration;
+      return { time, percent: percent * 100, x };
+  };
+
+  const handleMouseMove = useCallback((e: MouseEvent | React.MouseEvent) => {
+      if (!progressBarRef.current) return;
+      const { time, percent, x } = calculateProgress(e.clientX);
+      
+      setHoverTime(formatTime(time));
+      setTooltipPos(x);
+
+      if (isDragging && videoRef.current) {
+          videoRef.current.currentTime = time;
+          setProgress(percent);
+      }
+  }, [isDragging]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsDragging(true);
+      if(videoRef.current) {
+          videoRef.current.pause(); 
+      }
+      handleMouseMove(e); 
+  };
+
+  useEffect(() => {
+      const handleGlobalMouseUp = () => {
+          if (isDragging) {
+              setIsDragging(false);
+              if (isPlaying && videoRef.current) videoRef.current.play(); 
+          }
+      };
+      
+      if (isDragging) {
+          window.addEventListener('mousemove', handleMouseMove as any);
+          window.addEventListener('mouseup', handleGlobalMouseUp);
+      }
+      return () => {
+          window.removeEventListener('mousemove', handleMouseMove as any);
+          window.removeEventListener('mouseup', handleGlobalMouseUp);
+      }
+  }, [isDragging, isPlaying, handleMouseMove]);
+  
+  // --- ACTIVITY & AUTO HIDE LOGIC ---
   const handleActivity = () => {
     setUiHidden(false);
-    if (isPlaying) {
-      clearTimeout(inactivityTimeout);
-      inactivityTimeout = setTimeout(() => setUiHidden(true), 3000);
+    
+    // Сбрасываем старый таймер
+    if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
     }
+
+    // Если видео играет, ставим новый таймер на 3 секунды
+    if (isPlaying) {
+        hideTimeoutRef.current = setTimeout(() => {
+            setUiHidden(true);
+        }, 3000); // 3 секунды задержки
+    }
+  };
+  
+  // Обработчик ухода мышки с плеера
+  const handleMouseLeave = () => {
+      if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      if (isPlaying && !isDragging) {
+          // Скрываем сразу, если видео играет и мы не перематываем
+          setUiHidden(true);
+      }
+      setIsVolumeHovered(false); // Также скрываем громкость
   };
 
   const particles = useMemo(() => [...Array(12)].map((_, i) => ({
@@ -676,21 +854,31 @@ const togglePlay = () => {
       duration: 2 + Math.random() * 1.5,
       delay: Math.random() * 2
   })), []);
+  
+  const VolumeIcon = volume === 0 || isMuted ? VolumeX : (volume < 0.5 ? Volume1 : Volume2);
 
   return (
     <div 
-      className={`group relative w-full aspect-video bg-black rounded-[18px] overflow-hidden shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
-      ref={containerRef} onMouseMove={handleActivity} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
+      className={`group fix-safari-radius relative w-full aspect-video bg-black rounded-[18px] shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
+      ref={containerRef} 
+      onMouseMove={handleActivity} 
+      onMouseLeave={handleMouseLeave} // Добавлен обработчик выхода
+      onClick={handleActivity} 
+      onDoubleClick={() => toggleFullscreen()}
     >
       <video 
-  ref={videoRef} 
-  // Убираем условие opacity и blur, оставляем всегда 100% видимость
-  className="w-full h-full object-cover block transition-all duration-1000 opacity-100 blur-0"
-  playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
->
+        ref={videoRef} 
+        className={`w-full h-full object-cover block transition-all duration-500 ${!isPlaying ? 'video-blur' : 'video-clear'}`}
+        playsInline 
+        muted={isMuted} 
+        poster={poster} 
+        onClick={togglePlay} 
+        onTimeUpdate={handleTimeUpdate}
+      >
         <source src={src} type="video/mp4" />
       </video>
       
+      {/* PLAY BUTTON CENTER */}
       <div 
         className={`absolute inset-0 flex justify-center items-center bg-black/5 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`}
         onClick={togglePlay}
@@ -740,20 +928,85 @@ const togglePlay = () => {
         </div>
       </div>
 
+      {/* CONTROLS BAR */}
       <div 
         className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex-grow h-5 flex items-center cursor-pointer group/seek" onMouseDown={handleSeek}>
-          <div className="w-full h-1 bg-white/30 rounded-sm relative transition-all group-hover/seek:h-1.5">
-            <div className="h-full bg-white rounded-sm relative" style={{ width: `${progress}%` }}>
-              <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full scale-0 transition-transform group-hover/seek:scale-100"></div>
-            </div>
+        {/* PROGRESS BAR WITH SMART SCRUBBING */}
+        <div 
+            className="flex-grow h-5 flex items-center cursor-pointer group/seek relative" 
+            ref={progressBarRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseLeave={() => setHoverTime(null)}
+        >
+          {/* Timeline Tooltip */}
+          <AnimatePresence>
+             {(hoverTime || isDragging) && (
+                 <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-none transform -translate-x-1/2"
+                    style={{ left: tooltipPos }}
+                 >
+                     {hoverTime}
+                 </motion.div>
+             )}
+          </AnimatePresence>
+
+          {/* Background Track */}
+          <div className="w-full h-1 bg-white/30 rounded-sm relative transition-all group-hover/seek:h-1.5 overflow-hidden">
+            {/* Filled Track */}
+            <div className="h-full bg-white rounded-sm relative" style={{ width: `${progress}%` }}></div>
           </div>
+          
+          {/* Thumb (always visible on hover or drag) */}
+          <div 
+            className="absolute h-3 w-3 bg-white rounded-full shadow-md top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-100 ease-out"
+            style={{ left: `${progress}%`, marginLeft: '-6px', transform: (isDragging || hoverTime) ? 'translateY(-50%) scale(1)' : 'translateY(-50%) scale(0)' }}
+          ></div>
         </div>
-        <div className="flex items-center gap-4 text-white">
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={toggleMute}>{isMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}</button>
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}><Maximize size={24} /></button>
+
+        {/* RIGHT CONTROLS */}
+        <div className="flex items-center gap-4 text-white relative">
+          
+          {/* VOLUME CONTROL (VERTICAL POPUP) */}
+          <div 
+            className="relative flex items-center justify-center group/vol"
+            onMouseEnter={() => setIsVolumeHovered(true)}
+            onMouseLeave={() => setIsVolumeHovered(false)}
+          >
+              {/* VERTICAL SLIDER CONTAINER */}
+              <div 
+                className={`
+                    absolute bottom-[140%] left-1/2 -translate-x-1/2
+                    w-8 h-24 
+                    bg-black/60 backdrop-blur-md rounded-full 
+                    flex items-center justify-center 
+                    transition-all duration-300 origin-bottom 
+                    ${isVolumeHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible'}
+                `}
+              >
+                  <input 
+                    type="range" 
+                    min="0" max="1" step="0.05"
+                    value={volume}
+                    onChange={handleVolumeChange}
+                    // Поворачиваем слайдер на 90 градусов против часовой стрелки
+                    className="volume-slider w-16 h-1 absolute -rotate-90 origin-center cursor-pointer"
+                  />
+              </div>
+
+              <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all z-20 relative" onClick={toggleMute}>
+                  <VolumeIcon size={24} />
+              </button>
+          </div>
+
+          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}>
+            <Maximize size={24} />
+          </button>
         </div>
       </div>
     </div>
@@ -855,8 +1108,9 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                 </div>
 
                 {/* 2. Video Layer */}
-                <div className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out" style={{ opacity: isHovered ? 1 : 0 }}>
+                <div className="absolute inset-0 z-10 transition-opacity duration-0 ease-in-out" style={{ opacity: isHovered ? 1 : 0 }}>
                     <video 
+					    poster={project.img}
                         ref={videoRef}
                         playsInline 
                         loop 
@@ -867,23 +1121,6 @@ const ProjectCard = ({ project, navigate }: { project: any, navigate: (page: str
                         <source src={project.video} type="video/mp4" />
                     </video>
                 </div>
-
-                {/* 3. Foreground Image (fades out on hover) */}
-                <div 
-                    className="absolute inset-0 z-20 transition-opacity duration-200 ease-in-out"
-                    style={{ opacity: isHovered ? 0 : 1 }}
-                >
-                    <img 
-                        src={project.img} 
-                        alt={project.title} 
-                        className="w-full h-full object-cover block"
-                        loading="lazy" 
-                        onError={(e) => e.currentTarget.style.display = 'none'}
-                    />
-                </div>
-
-                {/* 4. NEW: Black Overlay for Text Readability (z-25) */}
-                <div className="absolute inset-0 z-[25] bg-black/15 transition-opacity duration-500 pointer-events-none lg:opacity-0 lg:group-hover:opacity-100" />
 
                 {/* 5. Text Content */}
                 <div className="absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 lg:opacity-0 lg:group-hover:opacity-100">
@@ -902,7 +1139,9 @@ const WorkPage = ({ navigate }: { navigate: (page: string) => void }) => {
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
     { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
-    { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' }
+    { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' },
+	{ id: 5, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'Lkt' }
+	
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -1407,7 +1646,8 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
             className="w-full"
         >
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                <div className="flex flex-wrap justify-between items-end mb-[30px] gap-10">
+                {/* --- FIX: Changed items-end to items-start here --- */}
+                <div className="flex flex-wrap justify-between items-start mb-[30px] gap-10">
                     <div className="flex-1 min-w-[300px]">
                         <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1] mb-2.5 text-black">{title}</h1>
                         <div className="text-[16px] text-[#888] mt-2.5">{meta}</div>
@@ -1423,7 +1663,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                 </div>
             )}
             <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-                {/* --- FIX: Only render if gallery has items to prevent empty whitespace --- */}
+                
                 {gallery && gallery.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px]">
                         {gallery.map((item: any, i: number) => (
@@ -1438,13 +1678,11 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, n
                     </div>
                 )}
 
-                {/* --- ВСТАВКА ВИДЖЕТА ЗДЕСЬ (Сразу после галереи) --- */}
                 {children && (
                     <div className="w-full mb-[100px] flex justify-center">
                         {children}
                     </div>
                 )}
-                {/* ------------------------------------------------ */}
 
                 <div className="text-[20px] text-[#555] leading-[1.8] mb-[80px] max-w-[700px]">
                     {credits.map((line: string, i: number) => <p key={i} dangerouslySetInnerHTML={{__html: line}} />)}
@@ -1504,11 +1742,11 @@ const ElfBar = ({ navigate, onOpenImage }: { navigate: (page: string) => void, o
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_13.png' }}
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
-        prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
+        prev={{ label: 'LKT group', link: 'Lkt' }}
         next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
         {/* === CUSTOM BEHANCE STYLE GRID === */}
-        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+        <div className="flex flex-col gap-2 lg:gap-8 w-full mb-[60px]">
             
             {/* 1. Hero Image */}
             <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
@@ -1602,11 +1840,40 @@ const Sber = ({ navigate }: any) => (
         title="SBER Creative Frame"
         meta="Combine"
         desc="In 2020, Sber completely changed its positioning, removing the 'bank' label and transforming into a full-fledged ecosystem of services. The new brand united technology, convenience, and user care — embedding these values into its design.<br/><br/>After a few years, the design system required further fine-tuning. This led to the development of a new creative framework — a visual language focused on 3D, designed to strengthen relationships with users and refresh Sber's visual communication.<br/><br/>Together with Combine studio, I have developed many unique images that helped Sber to change its visual style."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }, { img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Process+Detail' }, { img: 'https://placehold.co/700x700/EEE/31343C?text=Texture+Detail' }]}
+        video={{ 
+            src: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', 
+            poster: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png'
+        }}
+        gallery={[
+            { img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, 
+            { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }, 
+            { img: 'https://placehold.co/700x700/EEE/31343C?text=Process+Detail' }, 
+            { img: 'https://placehold.co/700x700/EEE/31343C?text=Texture+Detail' }
+        ]}
         credits={['<strong>Art Direction & Design:</strong> Oleg Shmarov', '<strong>Music & Sound Design:</strong> Blink Audio', '<strong>Tools:</strong> Houdini, Redshift, Nuke']}
         prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
-        next={{ label: 'ELF BAR', link: 'elfbar' }}
+        next={{ label: 'LKT group', link: 'Lkt' }}
     />
+);
+
+const Lkt = ({ navigate, onOpenImage }: { navigate: (page: string) => void, onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        navigate={navigate}
+        title="LKT group"
+        meta="Comercial / 2024" 
+        desc="LKT GROUP develops and implements comprehensive industrial solutions that meet individual customer needs and meet the demands of the modern market. All stages of work are carried out by highly qualified personnel, and processes are controlled using advanced methodologies and quality standards."
+        gallery={[]} 
+        credits={['<strong>Client:</strong> LKT Company', '<strong>Role:</strong> 3D Motion Design, Art Direction', '<strong>Tools:</strong> Cinema 4D, Redshift, Adobe']}
+        prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
+        next={{ label: 'Elf Bar', link: 'elfbar' }}
+    >
+        {/* === CUSTOM BEHANCE STYLE GRID === */}
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+			<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
+			<PDFViewer pdfUrl="./GOLDENDIE_RU.pdf" />
+			<PDFViewer pdfUrl="./GOLDENMILL_RU.pdf" />
+        </div>
+    </ProjectPage>
 );
 
 export default function App() {
@@ -1635,6 +1902,7 @@ export default function App() {
       case 'football-dynamics': return <FootballDynamics navigate={setCurrentPage} />;
       case 'puma-magmax': return <Puma navigate={setCurrentPage} />;
       case 'sber-creative-frame': return <Sber navigate={setCurrentPage} />;
+      case 'Lkt': return <Lkt navigate={setCurrentPage} onOpenImage={setPlayModalSrc} />;
       default: return <WorkPage navigate={setCurrentPage} />;
     }
   };

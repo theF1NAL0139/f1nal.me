@@ -45,3 +45,18 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 .masonry-item-transition {
   transition: top 0.5s cubic-bezier(0.19, 1, 0.22, 1), left 0.5s cubic-bezier(0.19, 1, 0.22, 1);
 }
+
+/* index.css */
+
+.video-blur {
+  filter: blur(5px); /* Сила размытия (можно менять: 3px, 5px, 10px) */
+  transform: scale(1.02); /* Скрывает размытые края */
+  transition: filter 0.3s ease, transform 0.3s ease; /* Плавное исчезновение эффекта */
+  overflow: hidden; /* На всякий случай, если видео в контейнере */
+}
+
+/* Опционально: класс для снятия размытия (если нужно явно) */
+.video-clear {
+  filter: blur(0);
+  transform: scale(1);
+}
