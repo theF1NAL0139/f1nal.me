@@ -329,7 +329,7 @@ const smoothScrollToTop = (duration = 900) => {
 };
 
 
-// UPDATED: ScrollToTop - Bouncy Scale Animation
+// UPDATED: ScrollToTop - Fixed Mobile Positioning
 const ScrollToTop = () => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -345,20 +345,24 @@ const ScrollToTop = () => {
     <AnimatePresence>
       {isVisible && (
         <motion.button
-  layout 
-  onClick={() => smoothScrollToTop(800)}
-  initial={{ opacity: 0, scale: 0 }}
-  animate={{ opacity: 1, scale: 1 }}
-  exit={{ opacity: 0, scale: 0 }}
-  whileTap={{ scale: 0.95 }} 
-  whileHover={{ scale: 1.1 }} 
-  transition={{ 
-    type: "spring",
-    stiffness: 300,
-    damping: 20
-  }}
-  className="
-    fixed bottom-10 right-10 z-[10005]
+          // 1. УБРАН проп "layout", чтобы кнопка не прыгала при ресайзе интерфейса браузера
+          onClick={() => smoothScrollToTop(800)}
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0 }}
+          whileTap={{ scale: 0.95 }} 
+          whileHover={{ scale: 1.1 }} 
+          transition={{ 
+            type: "spring",
+            stiffness: 300,
+            damping: 20
+          }}
+          // 2. Добавлен style для корректного отступа на iOS (Safe Area)
+          style={{ 
+             bottom: 'calc(40px + env(safe-area-inset-bottom))' 
+          }}
+          className="
+            fixed right-5 lg:right-10 z-[10005]
             w-[52px] h-[52px]
             rounded-full
             flex items-center justify-center
@@ -367,6 +371,7 @@ const ScrollToTop = () => {
             border border-white/40
             shadow-lg
             hover:bg-white/60
+            /* Убрал bottom-10 отсюда, так как он задан в style выше */
           "
         >
           <ArrowUp size={24} className="text-black/80" />
@@ -375,7 +380,6 @@ const ScrollToTop = () => {
     </AnimatePresence>
   );
 };
-
 
 // =========================================
 // COMPONENTS
