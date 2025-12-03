@@ -267,7 +267,7 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
         </div>
       </>
   );
-  const containerClasses = "pt-10 pb-0 overflow-hidden relative"; 
+  const containerClasses = "pt-0 pb-8 overflow-hidden relative"; 
   if (forceVisible) return <div className={containerClasses}>{footerContent}</div>;
 
   return (
@@ -787,9 +787,9 @@ const ReelPage = () => (
     <motion.div className="w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
       <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full mb-[30px]">
         <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Showreel</h1>
-        <div className="text-[#888] mt-2.5">Selected Works</div>
+        <div className="text-[#888] mt-1.5">Selected Works</div>
       </div>
-      <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[80px]">
+      <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[40px]">
         <VideoPlayer src="https://video.f1nal.me/showreel2022.mp4" poster="img/preview1.png" />
       </div>
       <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full"><Footer forceVisible={true} /></div>
@@ -798,11 +798,11 @@ const ReelPage = () => (
 
 const AboutPage = () => (
     <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
-        <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[40px]">
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[0px]">
             <div className="w-full lg:w-[40%] max-w-[500px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
             <div className="text-[18px] leading-[1.5]">
-                <p className="mb-3">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer...</p>
-                <p className="mb-3">My career began in the television industry...</p>
+                <p className="mb-0,5">Hi! My name is Oleg Shmarov. I am a 3D artist and motion designer...</p>
+                <p className="mb-0,5">My career began in the television industry...</p>
                 <p>Now I work on freelance projects...</p>
             </div>
         </div>
@@ -976,10 +976,10 @@ const Lkt = () => (
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
-		    <PDFViewer pdfUrl="./AWI_KATALOG_DE_PREVIEW.pdf" />
-			<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
-			<PDFViewer pdfUrl="./GOLDENDIE_RU.pdf" />
-			<PDFViewer pdfUrl="./GOLDENMILL_RU.pdf" />
+		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
+			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
+			<PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
+			<PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
         </div>
     </ProjectPage>
 );
