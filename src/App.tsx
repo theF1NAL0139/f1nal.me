@@ -683,17 +683,17 @@ const WorkPage = () => {
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <div className="relative w-full mb-[10px]" ref={gridRef}>
             <AnimatePresence>
-                {projects.map((p, i) => (
-                    <motion.div
-                        key={p.id}
-                        className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
-                        initial={{ opacity: 0, y: 50 }} 
-                        animate={{ opacity: 1, y: 0 }} 
-                        transition={{ duration: 0.5, ease: "easeIn", ease: "easeOut" }}
-                        whileHover={{ scale: 1.02, transition: { duration: 0.3 } }} >
-                        <ProjectCard project={p} />
-                    </motion.div>
-                ))}
+                {projects.map((p) => ( // 1. Removed unused 'i'
+    <motion.div
+        key={p.id}
+        className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
+        initial={{ opacity: 0, y: 50 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        transition={{ duration: 0.5, ease: "easeOut" }} // 2. Removed duplicate 'ease'
+        whileHover={{ scale: 1.02, transition: { duration: 0.3 } }} >
+        <ProjectCard project={p} />
+    </motion.div>
+))}
             </AnimatePresence>
         </div>
         <Footer />
@@ -925,12 +925,12 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     </ProjectPage>
 );
 
-const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+const Radiostrov = () => ( // 1. Removed unused prop definition
     <ProjectPage 
         title="RadioOstrov" meta="Comercial / 2024"
         desc="An exploration of motion and energy within the context of sports."
         gallery={[{ video: '/vid/radioO_preview.mp4', full: true }, { img: '/img/radioO_preview.png' }, { img: '/vid/radioO_preview.mp4', full: true }]}
-		desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
+        // 2. Removed the duplicate 'desc' line (the one about Elf Bar)
         video={{ src: 'https://video.f1nal.me/radioO.mp4', poster: '/img/radioO_preview.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
         prev={{ label: 'Elf Bar', link: 'elfbar' }} next={{ label: 'LKT group', link: 'lkt' }}	
