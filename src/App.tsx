@@ -16,6 +16,14 @@ import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
 import PDFViewer from './PDFViewer'; 
 
 // =========================================
+// GLOBAL STATE (TRACKS INITIAL LOAD)
+// =========================================
+// Эта переменная живет пока вкладка открыта и не перезагружена.
+// false = сайт только что открыли (прямая ссылка).
+// true = мы уже внутри, переходим по меню.
+let hasIntitialLoaded = false;
+
+// =========================================
 // HOOKS
 // =========================================
 
@@ -515,7 +523,15 @@ const ProjectCard = ({ project }: { project: any }) => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (!isMobile || !videoRef.current || !containerRef.current) return;
+        if (!videoRef.current) return;
+
+        // MOBILE: Play always
+        if (isMobile) {
+            videoRef.current.play().catch(() => {});
+            return;
+        }
+
+        if (!containerRef.current) return;
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
@@ -560,6 +576,9 @@ const ProjectCard = ({ project }: { project: any }) => {
         }
     };
 
+    // Opacity logic: Mobile = always 1, Desktop = 1 on hover
+    const videoOpacity = isMobile ? 1 : (isHovered ? 1 : 0);
+
     return (
         <a href={project.isExternal ? project.link : '/' + project.link} onClick={handleClick} className="block w-full h-full">
             <div 
@@ -572,7 +591,7 @@ const ProjectCard = ({ project }: { project: any }) => {
                 <div className="absolute inset-0 z-0">
                     <img src={project.img} alt="" className="w-full h-full object-cover block opacity-100" loading="lazy" />
                 </div>
-                <div className="absolute inset-0 z-10 transition-opacity duration-0 ease-in-out" style={{ opacity: isHovered ? 1 : 0 }}>
+                <div className="absolute inset-0 z-10 transition-opacity duration-300 ease-in-out" style={{ opacity: videoOpacity }}>
                     <video poster={project.img} ref={videoRef} playsInline loop muted preload="auto" className="w-full h-full object-cover block">
                         <source src={project.video} type="video/mp4" />
                     </video>
@@ -599,7 +618,7 @@ const WorkPage = () => {
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
 
-  // Dynamic Loading Logic (kept from original)
+  // Dynamic Loading Logic
   useEffect(() => {
     let isMounted = true;
     const fetchProject = async (id: number) => {
@@ -679,21 +698,27 @@ const WorkPage = () => {
     return () => window.removeEventListener('resize', calculateLayout);
   }, [projects, calculateLayout]);
 
+  const startDelay = hasIntitialLoaded ? 0 : 0.5;
+
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
         <div className="relative w-full mb-[10px]" ref={gridRef}>
             <AnimatePresence>
-                {projects.map((p) => ( // 1. Removed unused 'i'
-    <motion.div
-        key={p.id}
-        className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
-        initial={{ opacity: 0, y: 50 }} 
-        animate={{ opacity: 1, y: 0 }} 
-        transition={{ duration: 0.5, ease: "easeOut" }} // 2. Removed duplicate 'ease'
-        whileHover={{ scale: 1.02, transition: { duration: 0.3 } }} >
-        <ProjectCard project={p} />
-    </motion.div>
-))}
+                {projects.map((p, i) => (
+                    <motion.div
+                        key={p.id}
+                        className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
+                        initial={{ opacity: 0, y: 100 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ 
+                            duration: 0.8, 
+                            ease: [0.22, 1, 0.36, 1], 
+                            delay: startDelay + (i * 0.15)
+                        }}
+                        whileHover={{ scale: 1.02, transition: { duration: 0.3, delay: 0 } }} >
+                        <ProjectCard project={p} />
+                    </motion.div>
+                ))}
             </AnimatePresence>
         </div>
         <Footer />
@@ -751,22 +776,28 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const filtered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
 
   const FilterBtn = ({ label, icon: Icon, val }: any) => (
-      <button onClick={() => toggleFilter(val)} className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${activeFilters.includes(val) ? 'bg-black text-white' : 'bg-white text-gray-500'}`}>
+      <button onClick={() => toggleFilter(val)} className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap ${activeFilters.includes(val) ? 'bg-black text-white' : 'bg-white text-gray-500'}`}>
           <Icon size={16} /> <span className="text-sm">{label}</span>
       </button>
   );
 
   return (
-    <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <motion.div className="flex flex-col lg:flex-row justify-between items-end mb-[30px] gap-6" initial={{opacity:0,y:50}} animate={{opacity:1,y:0}} transition={{delay:0.3}}>
-            <div><h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Playground</h1><div className="text-[#888] mt-2">Experiments & Styleframes</div></div>
-            <div className="flex gap-3 flex-wrap">
-                <FilterBtn label="Artwork" icon={Brush} val="artwork" />
-                <FilterBtn label="Gambling" icon={Dices} val="gambling" />
-                <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+    <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+        <div className="flex flex-col lg:flex-row justify-between items-end mb-[30px] gap-6">
+            <div className="w-full lg:w-auto">
+                <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Playground</h1>
+                <div className="text-[#888] mt-2">Experiments & Styleframes</div>
             </div>
-        </motion.div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px]">
+            <div className="w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar -mx-5 px-5 lg:mx-0 lg:px-0">
+                <div className="flex gap-3 flex-nowrap lg:flex-wrap w-max lg:w-auto">
+                    <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+                    <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+                    <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+                </div>
+            </div>
+        </div>
+        {/* Добавили min-h-screen, чтобы футер сразу был внизу */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] mb-[80px] min-h-screen">
             <AnimatePresence mode="popLayout">
                 {filtered.map((item) => (
                     <motion.div key={item.id} layout initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}
@@ -779,13 +810,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             </AnimatePresence>
         </div>
         <Footer />
-    </div>
+    </motion.div>
   );
 };
 
 const ReelPage = () => (
     <motion.div className="w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full mb-[30px]">
+      <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full mb-[30px] flex flex-col items-start text-left">
         <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Showreel</h1>
         <div className="text-[#888] mt-1.5">Selected Works</div>
       </div>
@@ -797,7 +828,7 @@ const ReelPage = () => (
 );
 
 const AboutPage = () => (
-    <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }}>
+    <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[50px] mb-[0px]">
             <div className="w-full lg:w-[40%] max-w-[500px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
             <div className="text-[18px] leading-[1.5]">
@@ -925,12 +956,11 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     </ProjectPage>
 );
 
-const Radiostrov = () => ( // 1. Removed unused prop definition
+const Radiostrov = () => (
     <ProjectPage 
         title="RadioOstrov" meta="Comercial / 2024"
         desc="An exploration of motion and energy within the context of sports."
         gallery={[{ video: '/vid/radioO_preview.mp4', full: true }, { img: '/img/radioO_preview.png' }, { img: '/vid/radioO_preview.mp4', full: true }]}
-        // 2. Removed the duplicate 'desc' line (the one about Elf Bar)
         video={{ src: 'https://video.f1nal.me/radioO.mp4', poster: '/img/radioO_preview.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
         prev={{ label: 'Elf Bar', link: 'elfbar' }} next={{ label: 'LKT group', link: 'lkt' }}	
@@ -995,6 +1025,12 @@ export default function App() {
   
   useContentProtection(); 
   useIntroAnimation();
+
+  // После загрузки компонента App, считаем, что сайт "загружен"
+  // Это уберет задержку при последующих переходах на главную
+  useEffect(() => {
+     setTimeout(() => { hasIntitialLoaded = true; }, 500);
+  }, []);
 
   const isBlurActive = isMenuOpen || !!playModalSrc;
 
