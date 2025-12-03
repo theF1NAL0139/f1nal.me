@@ -458,7 +458,7 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
 
   return (
     <div 
-      className={`group fix-safari-radius relative w-full aspect-video bg-black rounded-[18px] shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
+      className={`group fix-safari-radius relative w-full aspect-video rounded-[18px] shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
       ref={containerRef} onMouseMove={handleActivity} onMouseLeave={handleMouseLeave} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
     >
       <video 
@@ -590,10 +590,11 @@ const WorkPage = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const initialProjects = [
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
-    { id: 2, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
-    { id: 3, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
+    { id: 2, title: 'RadiOstrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
+	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
     { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' },
-	{ id: 5, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'Lkt' }
+	{ id: 5, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
+	{ id: 6, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -680,7 +681,7 @@ const WorkPage = () => {
 
   return (
     <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
-        <div className="relative w-full mb-[60px]" ref={gridRef}>
+        <div className="relative w-full mb-[10px]" ref={gridRef}>
             <AnimatePresence>
                 {projects.map((p, i) => (
                     <motion.div
@@ -688,9 +689,8 @@ const WorkPage = () => {
                         className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
                         initial={{ opacity: 0, y: 50 }} 
                         animate={{ opacity: 1, y: 0 }} 
-                        transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 + (i * 0.15) }}
-                        whileHover={{ scale: 1.02, transition: { duration: 0.4 } }}
-                    >
+                        transition={{ duration: 0.5, ease: "easeIn", ease: "easeOut" }}
+                        whileHover={{ scale: 1.02, transition: { duration: 0.3 } }} >
                         <ProjectCard project={p} />
                     </motion.div>
                 ))}
@@ -882,22 +882,59 @@ const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
 const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="Elf Bar Promotion" meta="Personal / 2022" 
-        desc="A promotional video for Elf Bar..."
-        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_13.png' }}
+        desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
+        video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_18.png' }}
         gallery={[]} 
-        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design']}
-        prev={{ label: 'LKT group', link: 'Lkt' }} next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, Adobe Suite']}
+        prev={{ label: 'LKT group', link: 'lkt' }} next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
     >
         <div className="flex flex-col gap-2 lg:gap-8 w-full mb-[60px]">
             <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
+			<ImageBlock src="work/elfbar/img_19.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
+			<ImageBlock src="work/elfbar/storyboard.jpg" alt="Close Up" onClick={() => onOpenImage('work/elfbar/storyboard.jpg')} />
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
                 <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
                 <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
+				<ImageBlock src="work/elfbar/dev1.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/dev1.png')} />
+				<ImageBlock src="work/elfbar/dev2.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/dev2.png')} />
+				<ImageBlock src="work/elfbar/img_4.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
+				<ImageBlock src="work/elfbar/img_5.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
             </div>
-            {/* ... Other images ... */}
-            <ImageBlock src="work/elfbar/img_4.png" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
+			<div className="grid grid-cols-3 lg:grid-cols-3 gap-6 lg:gap-8">
+			<ImageBlock src="work/elfbar/img_6.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_6.png')} />
+				<ImageBlock src="work/elfbar/img_8.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
+				<ImageBlock src="work/elfbar/img_9.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
+			</div>
+            <ImageBlock src="work/elfbar/img_10.png" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/img_10.png')} />
+			<ImageBlock src="work/elfbar/dev3.jpg" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/dev3.jpg')} />
+			<div className="grid grid-cols-4 lg:grid-cols-2 gap-6 lg:gap-8">
+			<ImageBlock src="work/elfbar/img_11.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_11.png')} />
+                <ImageBlock src="work/elfbar/img_12.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
+				<ImageBlock src="work/elfbar/img_13.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
+				<ImageBlock src="work/elfbar/img_14.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_14.png')} />
+				<ImageBlock src="work/elfbar/img_15.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_15.png')} />
+				<ImageBlock src="work/elfbar/img_16.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_16.png')} />
+				<ImageBlock src="work/elfbar/img_17.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
+				<ImageBlock src="work/elfbar/img_18.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
+		    </div>
+			<div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/elfbar/img_22.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_22.jpg')} />
+				<ImageBlock src="work/elfbar/img_20.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_20.jpg')} />
+			</div>
         </div>
     </ProjectPage>
+);
+
+const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="RadioOstrov" meta="Comercial / 2024"
+        desc="An exploration of motion and energy within the context of sports."
+        gallery={[{ video: '/vid/radioO_preview.mp4', full: true }, { img: '/img/radioO_preview.png' }, { img: '/vid/radioO_preview.mp4', full: true }]}
+		desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
+        video={{ src: 'https://video.f1nal.me/radioO.mp4', poster: '/img/radioO_preview.png' }}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'Elf Bar', link: 'elfbar' }} next={{ label: 'LKT group', link: 'lkt' }}	
+    />
 );
 
 const FootballDynamics = () => (
@@ -927,7 +964,7 @@ const Sber = () => (
         video={{ src: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', poster: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }}
         gallery={[{ img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }]}
         credits={['<strong>Art Direction:</strong> Oleg Shmarov']}
-        prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }} next={{ label: 'LKT group', link: 'Lkt' }}
+        prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }} next={{ label: 'LKT group', link: 'lkt' }}
     />
 );
 
@@ -946,6 +983,8 @@ const Lkt = () => (
         </div>
     </ProjectPage>
 );
+
+
 
 // =========================================
 // MAIN APP COMPONENT
@@ -996,10 +1035,11 @@ export default function App() {
                     
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
+					<Route path="/radiostrov" element={<Radiostrov />} />
                     <Route path="/football-dynamics" element={<FootballDynamics />} />
                     <Route path="/puma-magmax" element={<Puma />} />
                     <Route path="/sber-creative-frame" element={<Sber />} />
-                    <Route path="/Lkt" element={<Lkt />} />
+                    <Route path="/lkt" element={<Lkt />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<WorkPage />} />
