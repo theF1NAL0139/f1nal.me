@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, useLayoutEffect } from 'react';
 import { 
-  Maximize, Minimize, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Grid, X, BookOpen, Eye, EyeOff, Download 
+  Maximize, Minimize, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Grid, X, BookOpen, Eye, EyeOff, Download, FileText 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -16,6 +16,8 @@ const PDF_STYLES = `
     width: 100% !important; 
     height: 100% !important;
     object-fit: contain;
+    /* Оптимизация для мобильных, чтобы GPU не сходил с ума при зуме */
+    will-change: transform; 
   }
   .react-pdf__Page__textContent, 
   .react-pdf__Page__annotations {
@@ -39,7 +41,7 @@ const PDF_STYLES = `
 const VISUAL_PADDING = 50; 
 const SWIPE_THRESHOLD = 100; 
 const ANIMATION_CONFIG = {
-    type: 'spring' as const, // <--- Add 'as const' here
+    type: 'spring' as const,
     stiffness: 300,
     damping: 30,
     mass: 1
@@ -55,18 +57,16 @@ const GlassButton = React.memo(({ onClick, disabled, children, className = "", t
   </button>
 ));
 
-// --- NEW COMPONENT: Handles the fade-in opacity logic ---
-const FadePage = React.memo(({ onRenderSuccess, pageNumber, scale, ...props }: any) => {
+const FadePage = React.memo(({ onRenderSuccess, pageNumber, scale, devicePixelRatio, ...props }: any) => {
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // Сбрасываем прозрачность если изменилась страница или масштаб
     useEffect(() => {
         setIsLoaded(false);
     }, [pageNumber, scale]);
 
     const handleSuccess = useCallback((page: any) => {
-        setIsLoaded(true); // Включаем прозрачность
-        if (onRenderSuccess) onRenderSuccess(page); // Прокидываем колбэк дальше
+        setIsLoaded(true); 
+        if (onRenderSuccess) onRenderSuccess(page);
     }, [onRenderSuccess]);
 
     return (
@@ -77,6 +77,7 @@ const FadePage = React.memo(({ onRenderSuccess, pageNumber, scale, ...props }: a
                 pageNumber={pageNumber} 
                 scale={scale}
                 onRenderSuccess={handleSuccess}
+                devicePixelRatio={devicePixelRatio}
                 {...props} 
             />
         </div>
@@ -97,14 +98,20 @@ const SmartPage = React.memo(({
 }: SmartPageProps) => {
     const calculatedMinHeight = width * aspectRatio;
 
+    // --- FIX: MOBILE CRASH PREVENTION ---
+    // Жестко ограничиваем devicePixelRatio. 
+    // На мобильных браузерах (особенно iOS) canvas > 4096px или high-density canvas вызывают краш вкладки.
+    // Значение 1.5 - оптимальный баланс между четкостью и памятью.
+    // Мы не используем window.devicePixelRatio напрямую для рендера, чтобы зум браузера не вызывал перерисовку canvas в 4k+.
+    const safeDevicePixelRatio = isMobile ? 1.5 : Math.min(window.devicePixelRatio || 1, 2.5);
+
     if (isMobile) {
         return (
             <div className="relative bg-white shadow-sm" style={{ width, minHeight: calculatedMinHeight }}>
-                {/* Используем FadePage вместо Page */}
                 <FadePage 
                     pageNumber={pageNumber} width={width} scale={targetScale}
                     loading={null} renderTextLayer={false} renderAnnotationLayer={false}
-                    devicePixelRatio={Math.min(window.devicePixelRatio, 2)} 
+                    devicePixelRatio={safeDevicePixelRatio}
                 />
             </div>
         );
@@ -144,7 +151,6 @@ const SmartPage = React.memo(({
             top: 0, left: 0, width: '100%', height: '100%',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             backgroundColor: 'transparent', 
-            // Это анимация для слотов (Double Buffering), она не влияет на Fade-in загрузки
             transition: 'opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
             opacity: isActive ? 1 : 0,
             zIndex: isActive ? 10 : 1,
@@ -158,7 +164,6 @@ const SmartPage = React.memo(({
     return (
         <div className="relative flex items-center justify-center bg-white shadow-sm" style={{ width, minHeight: calculatedMinHeight }}>
             <div style={getSlotStyle('A')}>
-                {/* Используем FadePage вместо Page */}
                 <FadePage 
                     pageNumber={stateA.page} width={width} scale={stateA.scale}
                     onRenderSuccess={handleRenderSuccess} loading={null}
@@ -166,7 +171,6 @@ const SmartPage = React.memo(({
                 />
             </div>
             <div style={getSlotStyle('B')}>
-                {/* Используем FadePage вместо Page */}
                 <FadePage 
                     pageNumber={stateB.page} width={width} scale={stateB.scale}
                     onRenderSuccess={handleRenderSuccess} loading={null}
@@ -183,6 +187,9 @@ interface PDFViewerProps {
 }
 
 const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
+    // --- State for Load on Demand ---
+    const [isViewerActive, setIsViewerActive] = useState(false);
+
     useEffect(() => {
         if (!document.getElementById('pdf-viewer-styles')) {
             const styleSheet = document.createElement("style");
@@ -216,7 +223,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     const [position, setPosition] = useState({ x: 0, y: 0 });
     
     // Quality State
-    const getDevicePixelRatio = useCallback(() => typeof window !== 'undefined' ? window.devicePixelRatio : 1, []);
+    const getDevicePixelRatio = useCallback(() => typeof window !== 'undefined' ? (window.devicePixelRatio || 1) : 1, []);
     const [pdfRenderScale, setPdfRenderScale] = useState(1.5); 
     const pdfRenderScaleRef = useRef(1.5);
 
@@ -243,9 +250,10 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
             setIsMobile(mobile);
             if (mobile) {
                 setShowUI(false);
-                setPdfRenderScale(Math.min(window.devicePixelRatio, 1.5));
+                // На мобильных не ставим renderScale выше 1.5, чтобы избежать крашей
+                setPdfRenderScale(1.5);
             } else {
-                setPdfRenderScale(Math.max(window.devicePixelRatio, 1.5));
+                setPdfRenderScale(Math.max(window.devicePixelRatio || 1, 1.5));
             }
         };
         checkMobile();
@@ -256,6 +264,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     }, []);
 
     useEffect(() => {
+        if (!isViewerActive) return; // Не следим за размерами, если вьювер не активен
         if (!containerRef.current) return;
         const observer = new ResizeObserver((entries) => {
             for (const entry of entries) {
@@ -264,7 +273,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         });
         observer.observe(containerRef.current);
         return () => observer.disconnect();
-    }, []);
+    }, [isViewerActive]);
 
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -460,6 +469,8 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
 
     const handleWheel = useCallback((e: React.WheelEvent | WheelEvent) => { 
         if (isGridView) return;
+        // Don't prevent default on small scales to allow page scroll if needed, 
+        // but here we mostly capture it for zoom
         e.preventDefault(); e.stopPropagation();
         
         const container = containerRef.current;
@@ -494,11 +505,12 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
     }, [scale, isGridView, updateQualitySmart]);
 
     useEffect(() => {
+        if (!isViewerActive) return;
         const el = containerRef.current;
         if (!el) return;
         el.addEventListener('wheel', handleWheel as any, { passive: false });
         return () => el.removeEventListener('wheel', handleWheel as any);
-    }, [handleWheel]);
+    }, [handleWheel, isViewerActive]);
 
     const toggleFullscreen = useCallback(async () => {
         const container = containerRef.current;
@@ -524,6 +536,7 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isViewerActive) return;
             if (!isHovered && !isFullscreen) return;
             if (e.key === 'А' || e.key === 'а' || e.key === 'F' || e.key === 'f') {
                 toggleFullscreen(); return;
@@ -534,13 +547,41 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isGridView, toggleFullscreen, nextPage, prevPage, isHovered, isFullscreen]);
+    }, [isGridView, toggleFullscreen, nextPage, prevPage, isHovered, isFullscreen, isViewerActive]);
 
     const currentRenderRatio = useMemo(() => {
          if (pageIndex === 0) return coverRatio;
          if (pageIndex === maxIndex && currentPages.length === 1) return backCoverRatio;
          return pageRatio;
     }, [pageIndex, maxIndex, currentPages.length, coverRatio, backCoverRatio, pageRatio]);
+
+    // --- Start Screen UI ---
+    if (!isViewerActive) {
+        return (
+            <div 
+                className="w-full flex flex-col items-center justify-center bg-[#f0f0f0] rounded-[20px] border border-black/5 shadow-sm p-6 text-center"
+                style={{ height: isMobile ? '400px' : '600px' }}
+            >
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-neutral-100 mb-6">
+                    <FileText size={48} className="text-neutral-400" strokeWidth={1} />
+                </div>
+                <h3 className="text-lg font-medium text-neutral-800 mb-2 max-w-md truncate">
+                    {displayFileName}
+                </h3>
+                <p className="text-sm text-neutral-500 mb-8">
+                    Документ готов к просмотру
+                </p>
+                <button 
+                    onClick={() => setIsViewerActive(true)}
+                    className="group relative inline-flex items-center gap-2 px-8 py-3 bg-neutral-900 text-white rounded-full font-medium shadow-lg shadow-neutral-900/10 hover:shadow-xl hover:scale-105 hover:bg-black transition-all duration-200 overflow-hidden"
+                >
+                    <Eye size={18} className="relative z-10" />
+                    <span className="relative z-10">Посмотреть документ</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div 
@@ -692,6 +733,8 @@ const PDFViewer = ({ pdfUrl, fileName }: PDFViewerProps) => {
                                         pageNumber={index + 1} width={200} renderMode="canvas" 
                                         renderTextLayer={false} renderAnnotationLayer={false}
                                         loading={<div className="aspect-[1/1.4] bg-neutral-100" />}
+                                        // Важно! Для превьюшек тоже снижаем качество, чтобы не забить память
+                                        devicePixelRatio={isMobile ? 1 : 1.5}
                                     />
                                 </div>
                                 <div className="text-center mt-2 text-xs font-mono text-neutral-500">{index + 1}</div>

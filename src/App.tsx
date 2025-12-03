@@ -939,6 +939,7 @@ const Lkt = () => (
         prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+		    <PDFViewer pdfUrl="./AWI_KATALOG_DE_PREVIEW.pdf" />
 			<PDFViewer pdfUrl="./LKT_WERKE_RU.pdf" />
 			<PDFViewer pdfUrl="./GOLDENDIE_RU.pdf" />
 			<PDFViewer pdfUrl="./GOLDENMILL_RU.pdf" />
