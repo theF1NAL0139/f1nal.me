@@ -611,9 +611,6 @@ const WorkPage = () => {
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'RadiOstrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
 	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
-    { id: 4, title: 'SBER Creative Frame', category: 'Combine', video: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png', link: 'sber-creative-frame' },
-	{ id: 5, title: 'Puma Running AW24', category: 'Inertia Studios', video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png', link: 'puma-magmax' },
-	{ id: 6, title: 'Football Dynamics', category: 'Personal', video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png', link: 'football-dynamics' },
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -745,12 +742,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         const paths = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
-            { prefix: 'anim/Artwork/anim_', ext: 'png', type: 'image', cat: 'artwork' },
+            { prefix: 'anim/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
             { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
             { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
+			{ prefix: 'anim/Gambling/img_', ext: 'png', type: 'video', cat: 'gambling' },
             { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
-            { prefix: 'anim/Experimental/anim_', ext: 'png', type: 'image', cat: 'experimental' },
+            { prefix: 'anim/Experimental//img_', ext: 'png', type: 'image', cat: 'experimental' },
         ];
 
         for (const p of paths) {
@@ -917,7 +915,7 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_18.png' }}
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, Adobe Suite']}
-        prev={{ label: 'LKT group', link: 'lkt' }} next={{ label: 'Football Dynamics', link: 'football-dynamics' }}
+        prev={{ label: 'LKT group', link: 'lkt' }} next={{ label: 'RadioOstrov', link: 'radiostrov' }}
     >
         <div className="flex flex-col gap-2 lg:gap-8 w-full mb-[60px]">
             <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
@@ -960,41 +958,9 @@ const Radiostrov = () => (
     <ProjectPage 
         title="RadioOstrov" meta="Comercial / 2024"
         desc="An exploration of motion and energy within the context of sports."
-        gallery={[{ video: '/vid/radioO_preview.mp4', full: true }, { img: '/img/radioO_preview.png' }, { img: '/vid/radioO_preview.mp4', full: true }]}
         video={{ src: 'https://video.f1nal.me/radioO.mp4', poster: '/img/radioO_preview.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
         prev={{ label: 'Elf Bar', link: 'elfbar' }} next={{ label: 'LKT group', link: 'lkt' }}	
-    />
-);
-
-const FootballDynamics = () => (
-    <ProjectPage 
-        title="Football Dynamics" meta="Personal Project / 2025"
-        desc="An exploration of motion and energy within the context of sports."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/FD_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/fd_thumbnail_01.png' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Dynamics+Wide+Shot', full: true }]}
-        credits={['<strong>Design & Animation:</strong> Oleg Shmarov']}
-        prev={{ label: 'ELF BAR', link: 'elfbar' }} next={{ label: 'Puma Running AW24', link: 'puma-magmax' }}
-    />
-);
-
-const Puma = () => (
-    <ProjectPage 
-        title="Puma Running AW24" meta="Studio: Inertia Studios / 2024"
-        desc="Highlighting the technology behind Puma's new MagMax series."
-        gallery={[{ video: 'https://vpolitov.com/wp-content/uploads/2025/02/Puma_thumbnail_01.mp4', full: true }, { img: 'https://vpolitov.com/wp-content/uploads/2025/01/magmax_thumbnail.png' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Campaign+Wide+View', full: true }]}
-        credits={['<strong>Studio:</strong> Inertia Studios', '<strong>Client:</strong> Puma']}
-        prev={{ label: 'Football Dynamics', link: 'football-dynamics' }} next={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }}
-    />
-);
-
-const Sber = () => (
-    <ProjectPage 
-        title="SBER Creative Frame" meta="Combine"
-        desc="In 2020, Sber completely changed its positioning..."
-        video={{ src: 'https://vpolitov.com/wp-content/uploads/2025/03/SBER_CF_1-2.mp4', poster: 'https://vpolitov.com/wp-content/uploads/2025/03/SB_thumbnail_03.png' }}
-        gallery={[{ img: 'https://vpolitov.com/wp-content/uploads/2025/02/sh_002_v01-0-00-01-08_1.jpg' }, { img: 'https://placehold.co/1400x788/EEE/31343C?text=Wide+Shot+Render', full: true }]}
-        credits={['<strong>Art Direction:</strong> Oleg Shmarov']}
-        prev={{ label: 'Puma Running AW24', link: 'puma-magmax' }} next={{ label: 'LKT group', link: 'lkt' }}
     />
 );
 
@@ -1003,7 +969,7 @@ const Lkt = () => (
         title="LKT group" meta="Comercial / 2024" 
         desc="LKT GROUP develops and implements comprehensive industrial solutions..."
         gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
-        prev={{ label: 'SBER Creative Frame', link: 'sber-creative-frame' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
+        prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
@@ -1072,9 +1038,6 @@ export default function App() {
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
 					<Route path="/radiostrov" element={<Radiostrov />} />
-                    <Route path="/football-dynamics" element={<FootballDynamics />} />
-                    <Route path="/puma-magmax" element={<Puma />} />
-                    <Route path="/sber-creative-frame" element={<Sber />} />
                     <Route path="/lkt" element={<Lkt />} />
 
                     {/* Fallback */}
