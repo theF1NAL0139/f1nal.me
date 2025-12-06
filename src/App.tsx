@@ -207,7 +207,7 @@ const MobileMenuOverlay = ({ isOpen, onClose }: { isOpen: boolean, onClose: () =
                                     key={item.label}
                                     to={item.href}
                                     onClick={onClose}
-                                    className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-semibold' : 'text-[#777] font-[250]'}`}
+                                    className={`text-[30px] no-underline cursor-pointer leading-tight transition-colors duration-300 ${isActive ? 'text-black font-regular' : 'text-[#777] font-[250]'}`}
                                     style={{ fontFamily: "'Funnel Display', sans-serif" }}
                                 >
                                     <motion.span
@@ -838,7 +838,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         // ИЗМЕНЕНИЯ:
         // 1. Padding: px-[18px] py-[9px] для мобильных, lg:px-5 lg:py-2.5 для десктопа
         // 2. Gap: gap-2 для мобильных, lg:gap-2.5 для десктопа
-        className="relative group px-[18px] py-[9px] lg:px-5 lg:py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2 lg:gap-2.5"
+        className="relative group px-[14px] py-[9px] lg:px-5 lg:py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2 lg:gap-2.5"
         style={{
             // Base "Glass" transparency & Blur
             background: isActive ? 'rgba(5, 5, 5, 0.85)' : 'rgba(255, 255, 255, 0.5)',
@@ -887,7 +887,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
               <Icon strokeWidth={2.5} className="w-[14px] h-[14px] lg:w-4 lg:h-4" /> 
               
               {/* ИЗМЕНЕНИЯ: Размер текста 13px моб / text-sm (14px) десктоп */}
-              <span className="text-[13px] lg:text-sm font-semibold tracking-wide">{label}</span>
+              <span className="text-[14px] lg:text-sm">{label}</span>
           </motion.div>
       </motion.button>
     );
@@ -909,11 +909,14 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <div className="text-[20px] opacity-80 mt-2">Experiments & Styleframes</div>
             </div>
             <div className="w-full lg:w-auto pb-2">
-                <motion.div layout className="flex gap-3 flex-wrap lg:flex-nowrap w-full lg:w-auto p-2">
-                    <FilterBtn label="Artwork" icon={Brush} val="artwork" />
-                    <FilterBtn label="Gambling" icon={Dices} val="gambling" />
-                    <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
-                </motion.div>
+                <motion.div 
+        layout 
+        className="flex gap-2.5 flex-wrap mt-4 w-full p-1"
+    >
+        <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+        <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+        <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+    </motion.div>
             </div>
         </div>
         
@@ -937,12 +940,19 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] content-start">
                 {visibleItems.map((item, i) => (
                     <motion.div 
-                        key={item.id} custom={i} variants={itemVariants}
-                        initial="hidden" whileInView={isReady ? "visible" : "hidden"} viewport={{once: true, margin: "0px 0px -50px 0px"}}
-                        className={`relative rounded-[18px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
-                        onClick={() => onOpenImage(item.src)}
-                        whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
-                    >
+    key={item.id}
+    custom={i}
+    variants={itemVariants}
+    initial="hidden"
+    whileInView={isReady ? "visible" : "hidden"}
+    viewport={{ once: true, margin: "0px 0px -50px 0px" }}
+    className={`relative rounded-[18px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
+    onClick={() => {
+        if (!isMobile) onOpenImage(item.src); // <-- блокируем на мобильных
+    }}
+    whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
+>
+
                         {item.type === 'video' ? (
                             <video src={item.src} autoPlay loop muted playsInline className={`w-full ${isMobile ? 'h-auto object-contain' : 'h-full object-cover'} pointer-events-none`} />
                         ) : (
@@ -1193,7 +1203,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, c
 				{/* --- CREDITS SECTION --- */}
 <div className="text-[20px] opacity-80 leading-[1.8] mb-[80px] max-w-[700px] ">
     {/* Добавляем text-[32px] только сюда 👇 */}
-    <div className="mb-20 font-semibold text-[52px] leading-none opacity-80">
+    <div className="mb-20 font-semibold text-[32px] leading-none opacity-80">
         Credits
     </div> 
     
