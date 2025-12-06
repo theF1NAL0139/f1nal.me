@@ -258,7 +258,7 @@ const Header = ({ isMenuOpen, onToggleMenu }: { isMenuOpen: boolean, onToggleMen
   }
 
   return (
-    <header className={`relative w-full pt-[40px] pb-[30px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
+    <header className={`relative w-full pt-[40px] pb-[0px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
       <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
         <div className="block transition-transform duration-300 ease-in-out hover:-translate-y-1.5 z-[10002] relative">
           <Link to="/" className="cursor-pointer block">
@@ -608,19 +608,20 @@ const ProjectCard = ({ project }: { project: any }) => {
         }
     };
 
-    const videoClass = isMobile 
-        ? "opacity-100" 
+    const videoClass = isMobile
+        ? "opacity-100 brightness-75"            // ← мобильная версия: всегда затемнённое
         : (isHovered ? "opacity-100 brightness-75" : "opacity-0");
+
 
     return (
         <a href={project.isExternal ? project.link : '/' + project.link} onClick={handleClick} className="block w-full h-full">
             <div 
-                ref={containerRef}
-                className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu"
-                style={{ minHeight: '380px' }}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-            >
+    ref={containerRef}
+    className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group 
+               shadow-lg transform-gpu min-h-[280px] md:min-h-[380px]"
+    onMouseEnter={handleMouseEnter}
+    onMouseLeave={handleMouseLeave}
+>
                 {/* Static Image (Bottom Layer) */}
                 <div className="absolute inset-0 z-0">
                     <img src={project.img} alt="" className="w-full h-full object-cover block opacity-100" loading="lazy" />
@@ -634,8 +635,12 @@ const ProjectCard = ({ project }: { project: any }) => {
                 </div>
 
                 <div className={`absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                    <h3 className="text-[32px] lg:text-[32px] font-bold leading-none mb-1 drop-shadow-md">{project.title}</h3>
-                    <p className="text-[20px] opacity-70 font-normal drop-shadow-md">{project.category}</p>
+                    <h3 className="text-[32px] lg:text-[32px] font-bold leading-none mb-1 drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)]">
+                    {project.title}
+                    </h3>
+                    <p className="text-[20px] opacity-80 font-normal drop-shadow-[0_2px_2px_rgba(0,0,0,0.6)]">
+                    {project.category}
+                    </p>
                 </div>
             </div>
         </a>
@@ -646,11 +651,11 @@ const WorkPage = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const initialProjects = [
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
-    { id: 2, title: 'RadiOstrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
+    { id: 2, title: 'Radio ostrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
 	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
 	{ id: 4, title: 'PSO short animation', category: 'Personal', video: 'work/pso/anim_1.mp4', img: 'work/pso/img_1.png', link: 'pso' },
 	{ id: 5, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_preview.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
-	{ id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
+	{ id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto_preview.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -1161,7 +1166,7 @@ I bring over 10 years of expertise in full-cycle video production and design.<p 
 );
 
 // --- PROJECT TEMPLATE ---
-const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, children, bottomSpacing = "mb-[100px]" }: any) => {
+const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, children, bottomSpacing = "mb-[40px]" }: any) => {
     return (
         <motion.div 
             initial={{opacity:0, y: 150}} 
@@ -1249,16 +1254,19 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
         title="Elf Bar Promotion" meta="Personal / 2022" 
         desc="A promotional video for Elf Bar, showcasing the sleek design and vibrant flavors of their disposable vapes. The project involved 3D modeling, texturing, and fluid simulations to visualize the smooth airflow and rich taste profile."
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_18.png' }}
-        bottomSpacing="mb-[50px]" 
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, Adobe Suite']}
         prev={{ label: 'LKT group', link: 'lkt' }} next={{ label: 'RadioOstrov', link: 'radiostrov' }}
     >
-        <div className="flex flex-col gap-2 lg:gap-8 w-full mb-[60px]">
+        <div className="flex flex-col gap-2 lg:gap-0 w-full mb-[0px]">
+		    <div className="grid grid-cols-1 lg:grid-cols-1 gap-0 lg:gap-0">
             <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
+			<AnimBlock src="work/elfbar/anim_1.mp4" />
 			<ImageBlock src="work/elfbar/img_19.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
-			<ImageBlock src="work/elfbar/storyboard.jpg" alt="Close Up" onClick={() => onOpenImage('work/elfbar/storyboard.jpg')} />
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+			<ImageBlock src="work/elfbar/storyboard.jpg" alt="Close Up" onClick={() => onOpenImage('work/elfbar/storyboard.jpg')} /> 
+		</div>
+		
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-0 pb-[0px]">
                 <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
                 <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
 				<ImageBlock src="work/elfbar/dev1.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/dev1.png')} />
@@ -1266,14 +1274,19 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
 				<ImageBlock src="work/elfbar/img_4.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
 				<ImageBlock src="work/elfbar/img_5.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
             </div>
-			<div className="grid grid-cols-3 lg:grid-cols-3 gap-6 lg:gap-8">
+			
+			<div className="grid grid-cols-3 lg:grid-cols-3 gap-0 lg:gap-0">
 			<ImageBlock src="work/elfbar/img_6.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_6.png')} />
 				<ImageBlock src="work/elfbar/img_8.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
 				<ImageBlock src="work/elfbar/img_9.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
 			</div>
+			
+			<AnimBlock src="work/elfbar/anim_2.mp4" />
+			
             <ImageBlock src="work/elfbar/img_10.png" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/img_10.png')} />
 			<ImageBlock src="work/elfbar/dev3.jpg" alt="Wide Shot" onClick={() => onOpenImage('work/elfbar/dev3.jpg')} />
-			<div className="grid grid-cols-4 lg:grid-cols-2 gap-6 lg:gap-8">
+			
+			<div className="grid grid-cols-4 lg:grid-cols-2 gap-0 lg:gap-0">
 			<ImageBlock src="work/elfbar/img_11.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_11.png')} />
                 <ImageBlock src="work/elfbar/img_12.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
 				<ImageBlock src="work/elfbar/img_13.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
@@ -1283,10 +1296,12 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
 				<ImageBlock src="work/elfbar/img_17.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
 				<ImageBlock src="work/elfbar/img_18.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
 		    </div>
-			<div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+			<AnimBlock src="work/elfbar/anim_3.mp4" />
+			<div className="grid grid-cols-2 lg:grid-cols-1 gap-0 lg:gap-0">
                 <ImageBlock src="work/elfbar/img_22.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_22.jpg')} />
 				<ImageBlock src="work/elfbar/img_20.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_20.jpg')} />
 			</div>
+			
         </div>
     </ProjectPage>
 );
@@ -1310,20 +1325,24 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
             </div>
 
             <div className="grid grid-cols-2 gap-6 lg:gap-8">
+			    <ImageBlock src="work/radiostrov/img_1.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_1.png')} />
+			    <ImageBlock src="work/radiostrov/img_2.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_2.png')} />
                 <ImageBlock src="work/radiostrov/img_3.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_3.png')} />
                 <ImageBlock src="work/radiostrov/img_4.png" alt="RadioOstrov 4" onClick={() => onOpenImage('work/radiostrov/img_4.png')} />
+				<ImageBlock src="work/radiostrov/img_5.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_5.png')} />
+				<ImageBlock src="work/radiostrov/img_6.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_6.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
             <AnimBlock src="work/radiostrov/anim_1.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_2.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_3.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_4.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_5.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_6.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_7.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_8.mp4" />
-			<AnimBlock src="https://video.f1nal.me/anim_9.mp4" />
+			<AnimBlock src="work/radiostrov/anim_2.mp4" />
+			<AnimBlock src="work/radiostrov/anim_3.mp4" />
+			<AnimBlock src="work/radiostrov/anim_4.mp4" />
+			<AnimBlock src="work/radiostrov/anim_5.mp4" />
+			<AnimBlock src="work/radiostrov/anim_6.mp4" />
+			<AnimBlock src="work/radiostrov/anim_7.mp4" />
+			<AnimBlock src="work/radiostrov/anim_8.mp4" />
+			<AnimBlock src="work/radiostrov/anim_9.mp4" />
         </div>
     </ProjectPage>
 );
@@ -1346,13 +1365,15 @@ const Lkt = () => (
 
 const Pso = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
-        title="RadioOstrov" 
+        title="PSO short animation" 
         meta="Comercial / 2022"
-        desc="RadioOstrov’s transition into video format. I focused on developing a versatile branding system that seamlessly integrates a new logo, broadcast motion graphics, and dynamic openers. By utilizing 3D visualization, I added depth and volume to the graphics, elevating the viewer experience for both educational and entertainment segments."
+        desc="A 3D-driven promotional scene recreating a fully detailed football stadium environment.
+The project involved building the entire location from scratch — from the structural elements of the stands to the fine details of the goal net and pitch surface.
+Work included complex 3D modeling, texturing, lighting setup, and character animation to bring a realistic sports atmosphere to life. Advanced lighting simulations were used to visualize both daytime and nighttime scenarios, emphasizing stadium illumination, material behavior, and overall mood."
         video={{ src: 'https://video.f1nal.me/pso.mp4', poster: 'work/pso/img_1.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
-        next={{ label: 'LKT group', link: 'lkt' }} 
+        prev={{ label: 'LKT group', link: 'lkt' }} 
+        next={{ label: 'Price auto', link: 'priceauto' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
@@ -1381,23 +1402,31 @@ const Priceauto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="Priceauto Intro" 
         meta="Comercial / 2022"
-        desc="3D Motion"
+        desc="A sharp 3D intro created for Price Auto — a company specializing in custom car imports.
+The animation features a dynamic reveal of the brand emblem with stylized katana elements, bold textures, and precise camera motion.
+
+The project includes 3D modeling, texturing, lighting, and timeline-based animation in Cinema 4D.
+The final sequence delivers a strong, memorable visual identity suitable for promo content and brand presentations."
         video={{ src: 'https://video.f1nal.me/price_auto_intro.mp4', poster: 'work/priceauto/pa_preview.png' }}
         credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
-        next={{ label: 'LKT group', link: 'lkt' }} 
+        prev={{ label: 'PSO short animation', link: 'pso' }} 
+        next={{ label: 'Stroy prosto', link: 'stroyprosto' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
-div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]"
+
             {/* Секция с картинками */}
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
-                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
-                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+			
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">	
+                <ImageBlock src="work/priceauto/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/priceauto/img_1.png')} />
+                <ImageBlock src="work/priceauto/img_2.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_2.png')} />
+				<ImageBlock src="work/priceauto/img_3.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_3.png')} />
+				<ImageBlock src="work/priceauto/img_4.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_4.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
-
+            <AnimBlock src="work/priceauto/anim_1.mp4" />
+			<AnimBlock src="work/priceauto/anim_2.mp4" />
 
         </div>
     </ProjectPage>
@@ -1407,23 +1436,29 @@ const Stroyprosto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) =>
     <ProjectPage 
         title="Stroy prosto" 
         meta="Comercial / 2022"
-        desc="3D Motion"
+        desc="A promotional 3D video created for СтройПросто, a construction company specializing in countryside house development.
+The animation showcases a full 3D assembly of a modern house — from the foundation and rising structures to the completed exterior — supported by realistic materials, lighting, and smoke-based reveal effects.
+
+The project includes architectural 3D modeling, texturing, lighting, and cinematic rendering designed to highlight the company’s product: turnkey homes with modern design and accessible mortgage options.
+The final video serves as a clean, informative promo piece, combining realism, clarity, and brand-focused visuals for use in advertising and social media."
         video={{ src: 'https://video.f1nal.me/StroyProsto.mp4', poster: 'work/stroyprosto/stroyprosto.jpg' }}
         credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
-        next={{ label: 'LKT group', link: 'lkt' }} 
+        prev={{ label: 'Price auto', link: 'priceauto' }} 
+        next={{ label: 'Elf Bar', link: 'eflbar' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
-div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]"
+            
             {/* Секция с картинками */}
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
-                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
-                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/stroyprosto/img_1.jpg" alt="" onClick={() => onOpenImage('work/stroyprosto/img_1.jpg')} />
+				<ImageBlock src="work/stroyprosto/img_1.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_1.png')} />
+				<ImageBlock src="work/stroyprosto/img_2.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_2.png')} />
+				<ImageBlock src="work/stroyprosto/img_3.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_3.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
-
+            <AnimBlock src="work/stroyprosto/anim_1.mp4" />
 
         </div>
     </ProjectPage>
