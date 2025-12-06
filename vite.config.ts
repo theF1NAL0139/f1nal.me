@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react()],
   
   // Важно для Github Pages или простого хостинга, чтобы пути были относительными
-  base: './',
+  base: '/',
 
   resolve: {
     alias: {

@@ -649,7 +649,7 @@ const WorkPage = () => {
     { id: 2, title: 'RadiOstrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
 	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
 	{ id: 4, title: 'PSO short animation', category: 'Personal', video: 'work/pso/anim_1.mp4', img: 'work/pso/img_1.png', link: 'pso' },
-	{ id: 5, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_intro.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
+	{ id: 5, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_preview.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
 	{ id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
   ];
   
@@ -1316,14 +1316,14 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
 
             {/* Новая анимация (Video loop) */}
             <AnimBlock src="work/radiostrov/anim_1.mp4" />
-			<AnimBlock src="work/radiostrov/anim_2.mp4" />
-			<AnimBlock src="work/radiostrov/anim_3.mp4" />
-			<AnimBlock src="work/radiostrov/anim_4.mp4" />
-			<AnimBlock src="work/radiostrov/anim_5.mp4" />
-			<AnimBlock src="work/radiostrov/anim_6.mp4" />
-			<AnimBlock src="work/radiostrov/anim_7.mp4" />
-			<AnimBlock src="work/radiostrov/anim_8.mp4" />
-			<AnimBlock src="work/radiostrov/anim_9.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_2.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_3.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_4.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_5.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_6.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_7.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_8.mp4" />
+			<AnimBlock src="https://video.f1nal.me/anim_9.mp4" />
         </div>
     </ProjectPage>
 );
