@@ -8,6 +8,7 @@ export default defineConfig({
   
   // Важно для Github Pages или простого хостинга, чтобы пути были относительными
   base: '/',
+  chunkSizeWarningLimit: 1600, // Чтобы не ругался на большие чанки JS
 
   resolve: {
     alias: {
@@ -30,7 +31,6 @@ export default defineConfig({
     commonjsOptions: {
       include: [/pdfjs-dist/, /node_modules/],
       transformMixedEsModules: true, // Дополнительная подстраховка для смешанных модулей
-	  chunkSizeWarningLimit: 1600, // Чтобы не ругался на большие чанки JS
     }
   }
 })
