@@ -21,7 +21,6 @@ export default defineConfig({
 
   build: {
     chunkSizeWarningLimit: 1600, 
-
     target: 'esnext', 
     commonjsOptions: {
       include: [/pdfjs-dist/, /node_modules/],
