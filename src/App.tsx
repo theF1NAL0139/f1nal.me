@@ -907,10 +907,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95, filter: 'blur(5px)' }, // FIX: Reduced Y offset from 50 to 30
+    hidden: { opacity: 0, y: 30, scale: 0.95, filter: 'blur(5px)' },
     visible: (i: number) => ({
       opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-      transition: { delay: (i % 6) * 0.05, duration: 0.4, ease: "easeOut" } // FIX: Reduced delay step and duration
+      transition: { delay: (i % 6) * 0.05, duration: 0.4, ease: "easeOut" as const } 
     })
   };
 
@@ -1389,7 +1389,12 @@ const Priceauto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
-
+div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]"
+            {/* Секция с картинками */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
+                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+            </div>
 
             {/* Новая анимация (Video loop) */}
 
@@ -1410,7 +1415,12 @@ const Stroyprosto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) =>
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
-
+div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]"
+            {/* Секция с картинками */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
+                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+            </div>
 
             {/* Новая анимация (Video loop) */}
 
@@ -1476,7 +1486,7 @@ export default function App() {
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
 					<Route path="/radiostrov" element={<Radiostrov onOpenImage={setPlayModalSrc} />} />
-                    <Route path="/lkt" element={<Lkt onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/lkt" element={<Lkt />} />
 					<Route path="/pso" element={<Pso onOpenImage={setPlayModalSrc} />} />
 					<Route path="/priceauto" element={<Priceauto onOpenImage={setPlayModalSrc} />} />
 					<Route path="/stroyprosto" element={<Stroyprosto onOpenImage={setPlayModalSrc} />} />
