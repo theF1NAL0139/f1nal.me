@@ -623,15 +623,26 @@ const ProjectCard = ({ project }: { project: any }) => {
     onMouseLeave={handleMouseLeave}
 >
                 {/* Static Image (Bottom Layer) */}
-                <div className="absolute inset-0 z-0">
-                    <img src={project.img} alt="" className="w-full h-full object-cover block opacity-100" loading="lazy" />
-                </div>
+{!isMobile && (
+    <div className="absolute inset-0 z-0">
+        <img src={project.img} className="w-full h-full object-cover block" />
+    </div>
+)}
+
                 
                 {/* Video Layer (Top Layer) */}
                 <div className={`absolute inset-0 z-10 transition-all duration-300 ease-in-out ${videoClass}`}>
-                    <video poster={project.img} ref={videoRef} playsInline loop muted preload="auto" className="w-full h-full object-cover block">
-                        <source src={project.video} type="video/mp4" />
-                    </video>
+                    <video
+    poster={isMobile ? undefined : project.img}
+    ref={videoRef}
+    playsInline
+    loop
+    muted
+    preload="metadata"
+    className="w-full h-full object-cover block"
+>
+    <source src={project.video} type="video/mp4" />
+</video>
                 </div>
 
                 <div className={`absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -1444,7 +1455,7 @@ The final video serves as a clean, informative promo piece, combining realism, c
         video={{ src: 'https://video.f1nal.me/StroyProsto.mp4', poster: 'work/stroyprosto/stroyprosto.jpg' }}
         credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
         prev={{ label: 'Price auto', link: 'priceauto' }} 
-        next={{ label: 'Elf Bar', link: 'eflbar' }} 
+        next={{ label: 'Elf Bar', link: 'elfbar' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
