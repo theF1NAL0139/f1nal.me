@@ -835,11 +835,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
       <motion.button 
         layout
         onClick={() => toggleFilter(val)} 
-        className="relative group px-5 py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2.5"
+        // Added whitespace-nowrap to prevent text breaking inside buttons
+        className="relative group px-5 py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2.5 shrink-0 whitespace-nowrap"
         style={{
-            // Base "Glass" transparency & Blur
             background: isActive ? 'rgba(5, 5, 5, 0.85)' : 'rgba(255, 255, 255, 0.5)',
-            // High-quality shadows for depth
             boxShadow: isActive 
                 ? '0 10px 30px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)' 
                 : '0 4px 20px -5px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.05)',
@@ -855,7 +854,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         initial={false}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
-          {/* Active Gradient Mesh Background (Subtle) */}
           <motion.div
             className="absolute inset-0 -z-10 transition-opacity duration-500"
             initial={false}
@@ -865,7 +863,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             }}
           />
 
-          {/* Hover Shimmer / Liquid Effect */}
           <motion.div 
             className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
             style={{
@@ -902,11 +899,30 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <h1 className="text-[36px] lg:text-[48px] font-semibold leading-[1.1]">Playground</h1>
                 <div className="text-[20px] opacity-80 mt-2">Experiments & Styleframes</div>
             </div>
-            <div className="w-full lg:w-auto pb-2">
-                <motion.div layout className="flex gap-3 flex-wrap lg:flex-nowrap w-full lg:w-auto p-2">
-                    <FilterBtn label="Artwork" icon={Brush} val="artwork" />
-                    <FilterBtn label="Gambling" icon={Dices} val="gambling" />
-                    <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+            <div className="w-full lg:w-auto pb-2 overflow-hidden">
+                {/* UPDATED CONTAINER: 
+                   1. flex-nowrap: Forces single line
+                   2. overflow-x-auto: Enables scrolling
+                   3. scrollbar-hide (style): Hides the scrollbar for cleanliness
+                */}
+                <motion.div 
+                    layout 
+                    className="flex gap-3 flex-nowrap overflow-x-auto w-full lg:w-auto p-2"
+                    style={{ 
+                        scrollbarWidth: 'none',  /* Firefox */
+                        msOverflowStyle: 'none'  /* IE/Edge */
+                    }}
+                >
+                     {/* Webkit scrollbar hide hack */}
+                    <style>{`
+                        .no-scrollbar::-webkit-scrollbar { display: none; }
+                    `}</style>
+
+                    <div className="flex gap-3 flex-nowrap no-scrollbar">
+                        <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+                        <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+                        <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+                    </div>
                 </motion.div>
             </div>
         </div>
@@ -933,8 +949,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                     <motion.div 
                         key={item.id} custom={i} variants={itemVariants}
                         initial="hidden" whileInView={isReady ? "visible" : "hidden"} viewport={{once: true, margin: "0px 0px -50px 0px"}}
-                        className={`relative rounded-[18px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
-                        onClick={() => onOpenImage(item.src)}
+                        // UPDATED: Removed cursor-pointer if isMobile is true
+                        className={`relative rounded-[18px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} ${!isMobile ? 'cursor-pointer' : ''}`}
+                        // UPDATED: Disable click on mobile
+                        onClick={() => !isMobile && onOpenImage(item.src)}
                         whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
                     >
                         {item.type === 'video' ? (
