@@ -30,6 +30,7 @@ export default defineConfig({
     commonjsOptions: {
       include: [/pdfjs-dist/, /node_modules/],
       transformMixedEsModules: true, // Дополнительная подстраховка для смешанных модулей
+	  chunkSizeWarningLimit: 1600, // Чтобы не ругался на большие чанки JS
     }
   }
 })
