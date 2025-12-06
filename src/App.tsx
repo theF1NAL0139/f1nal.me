@@ -8,7 +8,6 @@ import {
 } from 'react-router-dom';
 import { 
   Play, Volume2, Volume1, VolumeX, Maximize, ArrowUp, 
-  // Removed unused ArrowLeft, ArrowRight
   Brush, Dices, FlaskConical, Loader2,
   Building2, Briefcase, Activity
 } from 'lucide-react';
@@ -18,15 +17,14 @@ import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
 import PDFViewer from './PDFViewer'; 
 
 // SYNCHRONIZATION CONFIG
-const ANIM_DURATION = 2; 
-// FIX: Added 'as const' to satisfy Framer Motion's strict typing
+const ANIM_DURATION = 1; 
 const ANIM_EASE = [0.19, 1, 0.22, 1] as const; 
 
 // =========================================
 // ANIMATION CONSTANTS
 // =========================================
 const getPageTransition = () => ({
-    initial: { opacity: 0, y: 100 }, 
+    initial: { opacity: 0, y: 80 }, 
     animate: { opacity: 1, y: 0 },
     exit: { opacity: 0 },
     transition: { 
@@ -39,6 +37,24 @@ const getPageTransition = () => ({
 // =========================================
 // HOOKS
 // =========================================
+const AnimBlock = ({ src, className = "" }: any) => (
+    <motion.div 
+        className={`relative overflow-hidden rounded-[0px] bg-[#f5f5f5] ${className}`} 
+        initial={{ opacity: 0, y: 50 }} 
+        whileInView={{ opacity: 1, y: 0 }} 
+        viewport={{ once: true, amount: 0.1 }} 
+        transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+        <video 
+            src={src} 
+            autoPlay 
+            loop
+            muted 
+            playsInline 
+            className="w-full h-full object-cover block"
+        />
+    </motion.div>
+);
 
 const ScrollToTopOnNavigate = () => {
     const { pathname } = useLocation();
@@ -270,12 +286,16 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
       <>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
           <div className="flex gap-[25px]">
-            {['Behance', 'LinkedIn', 'Instagram'].map(net => (
-                <a key={net} href={`https://www.${net.toLowerCase()}.com/`} target="_blank" rel="noreferrer" 
-                   className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
-                    {net}
-                </a>
-            ))}
+           {[
+    { name: 'Behance', url: 'https://www.behance.net/f1nal' },
+    { name: 'LinkedIn', url: 'https://www.linkedin.com/in/f1nal/' },
+    { name: 'Instagram', url: 'https://www.instagram.com/f1nal' }
+].map((item) => (
+    <a key={item.name} href={item.url} target="_blank" rel="noreferrer" 
+       className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
+        {item.name}
+    </a>
+))}
           </div>
           <div className="text-[20px] text-black hover:-translate-y-1.5 transition-transform duration-300">
             <a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a>
@@ -287,7 +307,7 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
         </div>
       </>
   );
-  const containerClasses = "pt-0 pb-8 overflow-hidden relative"; 
+  const containerClasses = "pt-0 pb-10 overflow-hidden relative"; 
   if (forceVisible) return <div className={containerClasses}>{footerContent}</div>;
   
 
@@ -296,7 +316,7 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
         className={containerClasses}
         initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}
       >
-        <motion.div variants={{ hidden: { y: "600%" }, visible: { y: "0%", transition: { duration: 1.5, ease: [0.22, 1, 0.36, 1] } } }}>
+        <motion.div variants={{ hidden: { y: "400%" }, visible: { y: "0%", transition: { duration: 1.5, ease: [0.22, 1, 0.36, 1] } } }}>
             {footerContent}
         </motion.div>
       </motion.footer>
@@ -335,7 +355,7 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
                       className={`max-w-full max-h-[85vh] object-contain shadow-2xl cursor-pointer transition-all duration-500 ease-out ${!isPlaying ? 'blur-[8px] scale-105' : 'blur-0 scale-100'}`}
                     />
                   ) : (
-                    <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl cursor-pointer transition-opacity" onClick={onClose} />
+                    <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-none shadow-2xl cursor-pointer transition-opacity" onClick={onClose} />
                   )}
                 </motion.div>
               </motion.div>
@@ -489,7 +509,7 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
 
   return (
     <div 
-      className={`group fix-safari-radius relative w-full aspect-video rounded-[18px] shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
+      className={`group fix-safari-radius relative w-full aspect-video rounded-full shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
       ref={containerRef} onMouseMove={handleActivity} onMouseLeave={handleMouseLeave} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
     >
       <video 
@@ -507,11 +527,11 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-8 lg:py-5 bg-gradient-to-t from-black/90 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-100'}`} onClick={(e) => e.stopPropagation()}>
+      <div className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-4 lg:py-5 bg-gradient-to-t from-black/60 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-90'}`} onClick={(e) => e.stopPropagation()}>
         <div className="flex-grow h-5 flex items-center cursor-pointer group/seek relative" ref={progressBarRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverTime(null)}>
           <AnimatePresence>
              {(hoverTime || isDragging) && (
-                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-none transform -translate-x-1/2" style={{ left: tooltipPos }}>{hoverTime}</motion.div>
+                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-full transform -translate-x-1/2" style={{ left: tooltipPos }}>{hoverTime}</motion.div>
              )}
           </AnimatePresence>
           <div className="w-full h-1 bg-white/30 rounded-sm relative transition-all group-hover/seek:h-1.5 overflow-hidden">
@@ -628,6 +648,9 @@ const WorkPage = () => {
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'RadiOstrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
 	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
+	{ id: 4, title: 'PSO short animation', category: 'Personal', video: 'work/pso/anim_1.mp4', img: 'work/pso/img_1.png', link: 'pso' },
+	{ id: 5, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_intro.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
+	{ id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -722,12 +745,12 @@ const WorkPage = () => {
                     <motion.div
                         key={p.id}
                         className="masonry-item lg:absolute w-full lg:w-[calc(50%-11px)] mb-6 lg:mb-0"
-                        initial={{ opacity: 0, y: 50 }} // Sync Y
+                        initial={{ opacity: 0, y: 50 }} 
                         animate={{ opacity: 1, y: 0 }} 
                         transition={{ 
-                            duration: ANIM_DURATION, // Sync Duration
-                            ease: ANIM_EASE, // Sync Ease
-                            delay: startDelay + (i * 0.1), // Stagger slightly
+                            duration: ANIM_DURATION, 
+                            ease: ANIM_EASE, 
+                            delay: startDelay + (i * 0.1), 
                             scale: { duration: 0.3 }
                         }}
                         whileHover={{ scale: 1.02, transition: { duration: 0.3 } }} >
@@ -772,7 +795,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'anim/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
             { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
             { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
-			{ prefix: 'anim/Gambling/img_', ext: 'png', type: 'video', cat: 'gambling' },
+			{ prefix: 'anim/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
             { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
             { prefix: 'anim/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
@@ -835,14 +858,9 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
       <motion.button 
         layout
         onClick={() => toggleFilter(val)} 
-        // ИЗМЕНЕНИЯ:
-        // 1. Padding: px-[18px] py-[9px] для мобильных, lg:px-5 lg:py-2.5 для десктопа
-        // 2. Gap: gap-2 для мобильных, lg:gap-2.5 для десктопа
         className="relative group px-[14px] py-[9px] lg:px-5 lg:py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2 lg:gap-2.5"
         style={{
-            // Base "Glass" transparency & Blur
             background: isActive ? 'rgba(5, 5, 5, 0.85)' : 'rgba(255, 255, 255, 0.5)',
-            // High-quality shadows for depth
             boxShadow: isActive 
                 ? '0 10px 30px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)' 
                 : '0 4px 20px -5px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.05)',
@@ -858,7 +876,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         initial={false}
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
-          {/* Active Gradient Mesh Background (Subtle) */}
           <motion.div
             className="absolute inset-0 -z-10 transition-opacity duration-500"
             initial={false}
@@ -868,7 +885,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             }}
           />
 
-          {/* Hover Shimmer / Liquid Effect */}
           <motion.div 
             className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
             style={{
@@ -883,10 +899,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             className="flex items-center gap-2 relative z-10"
             animate={{ color: isActive ? "#ffffff" : "#444444" }}
           >
-              {/* ИЗМЕНЕНИЯ: Размер иконки 14px моб / 16px десктоп */}
               <Icon strokeWidth={2.5} className="w-[14px] h-[14px] lg:w-4 lg:h-4" /> 
-              
-              {/* ИЗМЕНЕНИЯ: Размер текста 13px моб / text-sm (14px) десктоп */}
               <span className="text-[14px] lg:text-sm">{label}</span>
           </motion.div>
       </motion.button>
@@ -894,10 +907,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   };
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 50, scale: 0.9, filter: 'blur(10px)' },
+    hidden: { opacity: 0, y: 30, scale: 0.95, filter: 'blur(5px)' }, // FIX: Reduced Y offset from 50 to 30
     visible: (i: number) => ({
       opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-      transition: { delay: (i % 6) * 0.1, duration: 0.5, ease: ANIM_EASE }
+      transition: { delay: (i % 6) * 0.05, duration: 0.4, ease: "easeOut" } // FIX: Reduced delay step and duration
     })
   };
 
@@ -945,10 +958,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     variants={itemVariants}
     initial="hidden"
     whileInView={isReady ? "visible" : "hidden"}
-    viewport={{ once: true, margin: "0px 0px -50px 0px" }}
-    className={`relative rounded-[18px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
+    viewport={{ once: true, amount: 0.1 }} // FIX: Changed margin to amount for earlier trigger
+    className={`relative rounded-[0px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
     onClick={() => {
-        if (!isMobile) onOpenImage(item.src); // <-- блокируем на мобильных
+        if (!isMobile) onOpenImage(item.src); 
     }}
     whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
 >
@@ -969,7 +982,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 };
 const ReelPage = () => (
     <>
-        {/* АНИМАЦИЯ ТОЛЬКО ДЛЯ КОНТЕНТА, НЕ ДЛЯ ФУТЕРА */}
         <motion.div 
             className="w-full" 
             {...getPageTransition()}
@@ -979,12 +991,11 @@ const ReelPage = () => (
                 <div className="text-[20px] opacity-80 mt-2">Selected Works</div>
             </div>
 
-            <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[40px]">
+            <div className="w-full max-w-[1440px] mx-auto px-5 lg:px-10 mb-[80px]">
                 <VideoPlayer src="https://video.f1nal.me/showreel2022.mp4" poster="img/preview1.png" />
             </div>
         </motion.div>
 
-        {/* ФУТЕР ВНЕ АНИМАЦИИ — ГРУЗИТСЯ & ПОЯВЛЯЕТСЯ СРАЗУ */}
         <div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full">
             <Footer />
         </div>
@@ -1009,13 +1020,10 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
                 hover: { opacity: 1 }
             }}
         >
-            {/* Left Graphics Column */}
             <div className="flex flex-col items-center relative shrink-0">
-                {/* Main vertical static line */}
                 {!isLast && (
                     <div className="absolute top-[20px] bottom-[-20px] w-[2px] bg-black/10 z-0"></div>
                 )}
-                {/* Animated filler line on hover */}
                 {!isLast && (
                     <motion.div 
                         className="absolute top-[20px] w-[2px] bg-black z-1 origin-top"
@@ -1026,7 +1034,6 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
                     />
                 )}
 
-                {/* The Node/Dot with Icon */}
                 <motion.div 
                     className="relative z-10 w-12 h-12 rounded-full bg-white border-2 border-black/10 flex items-center justify-center overflow-hidden transition-colors duration-300 group-hover:border-black"
                     variants={{
@@ -1045,7 +1052,6 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
                 </motion.div>
             </div>
 
-            {/* Right Content Column */}
             <motion.div 
                 className="pb-4 pt-1"
                 variants={{
@@ -1114,7 +1120,7 @@ const AboutPage = () => (
         {...getPageTransition()}
     >
         <div className="flex flex-col lg:flex-row justify-between items-start gap-[100px] mb-[2px]">
-            <div className="w-full lg:w-[200%] max-w-[480px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[18px] grayscale hover:grayscale-0 transition-all" /></div>
+            <div className="w-full lg:w-[200%] max-w-[480px]"><img src="img/me.png" alt="Oleg" className="w-full rounded-[12px] grayscale hover:grayscale-0 transition-all" /></div>
             <div className="text-[19px] leading-[1.8] font-light leading-[1.1] opacity-80">
                 <p className="mb-1">Hi! My name is Oleg Shmarov. I am a 3D Artist and Motion Designer dedicated to creating immersive visual experiences.
 
@@ -1126,9 +1132,7 @@ I bring over 10 years of expertise in full-cycle video production and design.<p 
         </div>
         <div className="w-full h-[1px] bg-black/15 my-[40px]" />
         
-        {/* Updated Grid Structure for Experience Timeline */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-[50px] lg:gap-[100px] mb-[40px] items-start">
-            {/* Left Column: Software & Awards */}
             <div>
                 <div className="mb-12"><h3 className="text-[20px] font-semibold underline mb-4">Software</h3><p className="text-[20px] font-light leading-[2.0] opacity-80">Cinema 4D, Redshift, Adobe Creative Suite</p><p className="text-[20px] font-light leading-[2.0] opacity-80">Figma, Unreal Engine, Marvelous Designer</p></div>
                 <div className="mb-10">
@@ -1148,7 +1152,6 @@ I bring over 10 years of expertise in full-cycle video production and design.<p 
                 </div>
             </div>
 
-            {/* Right Column: Experience Graphics */}
             <div className="lg:pl-10 relative top-[-2px]">
                 <ExperienceTimeline />
             </div>
@@ -1191,37 +1194,32 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, c
                 {gallery?.length > 0 && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px] ">
                         {gallery.map((item: any, i: number) => (
-                            <div key={i} className={`relative overflow-hidden rounded-[18px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
-                                {item.video ? <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[18px]"><source src={item.video} type="video/mp4"/></video> : <img src={item.img} className="w-full h-auto block rounded-[18px]" />}
+                            <div key={i} className={`relative overflow-hidden rounded-[0px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
+                                {item.video ? <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[0x]"><source src={item.video} type="video/mp4"/></video> : <img src={item.img} className="w-full h-auto block rounded-[0px]" />}
                             </div>
                         ))}
                     </div>
                 )}
                 {children && <div className="w-full mb-[50px] flex justify-center">{children}</div>}
                 
-                {/* --- CREDITS SECTION MODIFIED HERE --- */}
 				{/* --- CREDITS SECTION --- */}
 <div className="text-[20px] opacity-80 leading-[1.8] mb-[80px] max-w-[700px] ">
-    {/* Добавляем text-[32px] только сюда 👇 */}
     <div className="mb-20 font-semibold text-[32px] leading-none opacity-80">
         Credits
     </div> 
     
-    {/* Остальной текст берет размер 20px от родителя */}
     {credits.map((line: string, i: number) => (
         <p key={i} dangerouslySetInnerHTML={{__html: line}} />
     ))}
 </div>
 
 
-                <div className="pt-7 mb-28 flex justify-between text-[16px] sm:text-[18px] lg:text-[30px] font-medium opacity-80">
+                <div className="pt-7 mb-28 flex justify-between text-[20px] sm:text-[22px] lg:text-[30px] font-medium opacity-80">
     <Link to={'/' + prev.link} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all">
-        {/* Вместо <ArrowLeft size={32} /> ставим символ */}
         ← {prev.label}
     </Link>
     <Link to={'/' + next.link} className="flex items-center gap-2.5 opacity-100 hover:opacity-60 hover:-translate-y-0.5 transition-all">
         {next.label} 
-        {/* Вместо <ArrowRight size={32} /> ставим символ */}
         →
     </Link>
 </div>
@@ -1232,8 +1230,16 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, c
 };
 
 // --- PROJECTS ---
+// FIX: Updated ImageBlock for earlier trigger and faster animation
 const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
-    <motion.div className={`relative overflow-hidden rounded-[18px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`} onClick={onClick} initial={{ opacity: 0, y: 150 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-15%" }} transition={{ duration: 0.6 }}>
+    <motion.div 
+        className={`relative overflow-hidden rounded-[0px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`} 
+        onClick={onClick} 
+        initial={{ opacity: 0, y: 50 }}  // Reduced y from 150 to 50
+        whileInView={{ opacity: 1, y: 0 }} 
+        viewport={{ once: true, amount: 0.1 }} // Changed margin to amount so it triggers as soon as 10% is visible
+        transition={{ duration: 0.5, ease: "easeOut" }} // Reduced duration slightly
+    >
         <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover block transition-transform duration-700 hover:scale-[1.02]" />
     </motion.div>
 );
@@ -1285,14 +1291,41 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     </ProjectPage>
 );
 
-const Radiostrov = () => (
+
+const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
-        title="RadioOstrov" meta="Comercial / 2024"
+        title="RadioOstrov" 
+        meta="Comercial / 2022"
         desc="RadioOstrov’s transition into video format. I focused on developing a versatile branding system that seamlessly integrates a new logo, broadcast motion graphics, and dynamic openers. By utilizing 3D visualization, I added depth and volume to the graphics, elevating the viewer experience for both educational and entertainment segments."
         video={{ src: 'https://video.f1nal.me/radioO.mp4', poster: '/img/radioO_preview.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'Elf Bar', link: 'elfbar' }} next={{ label: 'LKT group', link: 'lkt' }}	
-    />
+        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
+        next={{ label: 'LKT group', link: 'lkt' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            {/* Секция с картинками */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/radiostrov/img_1.jpg" alt="RadioOstrov 1" onClick={() => onOpenImage('work/radiostrov/img_1.jpg')} />
+                <ImageBlock src="work/radiostrov/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/radiostrov/img_2.jpg')} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/radiostrov/img_3.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_3.png')} />
+                <ImageBlock src="work/radiostrov/img_4.png" alt="RadioOstrov 4" onClick={() => onOpenImage('work/radiostrov/img_4.png')} />
+            </div>
+
+            {/* Новая анимация (Video loop) */}
+            <AnimBlock src="work/radiostrov/anim_1.mp4" />
+			<AnimBlock src="work/radiostrov/anim_2.mp4" />
+			<AnimBlock src="work/radiostrov/anim_3.mp4" />
+			<AnimBlock src="work/radiostrov/anim_4.mp4" />
+			<AnimBlock src="work/radiostrov/anim_5.mp4" />
+			<AnimBlock src="work/radiostrov/anim_6.mp4" />
+			<AnimBlock src="work/radiostrov/anim_7.mp4" />
+			<AnimBlock src="work/radiostrov/anim_8.mp4" />
+			<AnimBlock src="work/radiostrov/anim_9.mp4" />
+        </div>
+    </ProjectPage>
 );
 
 const Lkt = () => (
@@ -1300,13 +1333,88 @@ const Lkt = () => (
         title="LKT group" meta="Comercial / 2024" 
         desc="For LKT Group, an international leader in industrial supply, my goal was to develop a seamless brand consistency across digital and print media. This project integrates photorealistic 3D visualizations of production lines with user-friendly web interfaces and detailed catalog layouts. It demonstrates my ability to merge technical precision with creative design to support global sales in sectors ranging from food processing to mining."
         gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
-        prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'Elf Bar', link: 'elfbar' }}
+        prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'PSO short animation', link: 'pso' }}
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
+        </div>
+    </ProjectPage>
+);
+
+const Pso = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="RadioOstrov" 
+        meta="Comercial / 2022"
+        desc="RadioOstrov’s transition into video format. I focused on developing a versatile branding system that seamlessly integrates a new logo, broadcast motion graphics, and dynamic openers. By utilizing 3D visualization, I added depth and volume to the graphics, elevating the viewer experience for both educational and entertainment segments."
+        video={{ src: 'https://video.f1nal.me/pso.mp4', poster: 'work/pso/img_1.png' }}
+        credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
+        next={{ label: 'LKT group', link: 'lkt' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            {/* Секция с картинками */}
+            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
+                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+            </div>
+			<AnimBlock src="work/pso/anim_6.mp4" />
+			<AnimBlock src="work/pso/anim_7.mp4" />
+            <div className="grid grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/pso/img_3.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/pso/img_3.png')} />
+                <ImageBlock src="work/pso/img_4.png" alt="RadioOstrov 4" onClick={() => onOpenImage('work/pso/img_4.png')} />
+            </div>
+
+            {/* Новая анимация (Video loop) */}
+            <AnimBlock src="work/pso/anim_2.mp4" />
+			<AnimBlock src="work/pso/anim_3.mp4" />
+			<AnimBlock src="work/pso/anim_4.mp4" />
+			<AnimBlock src="work/pso/anim_5.mp4" />
+
+        </div>
+    </ProjectPage>
+);
+
+const Priceauto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="Priceauto Intro" 
+        meta="Comercial / 2022"
+        desc="3D Motion"
+        video={{ src: 'https://video.f1nal.me/price_auto_intro.mp4', poster: 'work/priceauto/pa_preview.png' }}
+        credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
+        next={{ label: 'LKT group', link: 'lkt' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            {/* Секция с картинками */}
+
+
+            {/* Новая анимация (Video loop) */}
+
+
+        </div>
+    </ProjectPage>
+);
+
+const Stroyprosto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="Stroy prosto" 
+        meta="Comercial / 2022"
+        desc="3D Motion"
+        video={{ src: 'https://video.f1nal.me/StroyProsto.mp4', poster: 'work/stroyprosto/stroyprosto.jpg' }}
+        credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'Elf Bar', link: 'elfbar' }} 
+        next={{ label: 'LKT group', link: 'lkt' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            {/* Секция с картинками */}
+
+
+            {/* Новая анимация (Video loop) */}
+
+
         </div>
     </ProjectPage>
 );
@@ -1367,8 +1475,11 @@ export default function App() {
                     
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
-					<Route path="/radiostrov" element={<Radiostrov />} />
-                    <Route path="/lkt" element={<Lkt />} />
+					<Route path="/radiostrov" element={<Radiostrov onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/lkt" element={<Lkt onOpenImage={setPlayModalSrc} />} />
+					<Route path="/pso" element={<Pso onOpenImage={setPlayModalSrc} />} />
+					<Route path="/priceauto" element={<Priceauto onOpenImage={setPlayModalSrc} />} />
+					<Route path="/stroyprosto" element={<Stroyprosto onOpenImage={setPlayModalSrc} />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<WorkPage />} />

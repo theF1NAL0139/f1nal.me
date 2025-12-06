@@ -83,10 +83,26 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
 /* FIX SAFARI/CHROME RADIUS BUG */
 .fix-safari-radius {
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 0px;
   isolation: isolate;
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   mask-image: radial-gradient(white, black);
+}
+/* Когда элемент (или его родитель) в полном экране, видео должно вписываться */
+video:fullscreen {
+  object-fit: contain !important;
+}
+
+/* Для Webkit браузеров (Safari/Chrome) */
+video::-webkit-media-text-track-display {
+  object-fit: contain !important;
+}
+
+/* Если вы делаете полноэкранным контейнер div, а не само видео */
+:fullscreen video {
+  object-fit: contain !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
 /* Video Blur Effects */
