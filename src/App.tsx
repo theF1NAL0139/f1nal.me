@@ -7,9 +7,9 @@ import {
   useNavigate 
 } from 'react-router-dom';
 import { 
-  Play, Volume2, Volume1, VolumeX, Maximize, ArrowUp, ArrowLeft, ArrowRight,
+  Play, Volume2, Volume1, VolumeX, Maximize, ArrowUp, 
+  // Removed unused ArrowLeft, ArrowRight
   Brush, Dices, FlaskConical, Loader2,
-  // Новые иконки для Experience Timeline
   Building2, Briefcase, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
@@ -17,15 +17,10 @@ import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
 // Предполагается, что PDFViewer существует
 import PDFViewer from './PDFViewer'; 
 
-// =========================================
-// GLOBAL STATE & CONSTANTS
-// =========================================
-let hasIntitialLoaded = false;
-const INITIAL_LOAD_DELAY = 250; 
-
 // SYNCHRONIZATION CONFIG
 const ANIM_DURATION = 2; 
-const ANIM_EASE = [0.19, 1, 0.22, 1]; // "Expo-like" smooth ease
+// FIX: Added 'as const' to satisfy Framer Motion's strict typing
+const ANIM_EASE = [0.19, 1, 0.22, 1] as const; 
 
 // =========================================
 // ANIMATION CONSTANTS
@@ -896,7 +891,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     hidden: { opacity: 0, y: 50, scale: 0.9, filter: 'blur(10px)' },
     visible: (i: number) => ({
       opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-      transition: { delay: (i % 6) * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+      transition: { delay: (i % 6) * 0.1, duration: 0.5, ease: ANIM_EASE }
     })
   };
 
@@ -1314,7 +1309,7 @@ export default function App() {
 
   // После загрузки компонента App, считаем, что сайт "загружен"
   useEffect(() => {
-     setTimeout(() => { hasIntitialLoaded = true; }, INITIAL_LOAD_DELAY + 250);
+     // NOTE: hasIntitialLoaded logic removed as it was unused
   }, []);
 
   const isBlurActive = isMenuOpen || !!playModalSrc;
