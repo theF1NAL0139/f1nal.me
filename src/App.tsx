@@ -1364,7 +1364,7 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
     </ProjectPage>
 );
 
-const Lkt = () => (
+const Lkt = () => ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="LKT group" meta="Comercial / 2024" 
         desc="For LKT Group, an international leader in industrial supply, my goal was to develop a seamless brand consistency across digital and print media. This project integrates photorealistic 3D visualizations of production lines with user-friendly web interfaces and detailed catalog layouts. It demonstrates my ability to merge technical precision with creative design to support global sales in sectors ranging from food processing to mining."
