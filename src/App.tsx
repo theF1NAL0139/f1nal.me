@@ -873,8 +873,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const visibleItems = allFiltered.slice(0, visibleCount);
 
   // Split items for Desktop 2-column layout (Left = Even indices, Right = Odd indices)
-  const leftColItems = visibleItems.filter((_, i) => i % 2 === 0);
-  const rightColItems = visibleItems.filter((_, i) => i % 2 !== 0);
+  // FIX: Using useMemo to prevent unnecessary recalculations
+  const { leftColItems, rightColItems } = useMemo(() => {
+      return {
+          leftColItems: visibleItems.filter((_, i) => i % 2 === 0),
+          rightColItems: visibleItems.filter((_, i) => i % 2 !== 0)
+      };
+  }, [visibleItems]);
 
   // ===============================================
   // UPDATED: "VISION OS" LIQUID GLASS BUTTONS
@@ -942,15 +947,16 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     })
   };
 
-  const renderItem = (item: any, i: number) => (
+  const renderItem = useCallback((item: any, i: number) => (
     <motion.div 
         key={item.id}
         custom={i}
         variants={itemVariants}
-        // FIX: Changed from 'whileInView' to 'animate' to ensure items load when added to array
+        // FIX: Changed from 'whileInView' to 'animate' to ensure items load immediately when added to DOM
         initial="hidden"
         animate="visible"
-        className="relative rounded-[0px] overflow-hidden bg-black w-full h-auto cursor-pointer"
+        // FIX: Added min-h-[200px] to prevent column collapse if image isn't loaded yet
+        className="relative rounded-[0px] overflow-hidden bg-black w-full min-h-[200px] h-auto cursor-pointer"
         onClick={() => {
             if (!isMobile) onOpenImage(item.src); 
         }}
@@ -959,10 +965,11 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         {item.type === 'video' ? (
             <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto block pointer-events-none" />
         ) : (
-            <img src={item.src} className="w-full h-auto block" loading="lazy" />
+            // FIX: Removed loading="lazy" to solve infinite scroll bug
+            <img src={item.src} className="w-full h-auto block" />
         )}
     </motion.div>
-  );
+  ), [isMobile, onOpenImage]);
 
   return (
     <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" {...getPageTransition()}>
@@ -1013,10 +1020,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             ) : (
                 // Desktop: Two Explicit Flex Columns (No jumping ever)
                 <div className="flex flex-row gap-[20px] items-start">
-                    <div className="flex-1 flex flex-col gap-[20px]">
+                    <div className="flex flex-col gap-[20px] w-[calc(50%-10px)]">
                         {leftColItems.map((item, i) => renderItem(item, i * 2))}
                     </div>
-                    <div className="flex-1 flex flex-col gap-[20px]">
+                    <div className="flex flex-col gap-[20px] w-[calc(50%-10px)]">
                         {rightColItems.map((item, i) => renderItem(item, (i * 2) + 1))}
                     </div>
                 </div>
