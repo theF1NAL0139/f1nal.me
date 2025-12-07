@@ -789,7 +789,8 @@ const WorkPage = () => {
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [visibleCount, setVisibleCount] = useState(12); 
+  // FIX: Increased load step from 12 to 24 for smoother infinite scroll on large screens
+  const [visibleCount, setVisibleCount] = useState(24); 
   const [isReady, setIsReady] = useState(false); 
   const isMobile = useIsMobile();
   const observerTarget = useRef(null);
@@ -842,8 +843,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                     const currentIds = new Set(prev.map(item => item.id));
                     const newItems = batch.filter((item: any) => !currentIds.has(item.id));
                     if (newItems.length === 0) return prev;
-                    // FIX: REMOVED SORTING HERE TO PREVENT JUMPS.
-                    // New items are strictly appended to the end.
+                    // FIX: Keeping sort removed to prevent jumps
                     return [...prev, ...newItems];
                 });
             }
@@ -855,9 +855,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   }, []);
 
   useEffect(() => {
+    // FIX: Added rootMargin to load items BEFORE user hits the bottom
     const observer = new IntersectionObserver(
-        (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 12); }, 
-        { threshold: 0.1 }
+        (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 24); }, 
+        { threshold: 0, rootMargin: '400px' }
     );
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
@@ -865,14 +866,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 
   const toggleFilter = (f: string) => {
       setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
-      setVisibleCount(12);
+      setVisibleCount(24);
   }
   
   const allFiltered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
   const visibleItems = allFiltered.slice(0, visibleCount);
 
   // Split items for Desktop 2-column layout (Left = Even indices, Right = Odd indices)
-  // This prevents layout shifts because items are locked to their columns.
   const leftColItems = visibleItems.filter((_, i) => i % 2 === 0);
   const rightColItems = visibleItems.filter((_, i) => i % 2 !== 0);
 
@@ -947,9 +947,9 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         key={item.id}
         custom={i}
         variants={itemVariants}
+        // FIX: Changed from 'whileInView' to 'animate' to ensure items load when added to array
         initial="hidden"
-        whileInView={isReady ? "visible" : "hidden"}
-        viewport={{ once: true, amount: 0.1 }} 
+        animate="visible"
         className="relative rounded-[0px] overflow-hidden bg-black w-full h-auto cursor-pointer"
         onClick={() => {
             if (!isMobile) onOpenImage(item.src); 
