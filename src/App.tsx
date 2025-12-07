@@ -789,8 +789,7 @@ const WorkPage = () => {
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  // FIX: Increased load step from 12 to 24 for smoother infinite scroll on large screens
-  const [visibleCount, setVisibleCount] = useState(24); 
+  const [visibleCount, setVisibleCount] = useState(12); 
   const [isReady, setIsReady] = useState(false); 
   const isMobile = useIsMobile();
   const observerTarget = useRef(null);
@@ -843,8 +842,8 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                     const currentIds = new Set(prev.map(item => item.id));
                     const newItems = batch.filter((item: any) => !currentIds.has(item.id));
                     if (newItems.length === 0) return prev;
-                    // FIX: Keeping sort removed to prevent jumps
-                    return [...prev, ...newItems];
+                    const updated = [...prev, ...newItems];
+                    return updated.sort((a,b) => (parseInt(a.src.match(/\d+/)?.[0]||'0') - parseInt(b.src.match(/\d+/)?.[0]||'0')));
                 });
             }
         }
@@ -855,10 +854,9 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   }, []);
 
   useEffect(() => {
-    // FIX: Added rootMargin to load items BEFORE user hits the bottom
     const observer = new IntersectionObserver(
-        (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 24); }, 
-        { threshold: 0, rootMargin: '400px' }
+        (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 12); }, 
+        { threshold: 0.1 }
     );
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
@@ -866,20 +864,11 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 
   const toggleFilter = (f: string) => {
       setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
-      setVisibleCount(24);
+      setVisibleCount(12);
   }
   
   const allFiltered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
   const visibleItems = allFiltered.slice(0, visibleCount);
-
-  // Split items for Desktop 2-column layout (Left = Even indices, Right = Odd indices)
-  // FIX: Using useMemo to prevent unnecessary recalculations
-  const { leftColItems, rightColItems } = useMemo(() => {
-      return {
-          leftColItems: visibleItems.filter((_, i) => i % 2 === 0),
-          rightColItems: visibleItems.filter((_, i) => i % 2 !== 0)
-      };
-  }, [visibleItems]);
 
   // ===============================================
   // UPDATED: "VISION OS" LIQUID GLASS BUTTONS
@@ -947,30 +936,6 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     })
   };
 
-  const renderItem = useCallback((item: any, i: number) => (
-    <motion.div 
-        key={item.id}
-        custom={i}
-        variants={itemVariants}
-        // FIX: Changed from 'whileInView' to 'animate' to ensure items load immediately when added to DOM
-        initial="hidden"
-        animate="visible"
-        // FIX: Added min-h-[200px] to prevent column collapse if image isn't loaded yet
-        className="relative rounded-[0px] overflow-hidden bg-black w-full min-h-[200px] h-auto cursor-pointer"
-        onClick={() => {
-            if (!isMobile) onOpenImage(item.src); 
-        }}
-        whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
-    >
-        {item.type === 'video' ? (
-            <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto block pointer-events-none" />
-        ) : (
-            // FIX: Removed loading="lazy" to solve infinite scroll bug
-            <img src={item.src} className="w-full h-auto block" />
-        )}
-    </motion.div>
-  ), [isMobile, onOpenImage]);
-
   return (
     <motion.div className="max-w-[1440px] mx-auto px-5 lg:px-10 w-full" {...getPageTransition()}>
         <div className="flex flex-col lg:flex-row justify-between items-end mb-[40px] gap-6">
@@ -980,13 +945,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             </div>
             <div className="w-full lg:w-auto pb-2">
                 <motion.div 
-                    layout 
-                    className="flex gap-2.5 flex-wrap mt-4 w-full p-1"
-                >
-                    <FilterBtn label="Artwork" icon={Brush} val="artwork" />
-                    <FilterBtn label="Gambling" icon={Dices} val="gambling" />
-                    <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
-                </motion.div>
+        layout 
+        className="flex gap-2.5 flex-wrap mt-4 w-full p-1"
+    >
+        <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+        <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+        <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+    </motion.div>
             </div>
         </div>
         
@@ -1007,36 +972,36 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 )}
             </AnimatePresence>
 
-            {/* --- FIX: STABLE LAYOUT --- */}
-            {isMobile ? (
-                 // Mobile: Single Column
-                <div className="flex flex-col gap-[20px]">
-                    {visibleItems.map((item, i) => (
-                        <div key={item.id} className="mb-[20px] last:mb-0">
-                             {renderItem(item, i)}
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                // Desktop: Two Explicit Flex Columns (No jumping ever)
-                <div className="flex flex-row gap-[20px] items-start">
-                    <div className="flex flex-col gap-[20px] w-[calc(50%-10px)]">
-                        {leftColItems.map((item, i) => renderItem(item, i * 2))}
-                    </div>
-                    <div className="flex flex-col gap-[20px] w-[calc(50%-10px)]">
-                        {rightColItems.map((item, i) => renderItem(item, (i * 2) + 1))}
-                    </div>
-                </div>
-            )}
-            {/* --- END FIX --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] content-start">
+                {visibleItems.map((item, i) => (
+                    <motion.div 
+    key={item.id}
+    custom={i}
+    variants={itemVariants}
+    initial="hidden"
+    whileInView={isReady ? "visible" : "hidden"}
+    viewport={{ once: true, amount: 0.1 }} // FIX: Changed margin to amount for earlier trigger
+    className={`relative rounded-[0px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
+    onClick={() => {
+        if (!isMobile) onOpenImage(item.src); 
+    }}
+    whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
+>
 
+                        {item.type === 'video' ? (
+                            <video src={item.src} autoPlay loop muted playsInline className={`w-full ${isMobile ? 'h-auto object-contain' : 'h-full object-cover'} pointer-events-none`} />
+                        ) : (
+                            <img src={item.src} className={`w-full ${isMobile ? 'h-auto object-contain' : 'h-full object-cover'}`} loading="lazy" />
+                        )}
+                    </motion.div>
+                ))}
+            </div>
         </div>
         <div ref={observerTarget} className="h-10 w-full" />
         <Footer />
     </motion.div>
   );
 };
-
 const ReelPage = () => (
     <>
         <motion.div 
