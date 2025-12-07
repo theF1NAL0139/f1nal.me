@@ -826,7 +826,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         for (const p of paths) {
             if (!isMounted) return;
             const checks = [];
-            for (let i = 1; i <= 60; i++) {
+            for (let i = 1; i <= 70; i++) {
                 const src = `${p.prefix}${i}.${p.ext}`;
                 const id = `${p.cat}-${p.type}-${i}-${p.ext}`;
                 checks.push(
@@ -1371,6 +1371,9 @@ const Lkt = () => (
         gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
         prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'PSO short animation', link: 'pso' }}
     >
+	        <div>
+                <ImageBlock src="work/lkt/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/lkt/img_1.png')} />
+            </div>
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
