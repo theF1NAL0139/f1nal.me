@@ -579,6 +579,12 @@ const ProjectCard = ({ project }: { project: any }) => {
         observer.observe(containerRef.current);
         return () => observer.disconnect();
     }, [isMobile]);
+	
+	useEffect(() => {
+    if (videoRef.current) {
+        videoRef.current.load();
+    }
+}, []);
 
     // DESKTOP: Hover Logic
     const handleMouseEnter = () => {
@@ -633,7 +639,7 @@ const ProjectCard = ({ project }: { project: any }) => {
                 {/* Video Layer (Top Layer) */}
                 <div className={`absolute inset-0 z-10 transition-all duration-300 ease-in-out ${videoClass}`}>
                     <video
-    poster={isMobile ? undefined : project.img}
+    poster={project.img}
     ref={videoRef}
     playsInline
     loop
@@ -808,13 +814,13 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         const paths = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
-            { prefix: 'anim/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
+            { prefix: 'imgs/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
             { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
             { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
-			{ prefix: 'anim/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
+			{ prefix: 'imgs/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
             { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
-            { prefix: 'anim/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
+            { prefix: 'imgs/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
         ];
 
         for (const p of paths) {
