@@ -638,7 +638,7 @@ const ProjectCard = ({ project }: { project: any }) => {
     playsInline
     loop
     muted
-    preload="metadata"
+    preload="auto"
     className="w-full h-full object-cover block"
 >
     <source src={project.video} type="video/mp4" />
