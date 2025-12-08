@@ -786,22 +786,20 @@ const WorkPage = () => {
   );
 };
 
+// =========================================
+// UPDATED PLAY PAGE (FLEX MASONRY + STRICT ORDER)
+// =========================================
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const [visibleCount, setVisibleCount] = useState(12); 
   const [isReady, setIsReady] = useState(false); 
   const isMobile = useIsMobile();
-  const observerTarget = useRef(null);
-
-  useEffect(() => {
-      const timer = setTimeout(() => setIsReady(true), 1500);
-      return () => clearTimeout(timer);
-  }, []);
   
+  // Strict Loading Logic: Loads batches (1-5, 6-10) sequentially
   useEffect(() => {
     let isMounted = true;
 
+    // Fast check if file exists
     const checkFile = (src: string, type: 'video'|'image'): Promise<boolean> => {
         if(type === 'image') {
             return new Promise(r => { const img = new Image(); img.onload = () => r(true); img.onerror = () => r(false); img.src = src; });
@@ -810,7 +808,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         }
     };
 
-    const loadMedia = async () => {
+    const loadMediaSequence = async () => {
         const paths = [
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
@@ -823,117 +821,90 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'imgs/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
         ];
 
-        for (const p of paths) {
+        // LOAD IN STRICT BATCHES OF 10 (1-10, 11-20...)
+        // We wait for the entire batch to finish before setting state or moving to the next.
+        const BATCH_SIZE = 10; 
+        
+        for (let i = 1; i <= 60; i += BATCH_SIZE) {
             if (!isMounted) return;
             const checks = [];
-            for (let i = 1; i <= 70; i++) {
-                const src = `${p.prefix}${i}.${p.ext}`;
-                const id = `${p.cat}-${p.type}-${i}-${p.ext}`;
-                checks.push(
-                    checkFile(src, p.type as any).then(exists => exists ? { id, src, type: p.type, category: p.cat } : null)
-                );
+
+            // Check all files in this number range across all categories
+            for (let j = i; j < i + BATCH_SIZE && j <= 60; j++) {
+                for (const p of paths) {
+                    const src = `${p.prefix}${j}.${p.ext}`;
+                    const id = `${p.cat}-${p.type}-${j}-${p.ext}`;
+                    checks.push(
+                        checkFile(src, p.type as any).then(exists => 
+                            exists ? { id, src, type: p.type, category: p.cat, sortIndex: j } : null
+                        )
+                    );
+                }
             }
 
             const results = await Promise.all(checks);
-            const batch = results.filter(Boolean);
-            
-            if (isMounted && batch.length > 0) {
+            const validItems = results.filter(Boolean);
+
+            if (validItems.length > 0 && isMounted) {
                 setMediaItems(prev => {
                     const currentIds = new Set(prev.map(item => item.id));
-                    const newItems = batch.filter((item: any) => !currentIds.has(item.id));
+                    const newItems = validItems.filter((item: any) => !currentIds.has(item.id));
                     if (newItems.length === 0) return prev;
                     const updated = [...prev, ...newItems];
-                    return updated.sort((a,b) => (parseInt(a.src.match(/\d+/)?.[0]||'0') - parseInt(b.src.match(/\d+/)?.[0]||'0')));
+                    // Strict Sort: Ensures #1 is always before #2, even if #2 loaded faster
+                    return updated.sort((a, b) => a.sortIndex - b.sortIndex);
                 });
             }
+
+            // Show loader until first batch is ready
+            if (i === 1 && isMounted) setIsReady(true);
         }
+        if (isMounted) setIsReady(true);
     };
 	
-    loadMedia();
+    loadMediaSequence();
     return () => { isMounted = false; };
   }, []);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-        (entries) => { if (entries[0].isIntersecting) setVisibleCount(prev => prev + 12); }, 
-        { threshold: 0.1 }
-    );
-    if (observerTarget.current) observer.observe(observerTarget.current);
-    return () => observer.disconnect();
-  }, [mediaItems, activeFilters]);
-
   const toggleFilter = (f: string) => {
       setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
-      setVisibleCount(12);
   }
   
-  const allFiltered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
-  const visibleItems = allFiltered.slice(0, visibleCount);
+  // --- CUSTOM FLEX MASONRY LOGIC ---
+  // Distributes items into 3 fixed arrays (columns). Item 1 -> Col 1, Item 2 -> Col 2, etc.
+  // This completely prevents items jumping between columns on re-render.
+  const columns = useMemo(() => {
+    const filtered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
+    
+    // For mobile we just want one column
+    if (isMobile) return [filtered];
 
-  // ===============================================
-  // UPDATED: "VISION OS" LIQUID GLASS BUTTONS
-  // ===============================================
+    const cols: any[][] = [[], [], []];
+    filtered.forEach((item, index) => {
+        cols[index % 3].push(item);
+    });
+    return cols;
+  }, [mediaItems, activeFilters, isMobile]);
+
   const FilterBtn = ({ label, icon: Icon, val }: any) => {
     const isActive = activeFilters.includes(val);
-
     return (
       <motion.button 
-        layout
-        onClick={() => toggleFilter(val)} 
+        layout onClick={() => toggleFilter(val)} 
         className="relative group px-[14px] py-[9px] lg:px-5 lg:py-2.5 rounded-full isolate overflow-hidden outline-none flex items-center gap-2 lg:gap-2.5"
         style={{
             background: isActive ? 'rgba(5, 5, 5, 0.85)' : 'rgba(255, 255, 255, 0.5)',
-            boxShadow: isActive 
-                ? '0 10px 30px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)' 
-                : '0 4px 20px -5px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.05)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            boxShadow: isActive ? '0 10px 30px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.1)' : '0 4px 20px -5px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.05)',
+            backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
         }}
-        whileHover={{ 
-            scale: 1.05, 
-            y: -2,
-            transition: { type: "spring", stiffness: 400, damping: 25 }
-        }}
-        whileTap={{ scale: 0.95, y: 0 }}
-        initial={false}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95, y: 0 }}
       >
-          <motion.div
-            className="absolute inset-0 -z-10 transition-opacity duration-500"
-            initial={false}
-            animate={{ opacity: isActive ? 1 : 0 }}
-            style={{
-                background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 100%)'
-            }}
-          />
-
-          <motion.div 
-            className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"
-            style={{
-                background: isActive 
-                    ? 'radial-gradient(circle at center, rgba(255,255,255,0.15), transparent 70%)'
-                    : 'linear-gradient(120deg, rgba(255,255,255,0) 20%, rgba(255,255,255,0.6) 50%, rgba(255,255,255,0) 80%)',
-                mixBlendMode: 'overlay'
-            }}
-          />
-
-          <motion.div 
-            className="flex items-center gap-2 relative z-10"
-            animate={{ color: isActive ? "#ffffff" : "#444444" }}
-          >
-              <Icon strokeWidth={2.5} className="w-[14px] h-[14px] lg:w-4 lg:h-4" /> 
-              <span className="text-[14px] lg:text-sm">{label}</span>
+          <motion.div className="absolute inset-0 -z-10 transition-opacity duration-500" initial={false} animate={{ opacity: isActive ? 1 : 0 }} style={{ background: 'linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 100%)' }} />
+          <motion.div className="flex items-center gap-2 relative z-10" animate={{ color: isActive ? "#ffffff" : "#444444" }}>
+              <Icon strokeWidth={2.5} className="w-[14px] h-[14px] lg:w-4 lg:h-4" /> <span className="text-[14px] lg:text-sm">{label}</span>
           </motion.div>
       </motion.button>
     );
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 30, scale: 0.95, filter: 'blur(5px)' },
-    visible: (i: number) => ({
-      opacity: 1, y: 0, scale: 1, filter: 'blur(0px)',
-      transition: { delay: (i % 6) * 0.05, duration: 0.4, ease: "easeOut" as const } 
-    })
   };
 
   return (
@@ -944,14 +915,11 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 <div className="text-[20px] opacity-80 mt-2">Experiments & Styleframes</div>
             </div>
             <div className="w-full lg:w-auto pb-2">
-                <motion.div 
-        layout 
-        className="flex gap-2.5 flex-wrap mt-4 w-full p-1"
-    >
-        <FilterBtn label="Artwork" icon={Brush} val="artwork" />
-        <FilterBtn label="Gambling" icon={Dices} val="gambling" />
-        <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
-    </motion.div>
+                <motion.div layout className="flex gap-2.5 flex-wrap mt-4 w-full p-1">
+                    <FilterBtn label="Artwork" icon={Brush} val="artwork" />
+                    <FilterBtn label="Gambling" icon={Dices} val="gambling" />
+                    <FilterBtn label="Experimental" icon={FlaskConical} val="experimental" />
+                </motion.div>
             </div>
         </div>
         
@@ -972,36 +940,37 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 )}
             </AnimatePresence>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-[20px] content-start">
-                {visibleItems.map((item, i) => (
-                    <motion.div 
-    key={item.id}
-    custom={i}
-    variants={itemVariants}
-    initial="hidden"
-    whileInView={isReady ? "visible" : "hidden"}
-    viewport={{ once: true, amount: 0.1 }} // FIX: Changed margin to amount for earlier trigger
-    className={`relative rounded-[0px] overflow-hidden bg-black ${isMobile ? 'h-auto' : 'aspect-square'} cursor-pointer`}
-    onClick={() => {
-        if (!isMobile) onOpenImage(item.src); 
-    }}
-    whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)" } : {}}
->
-
-                        {item.type === 'video' ? (
-                            <video src={item.src} autoPlay loop muted playsInline className={`w-full ${isMobile ? 'h-auto object-contain' : 'h-full object-cover'} pointer-events-none`} />
-                        ) : (
-                            <img src={item.src} className={`w-full ${isMobile ? 'h-auto object-contain' : 'h-full object-cover'}`} loading="lazy" />
-                        )}
-                    </motion.div>
+            {/* CUSTOM FLEX MASONRY LAYOUT */}
+            <div className={`flex gap-[20px] w-full items-start ${isMobile ? 'flex-col' : 'flex-row'}`}>
+                {columns.map((colItems, colIndex) => (
+                    <div key={colIndex} className="flex-1 flex flex-col gap-[20px] w-full">
+                         {colItems.map((item: any, i: number) => (
+                             <motion.div 
+                                key={item.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, amount: 0.1 }}
+                                transition={{ duration: 0.4 }}
+                                className="relative rounded-[0px] overflow-hidden bg-black/5 w-full cursor-pointer min-h-[100px]"
+                                onClick={() => { if (!isMobile) onOpenImage(item.src); }}
+                                whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
+                            >
+                                {item.type === 'video' ? (
+                                    <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto object-contain block" />
+                                ) : (
+                                    <img src={item.src} className="w-full h-auto object-contain block" loading="lazy" alt="" />
+                                )}
+                             </motion.div>
+                         ))}
+                    </div>
                 ))}
             </div>
         </div>
-        <div ref={observerTarget} className="h-10 w-full" />
         <Footer />
     </motion.div>
   );
 };
+
 const ReelPage = () => (
     <>
         <motion.div 
@@ -1364,17 +1333,20 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
     </ProjectPage>
 );
 
-const Lkt = () => ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+// FIX: Added prop destructuring to fix Lkt image clicks
+const Lkt = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="LKT group" meta="Comercial / 2024" 
         desc="For LKT Group, an international leader in industrial supply, my goal was to develop a seamless brand consistency across digital and print media. This project integrates photorealistic 3D visualizations of production lines with user-friendly web interfaces and detailed catalog layouts. It demonstrates my ability to merge technical precision with creative design to support global sales in sectors ranging from food processing to mining."
         gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
         prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'PSO short animation', link: 'pso' }}
     >
-	        <div>
-                <ImageBlock src="work/lkt/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/lkt/img_1.png')} />
+	<div className="grid grid-cols-1 lg:grid-cols-1 gap-6 lg:gap-8">
+                
+                
             </div>
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+		   <ImageBlock src="work/lkt/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/lkt/img_1.png')} />
 		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
@@ -1541,7 +1513,7 @@ export default function App() {
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
 					<Route path="/radiostrov" element={<Radiostrov onOpenImage={setPlayModalSrc} />} />
-                    <Route path="/lkt" element={<Lkt />} />
+                    <Route path="/lkt" element={<Lkt onOpenImage={setPlayModalSrc} />} />
 					<Route path="/pso" element={<Pso onOpenImage={setPlayModalSrc} />} />
 					<Route path="/priceauto" element={<Priceauto onOpenImage={setPlayModalSrc} />} />
 					<Route path="/stroyprosto" element={<Stroyprosto onOpenImage={setPlayModalSrc} />} />
