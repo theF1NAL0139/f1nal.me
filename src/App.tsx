@@ -857,11 +857,8 @@ const LazyMediaItem = ({ item, isMobile, onClick }: any) => {
     );
 };
 
-// ... (PlayPage, ReelPage, TimelineItem, ExperienceTimeline, AboutPage, ProjectPage, ElfBar, Radiostrov, Lkt, Pso, Priceauto, Stroyprosto) ...
-// ВСТАВЬТЕ СЮДА ВЕСЬ ОСТАВШИЙСЯ КОД (от PlayPage до export default App)
-
 // =========================================
-// UPDATED PLAY PAGE (YIELDING LOOP)
+// UPDATED PLAY PAGE (DEDUPLICATION FIX)
 // =========================================
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
@@ -880,15 +877,22 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     };
 
     const loadMediaSequence = async () => {
+        // ИЗМЕНЕНИЕ 1: Порядок важен! Ставим приоритетные форматы выше.
+        // Если найдется anim_1.mp4, то img_1.jpg будет проигнорирован.
         const paths = [
-            { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
+            // Artwork
             { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
+            { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
             { prefix: 'imgs/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
-            { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
+            
+            // Gambling
             { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
-			{ prefix: 'imgs/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
-            { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
+            { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
+            { prefix: 'imgs/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
+            
+            // Experimental
             { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
+            { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
             { prefix: 'imgs/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
         ];
 
@@ -897,13 +901,14 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         for (let i = 1; i <= 60; i += BATCH_SIZE) {
             if (!isMounted) return;
             
-            // YIELD TO MAIN THREAD: Allow browser to paint frame before heavy work
+            // Даем браузеру отрисовать кадр
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             const checks = [];
             for (let j = i; j < i + BATCH_SIZE && j <= 60; j++) {
                 for (const p of paths) {
                     const src = `${p.prefix}${j}.${p.ext}`;
+                    // ID все еще уникален для файла, но для проверки дублей мы будем использовать другое
                     const id = `${p.cat}-${p.type}-${j}-${p.ext}`;
                     checks.push(
                         checkFile(src, p.type as any).then(exists => 
@@ -918,10 +923,25 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 
             if (validItems.length > 0 && isMounted) {
                 setMediaItems(prev => {
-                    const currentIds = new Set(prev.map(item => item.id));
-                    const newItems = validItems.filter((item: any) => !currentIds.has(item.id));
-                    if (newItems.length === 0) return prev;
-                    const updated = [...prev, ...newItems];
+                    // ИЗМЕНЕНИЕ 2: Логика дедупликации
+                    // Мы создаем Set ключей вида "категория-номер" (например: "experimental-1")
+                    const occupiedSlots = new Set(prev.map(item => `${item.category}-${item.sortIndex}`));
+                    
+                    const newUniqueItems = [];
+
+                    for (const item of validItems) {
+                        const slotKey = `${item.category}-${item.sortIndex}`;
+                        
+                        // Если слот под этот номер в этой категории еще не занят — добавляем
+                        if (!occupiedSlots.has(slotKey)) {
+                            newUniqueItems.push(item);
+                            occupiedSlots.add(slotKey); // Занимаем слот, чтобы дубликаты (png после jpg) не прошли
+                        }
+                    }
+
+                    if (newUniqueItems.length === 0) return prev;
+                    
+                    const updated = [...prev, ...newUniqueItems];
                     return updated.sort((a, b) => a.sortIndex - b.sortIndex);
                 });
             }
