@@ -20,9 +20,9 @@ import PDFViewer from './PDFViewer';
 const ANIM_DURATION = 1; 
 const ANIM_EASE = [0.19, 1, 0.22, 1] as const; 
 
-// ... (Остальные константы и хуки без изменений: getPageTransition, AnimBlock, ScrollToTopOnNavigate, useScrollLock, useContentProtection, useIntroAnimation, useIsMobile) ...
-// ДЛЯ КРАТКОСТИ Я ИХ ПРОПУСКАЮ, ОНИ ОСТАЮТСЯ КАК БЫЛИ В ПРОШЛОЙ ВЕРСИИ
-// ВСТАВЬТЕ СЮДА ВЕСЬ КОД ОТ const getPageTransition ДО const Footer ВКЛЮЧИТЕЛЬНО
+// =========================================
+// GLOBAL COMPONENTS & CONSTANTS
+// =========================================
 
 const getPageTransition = () => ({
     initial: { opacity: 0, y: 80 }, 
@@ -35,22 +35,118 @@ const getPageTransition = () => ({
     }
 });
 
+// --- 1. GLOBAL VISION OS SKELETON ---
+const LiquidGlassSkeleton = () => (
+    <div className="absolute inset-0 w-full h-full bg-[#f0f0f0] overflow-hidden z-20 pointer-events-none">
+        <motion.div
+            className="absolute inset-0 -translate-x-full"
+            style={{
+                background: "linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.8) 50%, transparent 70%)",
+                transform: "skewX(-20deg)"
+            }}
+            animate={{ translateX: ["-150%", "150%"] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        />
+    </div>
+);
+
+// --- 2. GLOBAL SMART MEDIA COMPONENT ---
+// Replaces standard img/video tags with lazy loading + skeleton
+const GlobalSmartMedia = ({ 
+    src, 
+    type = 'image', 
+    alt = '', 
+    className = '', 
+    onClick, 
+    videoRef, 
+    poster,
+    autoPlay = true,
+    muted = true,
+    loop = true
+}: any) => {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, margin: "200px" }); 
+    const [isLoaded, setIsLoaded] = useState(false);
+
+    return (
+        <div 
+            ref={ref} 
+            className={`relative overflow-hidden bg-[#f5f5f5] ${className}`}
+            onClick={onClick}
+        >
+            <AnimatePresence>
+                {!isLoaded && (
+                    <motion.div
+                        className="absolute inset-0 z-20"
+                        exit={{ opacity: 0, transition: { duration: 0.8 } }}
+                    >
+                        <LiquidGlassSkeleton />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {isInView && (
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: isLoaded ? 1 : 0 }} 
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full"
+                >
+                    {type === 'video' ? (
+                        <video 
+                            ref={videoRef}
+                            src={src} 
+                            poster={poster}
+                            autoPlay={autoPlay} 
+                            loop={loop} 
+                            muted={muted} 
+                            playsInline 
+                            className="w-full h-full object-cover block"
+                            onLoadedData={() => setIsLoaded(true)}
+                        />
+                    ) : (
+                        <img 
+                            src={src} 
+                            alt={alt}
+                            className="w-full h-full object-cover block" 
+                            loading="lazy" 
+                            onLoad={() => setIsLoaded(true)}
+                        />
+                    )}
+                </motion.div>
+            )}
+        </div>
+    );
+};
+
+// =========================================
+// UPDATED HOOKS & WRAPPERS
+// =========================================
+
+// Updated AnimBlock to use GlobalSmartMedia
 const AnimBlock = ({ src, className = "" }: any) => (
     <motion.div 
-        className={`relative overflow-hidden rounded-[0px] bg-[#f5f5f5] ${className}`} 
+        className={`relative overflow-hidden rounded-[0px] ${className}`} 
         initial={{ opacity: 0, y: 50 }} 
         whileInView={{ opacity: 1, y: 0 }} 
         viewport={{ once: true, amount: 0.1 }} 
         transition={{ duration: 0.5, ease: "easeOut" }}
     >
-        <video 
-            src={src} 
-            autoPlay 
-            loop
-            muted 
-            playsInline 
-            className="w-full h-full object-cover block"
-        />
+        <GlobalSmartMedia src={src} type="video" className="w-full h-full" />
+    </motion.div>
+);
+
+// Updated ImageBlock to use GlobalSmartMedia
+const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
+    <motion.div 
+        className={`relative overflow-hidden rounded-[0px] ${onClick ? 'cursor-pointer' : ''} ${className}`} 
+        onClick={onClick} 
+        initial={{ opacity: 0, y: 50 }} 
+        whileInView={{ opacity: 1, y: 0 }} 
+        viewport={{ once: true, amount: 0.1 }} 
+        transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+        <GlobalSmartMedia src={src} type="image" alt={alt} className="w-full h-full transition-transform duration-700 hover:scale-[1.02]" />
     </motion.div>
 );
 
@@ -138,8 +234,9 @@ const useIsMobile = () => {
     return isMobile;
 };
 
-// ... (UI Components: ScrollToTopButton, MenuToggle, MobileMenuOverlay, Header, Footer) ...
-// ВСТАВЬТЕ СЮДА КОД UI КОМПОНЕНТОВ
+// =========================================
+// UI COMPONENTS
+// =========================================
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -320,8 +417,9 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
   );
 };
 
-// ... (COMPLEX COMPONENTS: ImageModalOverlay, VideoPlayer) ...
-// ВСТАВЬТЕ СЮДА КОД ImageModalOverlay И VideoPlayer
+// =========================================
+// COMPLEX COMPONENTS (Video, Modal)
+// =========================================
 
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
     useScrollLock(!!src);
@@ -550,8 +648,9 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
   );
 };
 
-// ... (PAGES COMPONENTS: ProjectCard, WorkPage) ...
-// ВСТАВЬТЕ СЮДА КОД ProjectCard И WorkPage
+// =========================================
+// PAGES
+// =========================================
 
 const ProjectCard = ({ project }: { project: any }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -560,7 +659,7 @@ const ProjectCard = ({ project }: { project: any }) => {
     const isMobile = useIsMobile();
     const navigate = useNavigate();
 
-    // MOBILE: Auto Play logic with Intersection Observer
+    // MOBILE: Auto Play logic
     useEffect(() => {
         if (!isMobile || !videoRef.current || !containerRef.current) return;
         const observer = new IntersectionObserver(
@@ -575,11 +674,7 @@ const ProjectCard = ({ project }: { project: any }) => {
         return () => observer.disconnect();
     }, [isMobile]);
 	
-	useEffect(() => {
-    if (videoRef.current) {
-        videoRef.current.load();
-    }
-}, []);
+	useEffect(() => { if (videoRef.current) videoRef.current.load(); }, []);
 
     // DESKTOP: Hover Logic
     const handleMouseEnter = () => {
@@ -610,40 +705,37 @@ const ProjectCard = ({ project }: { project: any }) => {
     };
 
     const videoClass = isMobile
-        ? "opacity-100 brightness-75"            // ← мобильная версия: всегда затемнённое
+        ? "opacity-100 brightness-75"            
         : (isHovered ? "opacity-100 brightness-75" : "opacity-0");
-
 
     return (
         <a href={project.isExternal ? project.link : '/' + project.link} onClick={handleClick} className="block w-full h-full">
             <div 
-    ref={containerRef}
-    className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group 
-               shadow-lg transform-gpu min-h-[280px] md:min-h-[380px]"
-    onMouseEnter={handleMouseEnter}
-    onMouseLeave={handleMouseLeave}
->
-                {/* Static Image (Bottom Layer) */}
-{!isMobile && (
-    <div className="absolute inset-0 z-0">
-        <img src={project.img} className="w-full h-full object-cover block" />
-    </div>
-)}
-
+                ref={containerRef}
+                className="relative w-full rounded-[18px] overflow-hidden bg-black cursor-pointer group shadow-lg transform-gpu min-h-[280px] md:min-h-[380px]"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                {/* Static Image (Bottom Layer) WITH SKELETON */}
+                {!isMobile && (
+                    <div className="absolute inset-0 z-0">
+                        <GlobalSmartMedia src={project.img} type="image" className="w-full h-full" />
+                    </div>
+                )}
                 
                 {/* Video Layer (Top Layer) */}
                 <div className={`absolute inset-0 z-10 transition-all duration-300 ease-in-out ${videoClass}`}>
                     <video
-    poster={project.img}
-    ref={videoRef}
-    playsInline
-    loop
-    muted
-    preload="auto"
-    className="w-full h-full object-cover block"
->
-    <source src={project.video} type="video/mp4" />
-</video>
+                        poster={project.img}
+                        ref={videoRef}
+                        playsInline
+                        loop
+                        muted
+                        preload="auto"
+                        className="w-full h-full object-cover block"
+                    >
+                        <source src={project.video} type="video/mp4" />
+                    </video>
                 </div>
 
                 <div className={`absolute bottom-0 left-0 p-8 z-30 text-white pointer-events-none transition-opacity duration-500 ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -782,83 +874,7 @@ const WorkPage = () => {
 };
 
 // =========================================
-// NEW COMPONENT: VISION OS LIQUID SKELETON
-// =========================================
-const LiquidGlassSkeleton = () => (
-    <div className="absolute inset-0 w-full h-full bg-[#f0f0f0]/50 backdrop-blur-md overflow-hidden z-20">
-        <motion.div
-            className="absolute inset-0 -translate-x-full"
-            style={{
-                background: "linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%)",
-                transform: "skewX(-20deg)"
-            }}
-            animate={{ translateX: ["-150%", "150%"] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-        />
-    </div>
-);
-
-// =========================================
-// UPDATED LAZY MEDIA COMPONENT (With Skeleton)
-// =========================================
-const LazyMediaItem = ({ item, isMobile, onClick }: any) => {
-    const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: "200px" }); 
-    const [isLoaded, setIsLoaded] = useState(false);
-
-    return (
-        <motion.div 
-            ref={ref}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.1 }}
-            transition={{ duration: 0.4 }}
-            className="relative rounded-[0px] overflow-hidden bg-black/5 w-full cursor-pointer min-h-[150px]"
-            onClick={onClick}
-            whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
-        >
-            <AnimatePresence>
-                {!isLoaded && (
-                    <motion.div
-                        className="absolute inset-0 z-20"
-                        exit={{ opacity: 0, transition: { duration: 0.5 } }}
-                    >
-                        <LiquidGlassSkeleton />
-                    </motion.div>
-                )}
-            </AnimatePresence>
-
-            {isInView && (
-                <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: isLoaded ? 1 : 0 }} 
-                    transition={{ duration: 0.5 }}
-                    className="w-full h-full"
-                >
-                    {item.type === 'video' ? (
-                        <video 
-                            src={item.src} 
-                            autoPlay loop muted playsInline 
-                            className="w-full h-auto object-contain block"
-                            onLoadedData={() => setIsLoaded(true)}
-                        />
-                    ) : (
-                        <img 
-                            src={item.src} 
-                            className="w-full h-auto object-contain block" 
-                            loading="lazy" 
-                            alt=""
-                            onLoad={() => setIsLoaded(true)}
-                        />
-                    )}
-                </motion.div>
-            )}
-        </motion.div>
-    );
-};
-
-// =========================================
-// UPDATED PLAY PAGE (DEDUPLICATION FIX)
+// PLAY PAGE (UPDATED WITH GLOBAL MEDIA)
 // =========================================
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
@@ -877,22 +893,15 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
     };
 
     const loadMediaSequence = async () => {
-        // ИЗМЕНЕНИЕ 1: Порядок важен! Ставим приоритетные форматы выше.
-        // Если найдется anim_1.mp4, то img_1.jpg будет проигнорирован.
         const paths = [
-            // Artwork
-            { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
             { prefix: 'imgs/Artwork/img_', ext: 'jpg', type: 'image', cat: 'artwork' },
+            { prefix: 'anim/Artwork/anim_', ext: 'mp4', type: 'video', cat: 'artwork' },
             { prefix: 'imgs/Artwork/img_', ext: 'png', type: 'image', cat: 'artwork' },
-            
-            // Gambling
-            { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
             { prefix: 'imgs/Gambling/img_', ext: 'jpg', type: 'image', cat: 'gambling' },
-            { prefix: 'imgs/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
-            
-            // Experimental
-            { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
+            { prefix: 'anim/Gambling/anim_', ext: 'mp4', type: 'video', cat: 'gambling' },
+			{ prefix: 'imgs/Gambling/img_', ext: 'png', type: 'image', cat: 'gambling' },
             { prefix: 'imgs/Experimental/img_', ext: 'jpg', type: 'image', cat: 'experimental' },
+            { prefix: 'anim/Experimental/anim_', ext: 'mp4', type: 'video', cat: 'experimental' },
             { prefix: 'imgs/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
         ];
 
@@ -900,15 +909,12 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
         
         for (let i = 1; i <= 60; i += BATCH_SIZE) {
             if (!isMounted) return;
-            
-            // Даем браузеру отрисовать кадр
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             const checks = [];
             for (let j = i; j < i + BATCH_SIZE && j <= 60; j++) {
                 for (const p of paths) {
                     const src = `${p.prefix}${j}.${p.ext}`;
-                    // ID все еще уникален для файла, но для проверки дублей мы будем использовать другое
                     const id = `${p.cat}-${p.type}-${j}-${p.ext}`;
                     checks.push(
                         checkFile(src, p.type as any).then(exists => 
@@ -923,25 +929,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 
             if (validItems.length > 0 && isMounted) {
                 setMediaItems(prev => {
-                    // ИЗМЕНЕНИЕ 2: Логика дедупликации
-                    // Мы создаем Set ключей вида "категория-номер" (например: "experimental-1")
-                    const occupiedSlots = new Set(prev.map(item => `${item.category}-${item.sortIndex}`));
-                    
-                    const newUniqueItems = [];
-
-                    for (const item of validItems) {
-                        const slotKey = `${item.category}-${item.sortIndex}`;
-                        
-                        // Если слот под этот номер в этой категории еще не занят — добавляем
-                        if (!occupiedSlots.has(slotKey)) {
-                            newUniqueItems.push(item);
-                            occupiedSlots.add(slotKey); // Занимаем слот, чтобы дубликаты (png после jpg) не прошли
-                        }
-                    }
-
-                    if (newUniqueItems.length === 0) return prev;
-                    
-                    const updated = [...prev, ...newUniqueItems];
+                    const currentIds = new Set(prev.map(item => item.id));
+                    const newItems = validItems.filter((item: any) => !currentIds.has(item.id));
+                    if (newItems.length === 0) return prev;
+                    const updated = [...prev, ...newItems];
                     return updated.sort((a, b) => a.sortIndex - b.sortIndex);
                 });
             }
@@ -1027,12 +1018,22 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 {columns.map((colItems, colIndex) => (
                     <div key={colIndex} className="flex-1 flex flex-col gap-[20px] w-full">
                          {colItems.map((item: any) => (
-                             <LazyMediaItem 
-                                key={item.id} 
-                                item={item} 
-                                isMobile={isMobile} 
-                                onClick={() => { if(!isMobile) onOpenImage(item.src) }} 
-                             />
+                             <motion.div
+                                key={item.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, amount: 0.1 }}
+                                transition={{ duration: 0.4 }}
+                                className="relative rounded-[0px] overflow-hidden w-full cursor-pointer min-h-[150px]"
+                                whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
+                             >
+                                 <GlobalSmartMedia 
+                                    src={item.src} 
+                                    type={item.type} 
+                                    className="w-full h-full"
+                                    onClick={() => { if(!isMobile) onOpenImage(item.src) }} 
+                                 />
+                             </motion.div>
                          ))}
                     </div>
                 ))}
@@ -1258,7 +1259,7 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, c
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px] mb-[100px] ">
                         {gallery.map((item: any, i: number) => (
                             <div key={i} className={`relative overflow-hidden rounded-[0px] ${item.full ? 'col-span-1 lg:col-span-2' : ''}`}>
-                                {item.video ? <video autoPlay loop muted playsInline className="w-full h-auto block rounded-[0x]"><source src={item.video} type="video/mp4"/></video> : <img src={item.img} className="w-full h-auto block rounded-[0px]" />}
+                                <GlobalSmartMedia src={item.video || item.img} type={item.video ? 'video' : 'image'} className="w-full h-auto" />
                             </div>
                         ))}
                     </div>
@@ -1291,21 +1292,6 @@ const ProjectPage = ({ title, meta, desc, video, gallery, credits, prev, next, c
         </motion.div>
     );
 };
-
-// --- PROJECTS ---
-// FIX: Updated ImageBlock for earlier trigger and faster animation
-const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
-    <motion.div 
-        className={`relative overflow-hidden rounded-[0px] bg-[#f5f5f5] ${onClick ? 'cursor-pointer' : ''} ${className}`} 
-        onClick={onClick} 
-        initial={{ opacity: 0, y: 50 }}  // Reduced y from 150 to 50
-        whileInView={{ opacity: 1, y: 0 }} 
-        viewport={{ once: true, amount: 0.1 }} // Changed margin to amount so it triggers as soon as 10% is visible
-        transition={{ duration: 0.5, ease: "easeOut" }} // Reduced duration slightly
-    >
-        <img src={src} alt={alt} loading="lazy" className="w-full h-full object-cover block transition-transform duration-700 hover:scale-[1.02]" />
-    </motion.div>
-);
 
 const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
