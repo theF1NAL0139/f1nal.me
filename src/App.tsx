@@ -11,7 +11,7 @@ import {
   Brush, Dices, FlaskConical, Loader2,
   Building2, Briefcase, Activity
 } from 'lucide-react';
-import { motion, AnimatePresence, type SVGMotionProps } from 'framer-motion';
+import { motion, AnimatePresence, useInView, type SVGMotionProps } from 'framer-motion';
 
 // Предполагается, что PDFViewer существует
 import PDFViewer from './PDFViewer'; 
@@ -787,7 +787,38 @@ const WorkPage = () => {
 };
 
 // =========================================
-// UPDATED PLAY PAGE (FLEX MASONRY + STRICT ORDER)
+// UPDATED LAZY MEDIA COMPONENT (Fixes Stutter)
+// =========================================
+const LazyMediaItem = ({ item, isMobile, onClick }: any) => {
+    const ref = useRef(null);
+    const isInView = useInView(ref, { once: true, margin: "200px" }); // Preload 200px before
+    
+    return (
+        <motion.div 
+            ref={ref}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.1 }}
+            transition={{ duration: 0.4 }}
+            className="relative rounded-[0px] overflow-hidden bg-black/5 w-full cursor-pointer min-h-[150px]"
+            onClick={onClick}
+            whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
+        >
+            {isInView ? (
+                item.type === 'video' ? (
+                    <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto object-contain block" />
+                ) : (
+                    <img src={item.src} className="w-full h-auto object-contain block" loading="lazy" alt="" />
+                )
+            ) : (
+                <div className="w-full h-[200px] bg-black/5 animate-pulse" />
+            )}
+        </motion.div>
+    );
+};
+
+// =========================================
+// UPDATED PLAY PAGE (YIELDING LOOP)
 // =========================================
 const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [mediaItems, setMediaItems] = useState<any[]>([]);
@@ -795,11 +826,8 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
   const [isReady, setIsReady] = useState(false); 
   const isMobile = useIsMobile();
   
-  // Strict Loading Logic: Loads batches (1-5, 6-10) sequentially
   useEffect(() => {
     let isMounted = true;
-
-    // Fast check if file exists
     const checkFile = (src: string, type: 'video'|'image'): Promise<boolean> => {
         if(type === 'image') {
             return new Promise(r => { const img = new Image(); img.onload = () => r(true); img.onerror = () => r(false); img.src = src; });
@@ -821,16 +849,16 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             { prefix: 'imgs/Experimental/img_', ext: 'png', type: 'image', cat: 'experimental' }, 
         ];
 
-        // LOAD IN STRICT BATCHES OF 10 (1-10, 11-20...)
-        // We wait for the entire batch to finish before setting state or moving to the next.
         const BATCH_SIZE = 10; 
         
-        for (let i = 1; i <= 60; i += BATCH_SIZE) {
+        for (let i = 1; i <= 70; i += BATCH_SIZE) {
             if (!isMounted) return;
-            const checks = [];
+            
+            // YIELD TO MAIN THREAD: Allow browser to paint frame before heavy work
+            await new Promise(resolve => requestAnimationFrame(resolve));
 
-            // Check all files in this number range across all categories
-            for (let j = i; j < i + BATCH_SIZE && j <= 60; j++) {
+            const checks = [];
+            for (let j = i; j < i + BATCH_SIZE && j <= 70; j++) {
                 for (const p of paths) {
                     const src = `${p.prefix}${j}.${p.ext}`;
                     const id = `${p.cat}-${p.type}-${j}-${p.ext}`;
@@ -851,12 +879,10 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                     const newItems = validItems.filter((item: any) => !currentIds.has(item.id));
                     if (newItems.length === 0) return prev;
                     const updated = [...prev, ...newItems];
-                    // Strict Sort: Ensures #1 is always before #2, even if #2 loaded faster
                     return updated.sort((a, b) => a.sortIndex - b.sortIndex);
                 });
             }
 
-            // Show loader until first batch is ready
             if (i === 1 && isMounted) setIsReady(true);
         }
         if (isMounted) setIsReady(true);
@@ -870,15 +896,9 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
       setActiveFilters(prev => prev.includes(f) ? prev.filter(x => x !== f) : [...prev, f]);
   }
   
-  // --- CUSTOM FLEX MASONRY LOGIC ---
-  // Distributes items into 3 fixed arrays (columns). Item 1 -> Col 1, Item 2 -> Col 2, etc.
-  // This completely prevents items jumping between columns on re-render.
   const columns = useMemo(() => {
     const filtered = activeFilters.length ? mediaItems.filter(i => activeFilters.includes(i.category)) : mediaItems;
-    
-    // For mobile we just want one column
     if (isMobile) return [filtered];
-
     const cols: any[][] = [[], [], []];
     filtered.forEach((item, index) => {
         cols[index % 3].push(item);
@@ -940,27 +960,16 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
                 )}
             </AnimatePresence>
 
-            {/* CUSTOM FLEX MASONRY LAYOUT */}
             <div className={`flex gap-[20px] w-full items-start ${isMobile ? 'flex-col' : 'flex-row'}`}>
                 {columns.map((colItems, colIndex) => (
                     <div key={colIndex} className="flex-1 flex flex-col gap-[20px] w-full">
-                          (
-                             <motion.div 
-                                key={item.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true, amount: 0.1 }}
-                                transition={{ duration: 0.4 }}
-                                className="relative rounded-[0px] overflow-hidden bg-black/5 w-full cursor-pointer min-h-[100px]"
-                                onClick={() => { if (!isMobile) onOpenImage(item.src); }}
-                                whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
-                            >
-                                {item.type === 'video' ? (
-                                    <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto object-contain block" />
-                                ) : (
-                                    <img src={item.src} className="w-full h-auto object-contain block" loading="lazy" alt="" />
-                                )}
-                             </motion.div>
+                         {colItems.map((item: any) => (
+                             <LazyMediaItem 
+                                key={item.id} 
+                                item={item} 
+                                isMobile={isMobile} 
+                                onClick={() => { if(!isMobile) onOpenImage(item.src) }} 
+                             />
                          ))}
                     </div>
                 ))}
