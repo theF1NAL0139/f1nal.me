@@ -1304,25 +1304,25 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     >
         <div className="flex flex-col gap-2 lg:gap-0 w-full mb-[0px]">
 		    <div className="grid grid-cols-1 lg:grid-cols-1 gap-0 lg:gap-0">
-            <ImageBlock src="work/elfbar/img_1.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
+            <ImageBlock src="work/elfbar/img_1.png" alt="" onClick={() => onOpenImage('work/elfbar/img_1.png')} />
 			<AnimBlock src="work/elfbar/anim_1.mp4" />
-			<ImageBlock src="work/elfbar/img_19.png" alt="Elf Bar Hero" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
-			<ImageBlock src="work/elfbar/storyboard.jpg" alt="Close Up" onClick={() => onOpenImage('work/elfbar/storyboard.jpg')} /> 
+			<ImageBlock src="work/elfbar/img_19.png" alt="" onClick={() => onOpenImage('work/elfbar/img_19.png')} />
+			<ImageBlock src="work/elfbar/storyboard.jpg" alt="" onClick={() => onOpenImage('work/elfbar/storyboard.jpg')} /> 
 		</div>
 		
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-0 pb-[0px]">
-                <ImageBlock src="work/elfbar/img_2.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
-                <ImageBlock src="work/elfbar/img_3.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
-				<ImageBlock src="work/elfbar/dev1.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/dev1.png')} />
-				<ImageBlock src="work/elfbar/dev2.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/dev2.png')} />
-				<ImageBlock src="work/elfbar/img_4.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
-				<ImageBlock src="work/elfbar/img_5.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
+                <ImageBlock src="work/elfbar/img_2.png" alt="" onClick={() => onOpenImage('work/elfbar/img_2.png')} />
+                <ImageBlock src="work/elfbar/img_3.png" alt="" onClick={() => onOpenImage('work/elfbar/img_3.png')} />
+				<ImageBlock src="work/elfbar/dev1.png" alt="" onClick={() => onOpenImage('work/elfbar/dev1.png')} />
+				<ImageBlock src="work/elfbar/dev2.png" alt="" onClick={() => onOpenImage('work/elfbar/dev2.png')} />
+				<ImageBlock src="work/elfbar/img_4.png" alt="" onClick={() => onOpenImage('work/elfbar/img_4.png')} />
+				<ImageBlock src="work/elfbar/img_5.png" alt="" onClick={() => onOpenImage('work/elfbar/img_5.png')} />
             </div>
 			
 			<div className="grid grid-cols-3 lg:grid-cols-3 gap-0 lg:gap-0">
 			<ImageBlock src="work/elfbar/img_6.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_6.png')} />
-				<ImageBlock src="work/elfbar/img_8.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
-				<ImageBlock src="work/elfbar/img_9.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
+				<ImageBlock src="work/elfbar/img_8.png" alt="" onClick={() => onOpenImage('work/elfbar/img_8.png')} />
+				<ImageBlock src="work/elfbar/img_9.png" alt="" onClick={() => onOpenImage('work/elfbar/img_9.png')} />
 			</div>
 			
 			<AnimBlock src="work/elfbar/anim_2.mp4" />
@@ -1332,18 +1332,18 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
 			
 			<div className="grid grid-cols-4 lg:grid-cols-2 gap-0 lg:gap-0">
 			<ImageBlock src="work/elfbar/img_11.png" alt="Close Up" onClick={() => onOpenImage('work/elfbar/img_11.png')} />
-                <ImageBlock src="work/elfbar/img_12.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
-				<ImageBlock src="work/elfbar/img_13.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
-				<ImageBlock src="work/elfbar/img_14.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_14.png')} />
-				<ImageBlock src="work/elfbar/img_15.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_15.png')} />
-				<ImageBlock src="work/elfbar/img_16.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_16.png')} />
-				<ImageBlock src="work/elfbar/img_17.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
-				<ImageBlock src="work/elfbar/img_18.png" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
+                <ImageBlock src="work/elfbar/img_12.png" alt="" onClick={() => onOpenImage('work/elfbar/img_12.png')} />
+				<ImageBlock src="work/elfbar/img_13.png" alt="" onClick={() => onOpenImage('work/elfbar/img_13.png')} />
+				<ImageBlock src="work/elfbar/img_14.png" alt="" onClick={() => onOpenImage('work/elfbar/img_14.png')} />
+				<ImageBlock src="work/elfbar/img_15.png" alt="" onClick={() => onOpenImage('work/elfbar/img_15.png')} />
+				<ImageBlock src="work/elfbar/img_16.png" alt="" onClick={() => onOpenImage('work/elfbar/img_16.png')} />
+				<ImageBlock src="work/elfbar/img_17.png" alt="" onClick={() => onOpenImage('work/elfbar/img_17.png')} />
+				<ImageBlock src="work/elfbar/img_18.png" alt="" onClick={() => onOpenImage('work/elfbar/img_18.png')} />
 		    </div>
 			<AnimBlock src="work/elfbar/anim_3.mp4" />
 			<div className="grid grid-cols-2 lg:grid-cols-1 gap-0 lg:gap-0">
-                <ImageBlock src="work/elfbar/img_22.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_22.jpg')} />
-				<ImageBlock src="work/elfbar/img_20.jpg" alt="Taste Profile" onClick={() => onOpenImage('work/elfbar/img_20.jpg')} />
+                <ImageBlock src="work/elfbar/img_22.jpg" alt="" onClick={() => onOpenImage('work/elfbar/img_22.jpg')} />
+				<ImageBlock src="work/elfbar/img_20.jpg" alt="" onClick={() => onOpenImage('work/elfbar/img_20.jpg')} />
 			</div>
 			
         </div>
@@ -1364,17 +1364,17 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
-                <ImageBlock src="work/radiostrov/img_1.jpg" alt="RadioOstrov 1" onClick={() => onOpenImage('work/radiostrov/img_1.jpg')} />
-                <ImageBlock src="work/radiostrov/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/radiostrov/img_2.jpg')} />
+                <ImageBlock src="work/radiostrov/img_1.jpg" alt="" onClick={() => onOpenImage('work/radiostrov/img_1.jpg')} />
+                <ImageBlock src="work/radiostrov/img_2.jpg" alt="" onClick={() => onOpenImage('work/radiostrov/img_2.jpg')} />
             </div>
 
             <div className="grid grid-cols-2 gap-6 lg:gap-8">
-			    <ImageBlock src="work/radiostrov/img_1.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_1.png')} />
-			    <ImageBlock src="work/radiostrov/img_2.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_2.png')} />
-                <ImageBlock src="work/radiostrov/img_3.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_3.png')} />
-                <ImageBlock src="work/radiostrov/img_4.png" alt="RadioOstrov 4" onClick={() => onOpenImage('work/radiostrov/img_4.png')} />
-				<ImageBlock src="work/radiostrov/img_5.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_5.png')} />
-				<ImageBlock src="work/radiostrov/img_6.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/radiostrov/img_6.png')} />
+			    <ImageBlock src="work/radiostrov/img_1.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_1.png')} />
+			    <ImageBlock src="work/radiostrov/img_2.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_2.png')} />
+                <ImageBlock src="work/radiostrov/img_3.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_3.png')} />
+                <ImageBlock src="work/radiostrov/img_4.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_4.png')} />
+				<ImageBlock src="work/radiostrov/img_5.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_5.png')} />
+				<ImageBlock src="work/radiostrov/img_6.png" alt="" onClick={() => onOpenImage('work/radiostrov/img_6.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
@@ -1404,7 +1404,7 @@ const Lkt = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
                 
             </div>
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
-		   <ImageBlock src="work/lkt/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/lkt/img_1.png')} />
+		   <ImageBlock src="work/lkt/img_1.png" alt="" onClick={() => onOpenImage('work/lkt/img_1.png')} />
 		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
 			<PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
@@ -1427,15 +1427,14 @@ Work included complex 3D modeling, texturing, lighting setup, and character anim
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
-            <div className="grid grid-cols-2 lg:grid-cols-1 gap-6 lg:gap-8">
-                <ImageBlock src="work/pso/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/pso/img_1.png')} />
-                <ImageBlock src="work/pso/img_2.jpg" alt="RadioOstrov 2" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
+            <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 lg:gap-8">
+                <ImageBlock src="work/pso/img_2.jpg" alt="" onClick={() => onOpenImage('work/pso/img_2.jpg')} />
             </div>
 			<AnimBlock src="work/pso/anim_6.mp4" />
 			<AnimBlock src="work/pso/anim_7.mp4" />
             <div className="grid grid-cols-2 gap-6 lg:gap-8">
-                <ImageBlock src="work/pso/img_3.png" alt="RadioOstrov 3" onClick={() => onOpenImage('work/pso/img_3.png')} />
-                <ImageBlock src="work/pso/img_4.png" alt="RadioOstrov 4" onClick={() => onOpenImage('work/pso/img_4.png')} />
+                <ImageBlock src="work/pso/img_3.png" alt="" onClick={() => onOpenImage('work/pso/img_3.png')} />
+                <ImageBlock src="work/pso/img_4.png" alt="" onClick={() => onOpenImage('work/pso/img_4.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
@@ -1468,10 +1467,10 @@ The final sequence delivers a strong, memorable visual identity suitable for pro
             {/* Секция с картинками */}
 			
             <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">	
-                <ImageBlock src="work/priceauto/img_1.png" alt="RadioOstrov 1" onClick={() => onOpenImage('work/priceauto/img_1.png')} />
-                <ImageBlock src="work/priceauto/img_2.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_2.png')} />
-				<ImageBlock src="work/priceauto/img_3.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_3.png')} />
-				<ImageBlock src="work/priceauto/img_4.png" alt="RadioOstrov 2" onClick={() => onOpenImage('work/priceauto/img_4.png')} />
+                <ImageBlock src="work/priceauto/img_1.png" alt="" onClick={() => onOpenImage('work/priceauto/img_1.png')} />
+                <ImageBlock src="work/priceauto/img_2.png" alt="" onClick={() => onOpenImage('work/priceauto/img_2.png')} />
+				<ImageBlock src="work/priceauto/img_3.png" alt="" onClick={() => onOpenImage('work/priceauto/img_3.png')} />
+				<ImageBlock src="work/priceauto/img_4.png" alt="" onClick={() => onOpenImage('work/priceauto/img_4.png')} />
             </div>
 
             {/* Новая анимация (Video loop) */}
