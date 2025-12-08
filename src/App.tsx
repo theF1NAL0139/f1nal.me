@@ -20,9 +20,10 @@ import PDFViewer from './PDFViewer';
 const ANIM_DURATION = 1; 
 const ANIM_EASE = [0.19, 1, 0.22, 1] as const; 
 
-// =========================================
-// ANIMATION CONSTANTS
-// =========================================
+// ... (Остальные константы и хуки без изменений: getPageTransition, AnimBlock, ScrollToTopOnNavigate, useScrollLock, useContentProtection, useIntroAnimation, useIsMobile) ...
+// ДЛЯ КРАТКОСТИ Я ИХ ПРОПУСКАЮ, ОНИ ОСТАЮТСЯ КАК БЫЛИ В ПРОШЛОЙ ВЕРСИИ
+// ВСТАВЬТЕ СЮДА ВЕСЬ КОД ОТ const getPageTransition ДО const Footer ВКЛЮЧИТЕЛЬНО
+
 const getPageTransition = () => ({
     initial: { opacity: 0, y: 80 }, 
     animate: { opacity: 1, y: 0 },
@@ -34,9 +35,6 @@ const getPageTransition = () => ({
     }
 });
 
-// =========================================
-// HOOKS
-// =========================================
 const AnimBlock = ({ src, className = "" }: any) => (
     <motion.div 
         className={`relative overflow-hidden rounded-[0px] bg-[#f5f5f5] ${className}`} 
@@ -140,9 +138,8 @@ const useIsMobile = () => {
     return isMobile;
 };
 
-// =========================================
-// UI COMPONENTS
-// =========================================
+// ... (UI Components: ScrollToTopButton, MenuToggle, MobileMenuOverlay, Header, Footer) ...
+// ВСТАВЬТЕ СЮДА КОД UI КОМПОНЕНТОВ
 
 const ScrollToTopButton = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -323,9 +320,8 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
   );
 };
 
-// =========================================
-// COMPLEX COMPONENTS (Video, Modal)
-// =========================================
+// ... (COMPLEX COMPONENTS: ImageModalOverlay, VideoPlayer) ...
+// ВСТАВЬТЕ СЮДА КОД ImageModalOverlay И VideoPlayer
 
 const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
     useScrollLock(!!src);
@@ -554,9 +550,8 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
   );
 };
 
-// =========================================
-// PAGES
-// =========================================
+// ... (PAGES COMPONENTS: ProjectCard, WorkPage) ...
+// ВСТАВЬТЕ СЮДА КОД ProjectCard И WorkPage
 
 const ProjectCard = ({ project }: { project: any }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -787,12 +782,30 @@ const WorkPage = () => {
 };
 
 // =========================================
-// UPDATED LAZY MEDIA COMPONENT (Fixes Stutter)
+// NEW COMPONENT: VISION OS LIQUID SKELETON
+// =========================================
+const LiquidGlassSkeleton = () => (
+    <div className="absolute inset-0 w-full h-full bg-[#f0f0f0]/50 backdrop-blur-md overflow-hidden z-20">
+        <motion.div
+            className="absolute inset-0 -translate-x-full"
+            style={{
+                background: "linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.6) 50%, transparent 70%)",
+                transform: "skewX(-20deg)"
+            }}
+            animate={{ translateX: ["-150%", "150%"] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+        />
+    </div>
+);
+
+// =========================================
+// UPDATED LAZY MEDIA COMPONENT (With Skeleton)
 // =========================================
 const LazyMediaItem = ({ item, isMobile, onClick }: any) => {
     const ref = useRef(null);
-    const isInView = useInView(ref, { once: true, margin: "200px" }); // Preload 200px before
-    
+    const isInView = useInView(ref, { once: true, margin: "200px" }); 
+    const [isLoaded, setIsLoaded] = useState(false);
+
     return (
         <motion.div 
             ref={ref}
@@ -804,18 +817,48 @@ const LazyMediaItem = ({ item, isMobile, onClick }: any) => {
             onClick={onClick}
             whileHover={!isMobile ? { scale: 1.02, filter: "brightness(1.1)", zIndex: 10 } : {}}
         >
-            {isInView ? (
-                item.type === 'video' ? (
-                    <video src={item.src} autoPlay loop muted playsInline className="w-full h-auto object-contain block" />
-                ) : (
-                    <img src={item.src} className="w-full h-auto object-contain block" loading="lazy" alt="" />
-                )
-            ) : (
-                <div className="w-full h-[200px] bg-black/5 animate-pulse" />
+            <AnimatePresence>
+                {!isLoaded && (
+                    <motion.div
+                        className="absolute inset-0 z-20"
+                        exit={{ opacity: 0, transition: { duration: 0.5 } }}
+                    >
+                        <LiquidGlassSkeleton />
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {isInView && (
+                <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: isLoaded ? 1 : 0 }} 
+                    transition={{ duration: 0.5 }}
+                    className="w-full h-full"
+                >
+                    {item.type === 'video' ? (
+                        <video 
+                            src={item.src} 
+                            autoPlay loop muted playsInline 
+                            className="w-full h-auto object-contain block"
+                            onLoadedData={() => setIsLoaded(true)}
+                        />
+                    ) : (
+                        <img 
+                            src={item.src} 
+                            className="w-full h-auto object-contain block" 
+                            loading="lazy" 
+                            alt=""
+                            onLoad={() => setIsLoaded(true)}
+                        />
+                    )}
+                </motion.div>
             )}
         </motion.div>
     );
 };
+
+// ... (PlayPage, ReelPage, TimelineItem, ExperienceTimeline, AboutPage, ProjectPage, ElfBar, Radiostrov, Lkt, Pso, Priceauto, Stroyprosto) ...
+// ВСТАВЬТЕ СЮДА ВЕСЬ ОСТАВШИЙСЯ КОД (от PlayPage до export default App)
 
 // =========================================
 // UPDATED PLAY PAGE (YIELDING LOOP)
@@ -851,14 +894,14 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
 
         const BATCH_SIZE = 10; 
         
-        for (let i = 1; i <= 70; i += BATCH_SIZE) {
+        for (let i = 1; i <= 60; i += BATCH_SIZE) {
             if (!isMounted) return;
             
             // YIELD TO MAIN THREAD: Allow browser to paint frame before heavy work
             await new Promise(resolve => requestAnimationFrame(resolve));
 
             const checks = [];
-            for (let j = i; j < i + BATCH_SIZE && j <= 70; j++) {
+            for (let j = i; j < i + BATCH_SIZE && j <= 60; j++) {
                 for (const p of paths) {
                     const src = `${p.prefix}${j}.${p.ext}`;
                     const id = `${p.cat}-${p.type}-${j}-${p.ext}`;
