@@ -944,7 +944,7 @@ const PlayPage = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => {
             <div className={`flex gap-[20px] w-full items-start ${isMobile ? 'flex-col' : 'flex-row'}`}>
                 {columns.map((colItems, colIndex) => (
                     <div key={colIndex} className="flex-1 flex flex-col gap-[20px] w-full">
-                         {colItems.map((item: any,  number) => (
+                          (
                              <motion.div 
                                 key={item.id}
                                 initial={{ opacity: 0, y: 20 }}
