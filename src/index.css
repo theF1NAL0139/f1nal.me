@@ -5,12 +5,44 @@
 @tailwind utilities;
 
 /* =========================================
-   FONTS
+   FONTS - только локальные, без дублей
 ========================================= */
 @font-face {
     font-family: 'Poppins';
     src: url('/fonts/Poppins-Regular.ttf') format('truetype');
     font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Poppins';
+    src: url('/fonts/Poppins-Bold.ttf') format('truetype');
+    font-weight: 700;
     font-style: normal;
     font-display: swap;
 }
@@ -52,7 +84,7 @@ body::-webkit-scrollbar {
     display: none;
 }
 
-/* Защита контента (как было в твоем коде) */
+/* Защита контента */
 * {
     -webkit-user-select: none;
     -moz-user-select: none;
@@ -88,33 +120,32 @@ html.is-visited body { opacity: 1; transition: opacity 0.5s ease; }
   -webkit-mask-image: -webkit-radial-gradient(white, black);
   mask-image: radial-gradient(white, black);
 }
-/* Когда элемент (или его родитель) в полном экране, видео должно вписываться */
+
+/* Fullscreen video */
 video:fullscreen {
   object-fit: contain !important;
 }
-
-/* Для Webkit браузеров (Safari/Chrome) */
 video::-webkit-media-text-track-display {
   object-fit: contain !important;
 }
-
-/* Если вы делаете полноэкранным контейнер div, а не само видео */
 :fullscreen video {
   object-fit: contain !important;
   width: 100% !important;
   height: 100% !important;
 }
 
-/* Video Blur Effects */
+/* Video Blur Effects - GPU accelerated */
 .video-blur {
   filter: blur(5px);
-  transform: scale(1.02);
+  transform: scale(1.02) translateZ(0);
   transition: filter 0.5s ease, transform 0.5s ease;
+  will-change: filter, transform;
 }
 .video-clear {
   filter: blur(0);
-  transform: scale(1);
+  transform: scale(1) translateZ(0);
   transition: filter 0.5s ease, transform 0.5s ease;
+  will-change: filter, transform;
 }
 
 /* Volume Slider Customization */
@@ -179,8 +210,20 @@ body.scroll-locked {
     width: 100%;
 }
 
-/* Masonry Items */
+/* Masonry Items - GPU accelerated */
 .masonry-item {
   will-change: transform, opacity;
   backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Оптимизация анимаций для производительности */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

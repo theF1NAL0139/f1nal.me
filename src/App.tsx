@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo, lazy, Suspense, memo } from 'react';
 import { 
   Routes, 
   Route, 
@@ -13,8 +13,20 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, useInView, type SVGMotionProps } from 'framer-motion';
 
-// Предполагается, что PDFViewer существует
-import PDFViewer from './PDFViewer'; 
+// Lazy load тяжелого PDFViewer - загрузится только когда нужен
+const PDFViewer = lazy(() => import('./PDFViewer'));
+
+// Fallback компонент для Suspense
+const PageLoader = memo(() => (
+  <div className="w-full min-h-[400px] flex items-center justify-center">
+    <motion.div 
+      animate={{ rotate: 360 }} 
+      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+    >
+      <Loader2 size={32} className="text-black/20" />
+    </motion.div>
+  </div>
+)); 
 
 // SYNCHRONIZATION CONFIG
 const ANIM_DURATION = 1; 
@@ -36,7 +48,7 @@ const getPageTransition = () => ({
 });
 
 // --- 1. GLOBAL VISION OS SKELETON ---
-const LiquidGlassSkeleton = () => (
+const LiquidGlassSkeleton = memo(() => (
     <div className="absolute inset-0 w-full h-full bg-[#f0f0f0] overflow-hidden z-20 pointer-events-none">
         <motion.div
             className="absolute inset-0 -translate-x-full"
@@ -48,11 +60,24 @@ const LiquidGlassSkeleton = () => (
             transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
         />
     </div>
-);
+));
 
 // --- 2. GLOBAL SMART MEDIA COMPONENT ---
 // Replaces standard img/video tags with lazy loading + skeleton
-const GlobalSmartMedia = ({ 
+interface GlobalSmartMediaProps {
+    src: string;
+    type?: 'image' | 'video';
+    alt?: string;
+    className?: string;
+    onClick?: () => void;
+    videoRef?: React.RefObject<HTMLVideoElement>;
+    poster?: string;
+    autoPlay?: boolean;
+    muted?: boolean;
+    loop?: boolean;
+}
+
+const GlobalSmartMedia = memo(({ 
     src, 
     type = 'image', 
     alt = '', 
@@ -63,10 +88,12 @@ const GlobalSmartMedia = ({
     autoPlay = true,
     muted = true,
     loop = true
-}: any) => {
-    const ref = useRef(null);
+}: GlobalSmartMediaProps) => {
+    const ref = useRef<HTMLDivElement>(null);
     const isInView = useInView(ref, { once: true, margin: "200px" }); 
     const [isLoaded, setIsLoaded] = useState(false);
+
+    const handleLoad = useCallback(() => setIsLoaded(true), []);
 
     return (
         <div 
@@ -101,30 +128,32 @@ const GlobalSmartMedia = ({
                             loop={loop} 
                             muted={muted} 
                             playsInline 
+                            preload="none"
                             className="w-full h-full object-cover block"
-                            onLoadedData={() => setIsLoaded(true)}
+                            onLoadedData={handleLoad}
                         />
                     ) : (
                         <img 
                             src={src} 
                             alt={alt}
                             className="w-full h-full object-cover block" 
-                            loading="lazy" 
-                            onLoad={() => setIsLoaded(true)}
+                            loading="lazy"
+                            decoding="async"
+                            onLoad={handleLoad}
                         />
                     )}
                 </motion.div>
             )}
         </div>
     );
-};
+});
 
 // =========================================
 // UPDATED HOOKS & WRAPPERS
 // =========================================
 
 // Updated AnimBlock to use GlobalSmartMedia
-const AnimBlock = ({ src, className = "" }: any) => (
+const AnimBlock = memo(({ src, className = "" }: { src: string; className?: string }) => (
     <motion.div 
         className={`relative overflow-hidden rounded-[0px] ${className}`} 
         initial={{ opacity: 0, y: 50 }} 
@@ -134,10 +163,10 @@ const AnimBlock = ({ src, className = "" }: any) => (
     >
         <GlobalSmartMedia src={src} type="video" className="w-full h-full" />
     </motion.div>
-);
+));
 
 // Updated ImageBlock to use GlobalSmartMedia
-const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
+const ImageBlock = memo(({ src, alt, className = "", onClick }: { src: string; alt?: string; className?: string; onClick?: () => void }) => (
     <motion.div 
         className={`relative overflow-hidden rounded-[0px] ${onClick ? 'cursor-pointer' : ''} ${className}`} 
         onClick={onClick} 
@@ -148,7 +177,7 @@ const ImageBlock = ({ src, alt, className = "", onClick }: any) => (
     >
         <GlobalSmartMedia src={src} type="image" alt={alt} className="w-full h-full transition-transform duration-700 hover:scale-[1.02]" />
     </motion.div>
-);
+));
 
 const ScrollToTopOnNavigate = () => {
     const { pathname } = useLocation();
@@ -238,17 +267,27 @@ const useIsMobile = () => {
 // UI COMPONENTS
 // =========================================
 
-const ScrollToTopButton = () => {
+const ScrollToTopButton = memo(() => {
   const [isVisible, setIsVisible] = useState(false);
+  
   useEffect(() => {
-    const checkScroll = () => setIsVisible(window.scrollY > 300);
+    let ticking = false;
+    const checkScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setIsVisible(window.scrollY > 300);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
     window.addEventListener('scroll', checkScroll, { passive: true });
     return () => window.removeEventListener('scroll', checkScroll);
   }, []);
 
-  const scrollToTop = () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   return (
     <AnimatePresence>
@@ -268,13 +307,13 @@ const ScrollToTopButton = () => {
       )}
     </AnimatePresence>
   );
-};
+});
 
-const Path = (props: SVGMotionProps<SVGPathElement>) => (
+const Path = memo((props: SVGMotionProps<SVGPathElement>) => (
   <motion.path fill="transparent" strokeWidth="2" stroke="black" strokeLinecap="round" {...props} />
-);
+));
 
-const MenuToggle = ({ toggle, isOpen }: { toggle: () => void, isOpen: boolean }) => (
+const MenuToggle = memo(({ toggle, isOpen }: { toggle: () => void, isOpen: boolean }) => (
   <button onClick={toggle} className="outline-none border-none cursor-pointer bg-transparent p-2 z-[10002] relative flex items-center justify-center">
     <svg width="23" height="23" viewBox="0 0 23 23">
       <Path variants={{ closed: { d: "M 2 2.5 L 20 2.5" }, open: { d: "M 3 16.5 L 17 2.5" } }} animate={isOpen ? "open" : "closed"} />
@@ -282,24 +321,24 @@ const MenuToggle = ({ toggle, isOpen }: { toggle: () => void, isOpen: boolean })
       <Path variants={{ closed: { d: "M 2 16.346 L 20 16.346" }, open: { d: "M 3 2.5 L 17 16.346" } }} animate={isOpen ? "open" : "closed"} />
     </svg>
   </button>
-);
+));
 
-const MobileMenuOverlay = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+const menuItems = [
+    { label: 'Work', href: '/' },
+    { label: 'Reel', href: '/reel' },
+    { label: 'Play', href: '/play' },
+    { label: 'About', href: '/info' },
+] as const;
+
+const menuVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { duration: 0.3 } },
+    exit: { opacity: 0, transition: { duration: 0.3 } }
+} as const;
+
+const MobileMenuOverlay = memo(({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
     useScrollLock(isOpen);
     const location = useLocation();
-
-    const menuItems = [
-        { label: 'Work', href: '/' },
-        { label: 'Reel', href: '/reel' },
-        { label: 'Play', href: '/play' },
-        { label: 'About', href: '/info' },
-    ];
-
-    const menuVariants = {
-        hidden: { opacity: 0 },
-        visible: { opacity: 1, transition: { duration: 0.3 } },
-        exit: { opacity: 0, transition: { duration: 0.3 } }
-    };
 
     return (
         <AnimatePresence>
@@ -335,28 +374,28 @@ const MobileMenuOverlay = ({ isOpen, onClose }: { isOpen: boolean, onClose: () =
             )}
         </AnimatePresence>
     );
-};
+});
 
-const Header = ({ isMenuOpen, onToggleMenu }: { isMenuOpen: boolean, onToggleMenu: () => void }) => {
+const Header = memo(({ isMenuOpen, onToggleMenu }: { isMenuOpen: boolean, onToggleMenu: () => void }) => {
   const [animStart, setAnimStart] = useState(false);
   const location = useLocation();
 
   useEffect(() => { setTimeout(() => setAnimStart(true), 100); }, []);
   
-  const navLinkClasses = (path: string) => {
+  const navLinkClasses = useCallback((path: string) => {
     const isActive = location.pathname === path;
     return `text-[22px] text-[#777] font-normal relative transition-colors duration-300 hover:text-black hover:-translate-y-1.5 inline-block transform transition-transform cursor-pointer 
     before:content-[''] before:absolute before:w-full before:h-[60px] before:top-[-15px] before:left-0
     after:content-[''] after:absolute after:w-full after:h-[1px] after:bottom-0 after:left-0 after:bg-black after:scale-x-0 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left
     ${isActive ? 'text-black font-bold ' : ''}`; 
-  }
+  }, [location.pathname]);
 
   return (
     <header className={`relative w-full pt-[40px] pb-[0px] bg-transparent z-[10001] transition-all duration-[1500ms] ease-[cubic-bezier(0.19,1,0.22,1)] ${animStart ? 'opacity-100 translate-y-0' : 'opacity-5 -translate-y-[120px]'}`}>
       <div className="flex items-center justify-between max-w-[1440px] mx-auto px-5 lg:px-10 relative">
         <div className="block transition-transform duration-300 ease-in-out hover:-translate-y-1.5 z-[10002] relative">
           <Link to="/" className="cursor-pointer block">
-            <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" onError={(e) => (e.currentTarget.src = '')} />
+            <img src="img/logo.svg" alt="Logo" className="h-[75px] w-auto block" loading="eager" decoding="async" onError={(e) => (e.currentTarget.src = '')} />
           </Link>
         </div>
         <nav className="hidden lg:block">
@@ -373,23 +412,30 @@ const Header = ({ isMenuOpen, onToggleMenu }: { isMenuOpen: boolean, onToggleMen
       </div>
     </header>
   );
-};
+});
 
-const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
-  const footerContent = (
-      <>
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
-          <div className="flex gap-[25px]">
-           {[
+const socialLinks = [
     { name: 'Behance', url: 'https://www.behance.net/f1nal' },
     { name: 'LinkedIn', url: 'https://www.linkedin.com/in/f1nal/' },
     { name: 'Instagram', url: 'https://www.instagram.com/f1nal' }
-].map((item) => (
-    <a key={item.name} href={item.url} target="_blank" rel="noreferrer" 
-       className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
-        {item.name}
-    </a>
-))}
+] as const;
+
+const footerVariants = { 
+    hidden: { y: "400%" }, 
+    visible: { y: "0%", transition: { duration: 1.5, ease: [0.22, 1, 0.36, 1] } } 
+} as const;
+
+const Footer = memo(({ forceVisible = false }: { forceVisible?: boolean }) => {
+  const footerContent = useMemo(() => (
+      <>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end mb-[15px] gap-1 lg:gap-0">
+          <div className="flex gap-[25px]">
+           {socialLinks.map((item) => (
+              <a key={item.name} href={item.url} target="_blank" rel="noreferrer" 
+                 className="text-[20px] text-black relative pb-0.5 transition-all duration-300 hover:-translate-y-1.5 inline-block">
+                  {item.name}
+              </a>
+           ))}
           </div>
           <div className="text-[20px] text-black hover:-translate-y-1.5 transition-transform duration-300">
             <a href="mailto:shmarov.oleg@gmail.com">shmarov.oleg@gmail.com</a>
@@ -400,31 +446,34 @@ const Footer = ({ forceVisible = false }: { forceVisible?: boolean }) => {
           <div className="text-[20px] text-black opacity-50">2025 | Oleg Shmarov®</div>
         </div>
       </>
-  );
+  ), []);
+
   const containerClasses = "pt-0 pb-10 overflow-hidden relative"; 
   if (forceVisible) return <div className={containerClasses}>{footerContent}</div>;
-  
 
   return (
       <motion.footer 
         className={containerClasses}
         initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.5 }}
       >
-        <motion.div variants={{ hidden: { y: "400%" }, visible: { y: "0%", transition: { duration: 1.5, ease: [0.22, 1, 0.36, 1] } } }}>
+        <motion.div variants={footerVariants}>
             {footerContent}
         </motion.div>
       </motion.footer>
   );
-};
+});
 
 // =========================================
 // COMPLEX COMPONENTS (Video, Modal)
 // =========================================
 
-const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () => void }) => {
+const ImageModalOverlay = memo(({ src, onClose }: { src: string | null, onClose: () => void }) => {
     useScrollLock(!!src);
     const isVideo = useMemo(() => src?.toLowerCase().endsWith('.mp4'), [src]);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    const handlePlay = useCallback(() => setIsPlaying(true), []);
+    const handlePause = useCallback(() => setIsPlaying(false), []);
 
     return (
         <AnimatePresence>
@@ -444,19 +493,19 @@ const ImageModalOverlay = ({ src, onClose }: { src: string | null, onClose: () =
                 >
                   {isVideo ? (
                     <video 
-                      src={src} autoPlay loop muted playsInline
-                      onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onClick={onClose}
+                      src={src} autoPlay loop muted playsInline preload="auto"
+                      onPlay={handlePlay} onPause={handlePause} onClick={onClose}
                       className={`max-w-full max-h-[85vh] object-contain shadow-2xl cursor-pointer transition-all duration-500 ease-out ${!isPlaying ? 'blur-[8px] scale-105' : 'blur-0 scale-100'}`}
                     />
                   ) : (
-                    <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-none shadow-2xl cursor-pointer transition-opacity" onClick={onClose} />
+                    <img src={src} alt="Full size" className="max-w-full max-h-[85vh] object-contain rounded-none shadow-2xl cursor-pointer transition-opacity" loading="eager" onClick={onClose} />
                   )}
                 </motion.div>
               </motion.div>
             )}
         </AnimatePresence>
     );
-};
+});
 
 const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -652,57 +701,58 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
 // PAGES
 // =========================================
 
-const ProjectCard = ({ project }: { project: any }) => {
+const ProjectCard = memo(({ project }: { project: any }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
     const isMobile = useIsMobile();
     const navigate = useNavigate();
 
-    // MOBILE: Auto Play logic
+    // MOBILE: Auto Play logic with IntersectionObserver
     useEffect(() => {
         if (!isMobile || !videoRef.current || !containerRef.current) return;
+        const video = videoRef.current;
+        const container = containerRef.current;
+        
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) videoRef.current?.play().catch(() => {});
-                    else videoRef.current?.pause();
+                    if (entry.isIntersecting) video.play().catch(() => {});
+                    else video.pause();
                 });
             }, { threshold: 0.6 }
         );
-        observer.observe(containerRef.current);
+        observer.observe(container);
         return () => observer.disconnect();
     }, [isMobile]);
-	
-	useEffect(() => { if (videoRef.current) videoRef.current.load(); }, []);
 
     // DESKTOP: Hover Logic
-    const handleMouseEnter = () => {
+    const handleMouseEnter = useCallback(() => {
         if (isMobile) return;
         setIsHovered(true);
         if (videoRef.current) {
             videoRef.current.currentTime = 0;
             videoRef.current.play().catch(() => {});
         }
-    };
+    }, [isMobile]);
 
-    const handleMouseLeave = () => {
+    const handleMouseLeave = useCallback(() => {
         if (isMobile) return;
         setIsHovered(false);
         if (videoRef.current) {
             videoRef.current.pause();
             videoRef.current.currentTime = 0;
         }
-    };
+    }, [isMobile]);
 
-    const handleClick = (e: React.MouseEvent) => {
+    const handleClick = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         if (project.isExternal) {
             window.location.href = project.link;
         } else {
             navigate('/' + project.link);
         }
-    };
+    }, [project.isExternal, project.link, navigate]);
 
     const videoClass = isMobile
         ? "opacity-100 brightness-75"            
@@ -723,7 +773,7 @@ const ProjectCard = ({ project }: { project: any }) => {
                     </div>
                 )}
                 
-                {/* Video Layer (Top Layer) */}
+                {/* Video Layer (Top Layer) - preload="none" для экономии трафика */}
                 <div className={`absolute inset-0 z-10 transition-all duration-300 ease-in-out ${videoClass}`}>
                     <video
                         poster={project.img}
@@ -731,7 +781,7 @@ const ProjectCard = ({ project }: { project: any }) => {
                         playsInline
                         loop
                         muted
-                        preload="auto"
+                        preload="none"
                         className="w-full h-full object-cover block"
                     >
                         <source src={project.video} type="video/mp4" />
@@ -749,7 +799,7 @@ const ProjectCard = ({ project }: { project: any }) => {
             </div>
         </a>
     );
-};
+});
 
 const WorkPage = () => {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1071,7 +1121,22 @@ const ReelPage = () => (
 // NEW COMPONENT: EXPERIENCE TIMELINE
 // =========================================
 
-const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
+const timelineItemVariants = {
+    initial: { opacity: 0.8 },
+    hover: { opacity: 1 }
+} as const;
+
+const timelineIconVariants = {
+    initial: { scale: 1 },
+    hover: { scale: 1.2, transition: { type: "spring", stiffness: 300, damping: 20 } }
+} as const;
+
+const timelineLineVariants = {
+    initial: { height: "0%" },
+    hover: { height: "calc(90%)", transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } }
+} as const;
+
+const TimelineItem = memo(({ data, isLast }: { data: any, isLast: boolean }) => {
     const Icon = data.icon;
 
     return (
@@ -1079,10 +1144,7 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
             className="relative flex gap-6 group cursor-default"
             initial="initial"
             whileHover="hover"
-            variants={{
-                initial: { opacity: 0.8 },
-                hover: { opacity: 1 }
-            }}
+            variants={timelineItemVariants}
         >
             <div className="flex flex-col items-center relative shrink-0">
                 {!isLast && (
@@ -1091,28 +1153,15 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
                 {!isLast && (
                     <motion.div 
                         className="absolute top-[20px] w-[2px] bg-black z-1 origin-top"
-                        variants={{
-                            initial: { height: "0%" },
-                            hover: { height: "calc(90%)", transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } }
-                        }}
+                        variants={timelineLineVariants}
                     />
                 )}
 
                 <motion.div 
                     className="relative z-10 w-12 h-12 rounded-full bg-white border-2 border-black/10 flex items-center justify-center overflow-hidden transition-colors duration-300 group-hover:border-black"
-                    variants={{
-                        initial: { scale: 1 },
-                        hover: { scale: 1.2, transition: { type: "spring", stiffness: 300, damping: 20 } }
-                    }}
+                    variants={timelineIconVariants}
                 >
-                    <motion.div
-                         variants={{
-                            initial: { rotate: 0, scale: 1 },
-                            hover: { rotate: [0, -10, 10, 0], scale: 1.05, transition: { duration: 0.5, ease: "easeInOut" } }
-                        }}
-                    >
-                        <Icon size={20} className="text-black opacity-70 group-hover:opacity-100 transition-opacity" />
-                    </motion.div>
+                    <Icon size={20} className="text-black opacity-70 group-hover:opacity-100 transition-opacity" />
                 </motion.div>
             </div>
 
@@ -1136,47 +1185,45 @@ const TimelineItem = ({ data, isLast }: { data: any, isLast: boolean }) => {
             </motion.div>
         </motion.div>
     );
-};
+});
 
-const ExperienceTimeline = () => {
-    const experienceData = [
-        {
-            id: 1,
-            company: "Linkomtrade LLC",
-            role: "Design, 3D Visualization, Catalog Layout",
-            period: "2024-2025",
-            description: "3D visualization of models (assembly lines, industrial equipment). Website design and development, social media content. Creation of layouts for catalogs and booklets.",
-            icon: Building2
-        },
-        {
-            id: 2,
-            company: "Pilot LLC (ROI Media)",
-            role: "Motion Designer",
-            period: "2023 — 2024",
-            description: "Creation of static and animated graphics. Integration of AI into projects. Developing creatives and participating in the research and implementation of new projects and ideas.",
-            icon: Activity
-        },
-        {
-            id: 3,
-            company: "Freelance / Private Practice",
-            role: "Creator",
-            period: "2013 — 2020",
-            description: "Over 10 years of experience in full-cycle video production and content creation for advertising.",
-            icon: Briefcase
-        }
-    ];
+const experienceData = [
+    {
+        id: 1,
+        company: "Linkomtrade LLC",
+        role: "Design, 3D Visualization, Catalog Layout",
+        period: "2024-2025",
+        description: "3D visualization of models (assembly lines, industrial equipment). Website design and development, social media content. Creation of layouts for catalogs and booklets.",
+        icon: Building2
+    },
+    {
+        id: 2,
+        company: "Pilot LLC (ROI Media)",
+        role: "Motion Designer",
+        period: "2023 — 2024",
+        description: "Creation of static and animated graphics. Integration of AI into projects. Developing creatives and participating in the research and implementation of new projects and ideas.",
+        icon: Activity
+    },
+    {
+        id: 3,
+        company: "Freelance / Private Practice",
+        role: "Creator",
+        period: "2013 — 2020",
+        description: "Over 10 years of experience in full-cycle video production and content creation for advertising.",
+        icon: Briefcase
+    }
+] as const;
 
-    return (
-        <div className="w-full">
-            <h3 className="text-[20px] font-semibold underline mb-8">Experience</h3>
-            <div className="flex flex-col">
-                {experienceData.map((item, index) => (
-                    <TimelineItem key={item.id} data={item} isLast={index === experienceData.length - 1} />
-                ))}
-            </div>
+const ExperienceTimeline = memo(() => (
+    <div className="w-full">
+        <h3 className="text-[20px] font-semibold underline mb-8">Experience</h3>
+        <div className="flex flex-col">
+            {experienceData.map((item, index) => (
+                <TimelineItem key={item.id} data={item} isLast={index === experienceData.length - 1} />
+            ))}
         </div>
-    );
-};
+    </div>
+));
 
 const AboutPage = () => (
     <motion.div 
@@ -1392,7 +1439,7 @@ const Radiostrov = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => 
 );
 
 // FIX: Added prop destructuring to fix Lkt image clicks
-const Lkt = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+const Lkt = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
         title="LKT group" meta="Comercial / 2024" 
         desc="For LKT Group, an international leader in industrial supply, my goal was to develop a seamless brand consistency across digital and print media. This project integrates photorealistic 3D visualizations of production lines with user-friendly web interfaces and detailed catalog layouts. It demonstrates my ability to merge technical precision with creative design to support global sales in sectors ranging from food processing to mining."
@@ -1405,13 +1452,21 @@ const Lkt = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
             </div>
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 		   <ImageBlock src="work/lkt/img_1.png" alt="" onClick={() => onOpenImage('work/lkt/img_1.png')} />
-		    <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
-			<PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
-			<PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
-			<PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
+		    <Suspense fallback={<PageLoader />}>
+                <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
+            </Suspense>
+            <Suspense fallback={<PageLoader />}>
+                <PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
+            </Suspense>
+            <Suspense fallback={<PageLoader />}>
+                <PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
+            </Suspense>
+            <Suspense fallback={<PageLoader />}>
+                <PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
+            </Suspense>
         </div>
     </ProjectPage>
-);
+));
 
 const Pso = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
     <ProjectPage 
