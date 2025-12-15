@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo, lazy, Suspense, memo } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback, useMemo, memo } from 'react';
 import { 
   Routes, 
   Route, 
@@ -13,20 +13,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence, useInView, type SVGMotionProps } from 'framer-motion';
 
-// Lazy load тяжелого PDFViewer - загрузится только когда нужен
-const PDFViewer = lazy(() => import('./PDFViewer'));
-
-// Fallback компонент для Suspense
-const PageLoader = memo(() => (
-  <div className="w-full min-h-[400px] flex items-center justify-center">
-    <motion.div 
-      animate={{ rotate: 360 }} 
-      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-    >
-      <Loader2 size={32} className="text-black/20" />
-    </motion.div>
-  </div>
-)); 
+// PDFViewer with local worker
+import PDFViewer from './PDFViewer'; 
 
 // SYNCHRONIZATION CONFIG
 const ANIM_DURATION = 1; 
@@ -507,42 +495,96 @@ const ImageModalOverlay = memo(({ src, onClose }: { src: string | null, onClose:
     );
 });
 
-const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
+// --- LIQUID GLASS VISIONOS VIDEO PLAYER ---
+const GlassIconButton = memo(({ onClick, children, className = "", isActive = false }: { 
+  onClick?: (e: React.MouseEvent) => void; 
+  children: React.ReactNode; 
+  className?: string;
+  isActive?: boolean;
+}) => (
+  <motion.button
+    onClick={onClick}
+    whileHover={{ 
+      scale: 1.1,
+      transition: { type: "spring", stiffness: 400, damping: 20 }
+    }}
+    whileTap={{ 
+      scale: 0.95,
+      transition: { type: "spring", stiffness: 500, damping: 25 }
+    }}
+    animate={{
+      background: isActive 
+        ? 'rgba(255,255,255,0.35)' 
+        : 'rgba(255,255,255,0.15)',
+      boxShadow: isActive
+        ? '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.2)'
+        : '0 2px 12px -2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)'
+    }}
+    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+    className={`
+      relative w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center
+      backdrop-blur-md border border-white/25
+      cursor-pointer
+      hover:border-white/35
+      ${className}
+    `}
+  >
+    <motion.div 
+      className="relative z-10 text-white drop-shadow-sm"
+      animate={{ scale: isActive ? 1.05 : 1 }}
+      transition={{ duration: 0.15 }}
+    >
+      {children}
+    </motion.div>
+  </motion.button>
+));
+
+const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
-  const hideTimeoutRef = useRef<any>(null);
+  const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [volume, setVolume] = useState(0); 
   const [progress, setProgress] = useState(0);
+  const [buffered, setBuffered] = useState(0);
   const [uiHidden, setUiHidden] = useState(false);
   const [isVolumeHovered, setIsVolumeHovered] = useState(false);
+  const [isVolumeDragging, setIsVolumeDragging] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [hoverTime, setHoverTime] = useState<string | null>(null);
   const [tooltipPos, setTooltipPos] = useState(0);
+  const [currentTime, setCurrentTime] = useState('0:00');
+  const [duration, setDuration] = useState('0:00');
+
+  const formatTime = useCallback((time: number) => {
+    if (!isFinite(time)) return '0:00';
+    const m = Math.floor(time / 60);
+    const s = Math.floor(time % 60);
+    return `${m}:${s < 10 ? '0' + s : s}`;
+  }, []);
 
   useEffect(() => {
      if(videoRef.current) setVolume(videoRef.current.muted ? 0 : videoRef.current.volume);
      return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
   }, []);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
         videoRef.current.play();
         setIsPlaying(true);
-        handleActivity();
     } else {
         videoRef.current.pause();
         setIsPlaying(false);
         setUiHidden(false);
         if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     }
-  };
+  }, []);
 
-  const toggleMute = (e: React.MouseEvent) => {
+  const toggleMute = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!videoRef.current) return;
     const newMuted = !videoRef.current.muted;
@@ -550,74 +592,68 @@ const VideoPlayer = ({ src, poster }: { src: string, poster?: string }) => {
     setIsMuted(newMuted);
     if (!newMuted && volume === 0) { videoRef.current.volume = 1; setVolume(1); }
     else if (newMuted) { setVolume(0); }
-  };
-  
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = parseFloat(e.target.value);
-      setVolume(val);
-      if (videoRef.current) {
-          videoRef.current.volume = val;
-          videoRef.current.muted = val === 0;
-          setIsMuted(val === 0);
-      }
-  };
+  }, [volume]);
 
-const toggleFullscreen = (e?: React.MouseEvent) => {
+  const toggleFullscreen = useCallback((e?: React.MouseEvent) => {
     e?.stopPropagation();
-    
-    // 1. Стандартный выход из полноэкранного режима
     if (document.fullscreenElement) {
         document.exitFullscreen?.();
         return;
     }
-
-    // 2. Специфичный метод для iOS (работает только на самом элементе video)
     if (videoRef.current && (videoRef.current as any).webkitEnterFullscreen) {
         (videoRef.current as any).webkitEnterFullscreen();
         return;
     }
-
-    // 3. Стандартный вход в полноэкранный режим для Desktop/Android
     if (containerRef.current && containerRef.current.requestFullscreen) {
         containerRef.current.requestFullscreen();
     }
-  };
+  }, []);
 
-  const handleTimeUpdate = () => {
+  const handleTimeUpdate = useCallback(() => {
     if (videoRef.current && !isDragging) {
-        setProgress((videoRef.current.currentTime / videoRef.current.duration) * 100 || 0);
+        const prog = (videoRef.current.currentTime / videoRef.current.duration) * 100 || 0;
+        setProgress(prog);
+        setCurrentTime(formatTime(videoRef.current.currentTime));
+        
+        // Update buffered
+        if (videoRef.current.buffered.length > 0) {
+          const bufferedEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+          setBuffered((bufferedEnd / videoRef.current.duration) * 100);
+        }
     }
-  };
+  }, [isDragging, formatTime]);
 
-  const calculateProgress = (clientX: number) => {
+  const handleLoadedMetadata = useCallback(() => {
+    if (videoRef.current) {
+      setDuration(formatTime(videoRef.current.duration));
+    }
+  }, [formatTime]);
+
+  const calculateProgress = useCallback((clientX: number) => {
       if (!progressBarRef.current || !videoRef.current) return { time: 0, percent: 0, x: 0 };
       const rect = progressBarRef.current.getBoundingClientRect();
       const x = Math.max(0, Math.min(clientX - rect.left, rect.width)); 
       const percent = x / rect.width;
       return { time: percent * videoRef.current.duration, percent: percent * 100, x };
-  };
+  }, []);
 
   const handleMouseMove = useCallback((e: MouseEvent | React.MouseEvent) => {
       if (!progressBarRef.current) return;
       const { time, percent, x } = calculateProgress(e.clientX);
-      
-      const m = Math.floor(time / 60);
-      const s = Math.floor(time % 60);
-      setHoverTime(`${m < 10 ? '0' + m : m}:${s < 10 ? '0' + s : s}`);
+      setHoverTime(formatTime(time));
       setTooltipPos(x);
-
       if (isDragging && videoRef.current) {
           videoRef.current.currentTime = time;
           setProgress(percent);
       }
-  }, [isDragging]);
+  }, [isDragging, calculateProgress, formatTime]);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
       setIsDragging(true);
       if(videoRef.current) videoRef.current.pause(); 
       handleMouseMove(e); 
-  };
+  }, [handleMouseMove]);
 
   useEffect(() => {
       const handleGlobalMouseUp = () => {
@@ -636,66 +672,365 @@ const toggleFullscreen = (e?: React.MouseEvent) => {
       }
   }, [isDragging, isPlaying, handleMouseMove]);
   
-  const handleActivity = () => {
+  const handleActivity = useCallback(() => {
     setUiHidden(false);
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (isPlaying) hideTimeoutRef.current = setTimeout(() => setUiHidden(true), 3000);
-  };
+  }, [isPlaying]);
   
-  const handleMouseLeave = () => {
+  const handleMouseLeave = useCallback(() => {
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      if (isPlaying && !isDragging) setUiHidden(true);
-      setIsVolumeHovered(false);
-  };
+      if (isPlaying && !isDragging && !isVolumeDragging) setUiHidden(true);
+      if (!isVolumeDragging) setIsVolumeHovered(false);
+  }, [isPlaying, isDragging, isVolumeDragging]);
+
+  const calculateVolume = useCallback((clientY: number, rect: DOMRect) => {
+    const y = Math.max(0, Math.min(clientY - rect.top, rect.height));
+    return Math.max(0, Math.min(1 - (y / rect.height), 1));
+  }, []);
+
+  const handleVolumeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsVolumeDragging(true);
+    const slider = e.currentTarget as HTMLElement;
+    const rect = slider.getBoundingClientRect();
+    const val = calculateVolume(e.clientY, rect);
+    setVolume(val);
+    if (videoRef.current) {
+      videoRef.current.volume = val;
+      videoRef.current.muted = val === 0;
+      setIsMuted(val === 0);
+    }
+  }, [calculateVolume]);
+
+  const handleVolumeMouseMove = useCallback((e: MouseEvent) => {
+    if (!isVolumeDragging) return;
+    const volumeSlider = document.querySelector('[data-volume-slider]') as HTMLElement;
+    if (!volumeSlider) return;
+    const rect = volumeSlider.getBoundingClientRect();
+    const val = calculateVolume(e.clientY, rect);
+    setVolume(val);
+    if (videoRef.current) {
+      videoRef.current.volume = val;
+      videoRef.current.muted = val === 0;
+      setIsMuted(val === 0);
+    }
+  }, [isVolumeDragging, calculateVolume]);
+
+  useEffect(() => {
+    if (isVolumeDragging) {
+      window.addEventListener('mousemove', handleVolumeMouseMove);
+      const handleMouseUp = () => setIsVolumeDragging(false);
+      window.addEventListener('mouseup', handleMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleVolumeMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isVolumeDragging, handleVolumeMouseMove]);
   
   const VolumeIcon = volume === 0 || isMuted ? VolumeX : (volume < 0.5 ? Volume1 : Volume2);
 
   return (
     <div 
-      className={`group fix-safari-radius relative w-full aspect-video rounded-full shadow-lg cursor-default ${uiHidden ? 'cursor-none' : ''}`}
-      ref={containerRef} onMouseMove={handleActivity} onMouseLeave={handleMouseLeave} onClick={handleActivity} onDoubleClick={() => toggleFullscreen()}
+      className={`group fix-safari-radius relative w-full aspect-video rounded-[24px] overflow-hidden cursor-default ${uiHidden ? 'cursor-none' : ''}`}
+      style={{
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05)'
+      }}
+      ref={containerRef} 
+      onMouseMove={handleActivity} 
+      onMouseLeave={handleMouseLeave} 
+      onClick={handleActivity} 
+      onDoubleClick={() => toggleFullscreen()}
     >
+      {/* Video Element */}
       <video 
-        ref={videoRef} className={`w-full h-full object-cover block transition-all duration-500 ${!isPlaying ? 'video-blur' : 'video-clear'}`}
-        playsInline muted={isMuted} poster={poster} onClick={togglePlay} onTimeUpdate={handleTimeUpdate}
+        ref={videoRef} 
+        className={`w-full h-full object-cover block transition-all duration-700 ease-out ${!isPlaying ? 'scale-[1.02] brightness-[0.85]' : 'scale-100 brightness-100'}`}
+        playsInline 
+        muted={isMuted} 
+        poster={poster} 
+        onClick={togglePlay} 
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        preload="metadata"
       >
         <source src={src} type="video/mp4" />
       </video>
       
-      <div className={`absolute inset-0 flex justify-center items-center bg-black/5 transition-all duration-300 z-10 ${isPlaying ? 'opacity-0 invisible' : 'opacity-100 visible'}`} onClick={togglePlay}>
-        <div className="relative flex items-center justify-center">
-            <button className="w-[100px] h-[100px] lg:w-[130px] lg:h-[130px] bg-white rounded-full flex items-center justify-center border-none cursor-pointer transition-transform duration-500 hover:scale-105 shadow-[0_0_50px_rgba(255,255,255,0.3)] relative z-20">
-                <div className="pl-1.5"><Play fill="black" stroke="none" size={42} /></div>
-            </button>
-        </div>
-      </div>
-
-      <div className={`absolute bottom-0 left-0 w-full px-5 py-4 lg:px-4 lg:py-5 bg-gradient-to-t from-black/60 to-transparent transition-opacity duration-300 flex items-center gap-5 z-20 ${uiHidden ? 'opacity-0' : 'opacity-90'}`} onClick={(e) => e.stopPropagation()}>
-        <div className="flex-grow h-5 flex items-center cursor-pointer group/seek relative" ref={progressBarRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseLeave={() => setHoverTime(null)}>
-          <AnimatePresence>
-             {(hoverTime || isDragging) && (
-                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="absolute bottom-8 bg-white/90 text-black text-[12px] font-bold px-1.5 py-0.5 rounded pointer-events-full transform -translate-x-1/2" style={{ left: tooltipPos }}>{hoverTime}</motion.div>
-             )}
-          </AnimatePresence>
-          <div className="w-full h-1 bg-white/30 rounded-sm relative transition-all group-hover/seek:h-1.5 overflow-hidden">
-            <div className="h-full bg-white rounded-sm relative" style={{ width: `${progress}%` }}></div>
-          </div>
-          <div className="absolute h-3 w-3 bg-white rounded-full shadow-md top-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-100 ease-out" style={{ left: `${progress}%`, marginLeft: '-6px', transform: (isDragging || hoverTime) ? 'translateY(-50%) scale(1)' : 'translateY(-50%) scale(0)' }}></div>
-        </div>
-
-        <div className="flex items-center gap-4 text-white relative">
-          <div className="relative flex items-center justify-center group/vol" onMouseEnter={() => setIsVolumeHovered(true)} onMouseLeave={() => setIsVolumeHovered(false)}>
-              <div className={`absolute bottom-[140%] left-1/2 -translate-x-1/2 w-8 h-24 bg-black/60 backdrop-blur-md rounded-full flex items-center justify-center transition-all duration-300 origin-bottom ${isVolumeHovered ? 'opacity-100 scale-100 visible' : 'opacity-0 scale-90 invisible'}`}>
-                  <input type="range" min="0" max="1" step="0.05" value={volume} onChange={handleVolumeChange} className="volume-slider w-16 h-1 absolute -rotate-90 origin-center cursor-pointer" />
+      {/* Play Button Overlay - Liquid Glass Style */}
+      <AnimatePresence>
+        {!isPlaying && (
+          <motion.div 
+            className="absolute inset-0 flex justify-center items-center z-10"
+            initial={{ opacity: 1 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0 }}
+            onClick={togglePlay}
+          >
+            {/* Subtle dark overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
+            
+            {/* Glass Play Button */}
+            <motion.button 
+              className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-full flex items-center justify-center cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                boxShadow: `
+                  0 8px 32px rgba(0,0,0,0.3),
+                  0 0 0 1px rgba(255,255,255,0.1) inset,
+                  0 32px 64px -16px rgba(0,0,0,0.5)
+                `
+              }}
+              initial={{ scale: 1, opacity: 1 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+            >
+              {/* Inner glow */}
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent" />
               </div>
-              <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all z-20 relative" onClick={toggleMute}><VolumeIcon size={24} /></button>
+              {/* Play icon */}
+              <div className="relative z-10 pl-2">
+                <Play fill="white" stroke="none" size={40} className="drop-shadow-lg" />
+              </div>
+              {/* Pulse ring */}
+              <motion.div 
+                className="absolute inset-0 rounded-full border-2 border-white/20"
+                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              />
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Controls Container - Compact Single Row */}
+      <motion.div 
+        className="absolute bottom-3 left-3 right-3 lg:bottom-4 lg:left-4 lg:right-4 z-20"
+        initial={false}
+        animate={{ 
+          opacity: uiHidden ? 0 : 1,
+          y: uiHidden ? 12 : 0,
+          scale: uiHidden ? 0.95 : 1,
+          filter: uiHidden ? 'blur(8px)' : 'blur(0px)',
+        }}
+        transition={{ 
+          duration: 0.25,
+          ease: [0.22, 1, 0.36, 1],
+          filter: { duration: 0.2 }
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <motion.div 
+          className="relative rounded-full"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.25)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2)'
+          }}
+          animate={{
+            boxShadow: uiHidden 
+              ? '0 4px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
+              : '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.25)'
+          }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Single Row Layout */}
+          <div className="flex items-center gap-2 lg:gap-3 px-2 lg:px-3 py-1.5 lg:py-2">
+            {/* Play/Pause */}
+            <GlassIconButton onClick={(e) => { e.stopPropagation(); togglePlay(); }} isActive={isPlaying}>
+              {isPlaying ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="4" width="4" height="16" rx="1" />
+                  <rect x="14" y="4" width="4" height="16" rx="1" />
+                </svg>
+              ) : (
+                <Play fill="currentColor" stroke="none" size={14} className="ml-0.5" />
+              )}
+            </GlassIconButton>
+
+            {/* Current Time */}
+            <span className="text-white/90 text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px]">
+              {currentTime}
+            </span>
+
+            {/* Progress Bar - Takes remaining space */}
+            <div 
+              className="relative flex-1 h-8 flex items-center cursor-pointer group/seek" 
+              ref={progressBarRef} 
+              onMouseDown={handleMouseDown} 
+              onMouseMove={handleMouseMove} 
+              onMouseLeave={() => setHoverTime(null)}
+            >
+              {/* Time Tooltip - positioned above with high z-index */}
+              <AnimatePresence>
+                {(hoverTime || isDragging) && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 4, scale: 0.95 }} 
+                    animate={{ opacity: 1, y: 0, scale: 1 }} 
+                    exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                    transition={{ duration: 0.12 }}
+                    className="absolute bottom-[calc(100%+8px)] px-2.5 py-1 rounded-lg text-white text-xs font-bold pointer-events-none z-50"
+                    style={{ 
+                      left: tooltipPos,
+                      transform: 'translateX(-50%)',
+                      background: 'rgba(0,0,0,0.85)',
+                      backdropFilter: 'blur(12px)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {hoverTime}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Progress Track */}
+              <div className="w-full h-1 rounded-full relative overflow-hidden bg-white/20 transition-all duration-150 group-hover/seek:h-1.5">
+                <div className="absolute inset-y-0 left-0 bg-white/25 rounded-full" style={{ width: `${buffered}%` }} />
+                <div 
+                  className="absolute inset-y-0 left-0 rounded-full bg-white"
+                  style={{ width: `${progress}%`, boxShadow: '0 0 8px rgba(255,255,255,0.4)' }}
+                />
+              </div>
+
+              {/* Seek Handle */}
+              <motion.div 
+                className="absolute top-1/2 pointer-events-none"
+                style={{ left: `${progress}%` }}
+                animate={{ scale: (isDragging || hoverTime) ? 1 : 0, y: '-50%', x: '-50%' }}
+                transition={{ duration: 0.1 }}
+              >
+                <div className="w-3 h-3 rounded-full bg-white shadow-md" />
+              </motion.div>
+            </div>
+
+            {/* Duration */}
+            <span className="text-white/50 text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px] text-right">
+              {duration}
+            </span>
+
+            {/* Volume */}
+            <div 
+              className="relative flex items-center justify-center"
+              onMouseEnter={() => setIsVolumeHovered(true)} 
+              onMouseLeave={() => {
+                if (!isVolumeDragging) setIsVolumeHovered(false);
+              }}
+            >
+              <GlassIconButton onClick={toggleMute}>
+                <VolumeIcon size={16} />
+              </GlassIconButton>
+              
+              <AnimatePresence>
+                {(isVolumeHovered || isVolumeDragging) && (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.85, y: 8, filter: 'blur(8px)', x: '-50%' }}
+                    animate={{ 
+                      opacity: 1, 
+                      scale: 1, 
+                      y: 0,
+                      filter: 'blur(0px)',
+                      x: '-50%'
+                    }}
+                    exit={{ 
+                      opacity: 0, 
+                      scale: 0.9, 
+                      y: 6,
+                      filter: 'blur(4px)',
+                      x: '-50%',
+                      transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] }
+                    }}
+                    transition={{ 
+                      duration: 0.3, 
+                      ease: [0.22, 1, 0.36, 1],
+                      scale: { type: "spring", stiffness: 300, damping: 25 }
+                    }}
+                    className="absolute bottom-full mb-3 left-1/2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div
+                      className="px-2.5 py-3 rounded-2xl flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                        backdropFilter: 'blur(30px) saturate(180%)',
+                        WebkitBackdropFilter: 'blur(30px) saturate(180%)',
+                        border: '1px solid rgba(255,255,255,0.25)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)'
+                      }}
+                    >
+                      {/* Vertical Volume Slider */}
+                      <div 
+                        data-volume-slider
+                        className="relative w-2 h-[70px] rounded-full cursor-pointer"
+                        style={{ 
+                          background: 'rgba(255,255,255,0.25)',
+                          position: 'relative'
+                        }}
+                        onMouseDown={handleVolumeMouseDown}
+                      >
+                        {/* Volume Fill with glow */}
+                        <motion.div 
+                          className="absolute inset-x-0 bottom-0 rounded-full bg-white"
+                          style={{ 
+                            height: `${volume * 100}%`,
+                            width: '100%',
+                            boxShadow: '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
+                          }}
+                          animate={{ 
+                            boxShadow: volume > 0 ? [
+                              '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)',
+                              '0 0 16px rgba(255,255,255,0.7), 0 0 32px rgba(255,255,255,0.4)',
+                              '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
+                            ] : '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
+                          }}
+                          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        />
+                        {/* Volume Handle with pulse */}
+                        <div 
+                          className="absolute left-1/2 -translate-x-1/2"
+                          style={{ 
+                            bottom: `calc(${volume * 100}% - 7px)`
+                          }}
+                        >
+                          <motion.div 
+                            className="w-3.5 h-3.5 rounded-full bg-white shadow-lg"
+                            animate={{ 
+                              scale: isVolumeDragging ? 1.2 : 1,
+                              boxShadow: isVolumeDragging 
+                                ? '0 0 16px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.3)'
+                                : '0 2px 8px rgba(0,0,0,0.2), 0 0 8px rgba(255,255,255,0.4)'
+                            }}
+                            transition={{ duration: 0.15 }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Fullscreen */}
+            <GlassIconButton onClick={(e) => toggleFullscreen(e)}>
+              <Maximize size={16} />
+            </GlassIconButton>
           </div>
-          <button className="opacity-80 hover:opacity-100 hover:scale-110 transition-all" onClick={(e) => toggleFullscreen(e)}><Maximize size={24} /></button>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
-};
+});
 
 // =========================================
 // PAGES
@@ -806,10 +1141,15 @@ const WorkPage = () => {
   const initialProjects = [
     { id: 1, title: 'Elf Bar', category: 'Personal', video: 'vid/elf_preview.mp4', img: 'img/preview2.png', link: 'elfbar' },
     { id: 2, title: 'Radio ostrov', category: 'Comercial', video: 'vid/radioO_preview.mp4', img: 'img/radioO_preview.png', link: 'radiostrov' },
-	{ id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
-	{ id: 4, title: 'PSO short animation', category: 'Personal', video: 'work/pso/anim_1.mp4', img: 'work/pso/img_1.png', link: 'pso' },
-	{ id: 5, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_preview.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
-	{ id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto_preview.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
+    { id: 3, title: 'LKT group', category: 'Comercial', video: 'vid/lkt_preview.mp4', img: 'img/previewLKT.jpg', link: 'lkt' },
+    { id: 4, title: 'Price auto', category: 'Comercial', video: 'work/priceauto/price_auto_preview.mp4', img: 'work/priceauto/pa_preview.png', link: 'priceauto' },
+    { id: 5, title: 'PSO short animation', category: 'Personal', video: 'work/pso/anim_1.mp4', img: 'work/pso/img_1.png', link: 'pso' },
+    { id: 6, title: 'Stroy prosto', category: 'Comercial', video: 'work/stroyprosto/StroyProsto_preview.mp4', img: 'work/stroyprosto/stroyprosto.jpg', link: 'stroyprosto' },
+    { id: 7, title: 'X-particles flow', category: 'Personal', video: 'work/xparticles/preview.mp4', img: 'work/xparticles/xparticles_preview.png', link: 'xparticles' },
+    { id: 8, title: 'Candy Shop', category: 'Personal', video: 'work/candyshop/preview.mp4', img: 'work/candyshop/candyshop.png', link: 'candyshop' },
+    { id: 9, title: 'Music clips & VFX', category: 'Personal & Comercial', video: 'work/musicvfx/preview.mp4', img: 'work/musicvfx/musicvfx.png', link: 'musicvfx' },
+    { id: 10, title: 'Mobile advertesments', category: 'Comercial', video: 'work/mobileads/preview.mp4', img: 'work/mobileads/mobileads.png', link: 'mobileads' },
+    { id: 11, title: '3D motion renders', category: 'Personal', video: 'work/3dmotion/preview.mp4', img: 'work/3dmotion/3dmotion.png', link: '3dmotion' },
   ];
   
   const [projects, setProjects] = useState<any[]>(initialProjects);
@@ -1347,7 +1687,7 @@ const ElfBar = ({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
         video={{ src: 'https://video.f1nal.me/elfbar.mp4', poster: 'work/elfbar/img_18.png' }}
         gallery={[]} 
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, Adobe Suite']}
-        prev={{ label: 'LKT group', link: 'lkt' }} next={{ label: 'RadioOstrov', link: 'radiostrov' }}
+        prev={{ label: '3D motion renders', link: '3dmotion' }} next={{ label: 'RadioOstrov', link: 'radiostrov' }}
     >
         <div className="flex flex-col gap-2 lg:gap-0 w-full mb-[0px]">
 		    <div className="grid grid-cols-1 lg:grid-cols-1 gap-0 lg:gap-0">
@@ -1444,7 +1784,7 @@ const Lkt = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
         title="LKT group" meta="Comercial / 2024" 
         desc="For LKT Group, an international leader in industrial supply, my goal was to develop a seamless brand consistency across digital and print media. This project integrates photorealistic 3D visualizations of production lines with user-friendly web interfaces and detailed catalog layouts. It demonstrates my ability to merge technical precision with creative design to support global sales in sectors ranging from food processing to mining."
         gallery={[]} credits={['<strong>Client:</strong> LKT Company']}
-        prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'PSO short animation', link: 'pso' }}
+        prev={{ label: 'RadioOstrov', link: 'radiostrov' }} next={{ label: 'Price auto', link: 'priceauto' }}
     >
 	<div className="grid grid-cols-1 lg:grid-cols-1 gap-6 lg:gap-8">
                 
@@ -1452,18 +1792,10 @@ const Lkt = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
             </div>
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
 		   <ImageBlock src="work/lkt/img_1.png" alt="" onClick={() => onOpenImage('work/lkt/img_1.png')} />
-		    <Suspense fallback={<PageLoader />}>
-                <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
-            </Suspense>
-            <Suspense fallback={<PageLoader />}>
-                <PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
-            </Suspense>
-            <Suspense fallback={<PageLoader />}>
-                <PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
-            </Suspense>
-            <Suspense fallback={<PageLoader />}>
-                <PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
-            </Suspense>
+		   <PDFViewer pdfUrl="/pdfs/AWI_RU.pdf" />
+           <PDFViewer pdfUrl="/pdfs/LKT_WERKE_RU.pdf" />
+           <PDFViewer pdfUrl="/pdfs/GOLDENDIE_RU.pdf" />
+           <PDFViewer pdfUrl="/pdfs/GOLDENMILL_RU.pdf" />
         </div>
     </ProjectPage>
 ));
@@ -1477,8 +1809,8 @@ The project involved building the entire location from scratch — from the stru
 Work included complex 3D modeling, texturing, lighting setup, and character animation to bring a realistic sports atmosphere to life. Advanced lighting simulations were used to visualize both daytime and nighttime scenarios, emphasizing stadium illumination, material behavior, and overall mood."
         video={{ src: 'https://video.f1nal.me/pso.mp4', poster: 'work/pso/img_1.png' }}
         credits={['<strong>Client:</strong> Elf Bar', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'LKT group', link: 'lkt' }} 
-        next={{ label: 'Price auto', link: 'priceauto' }} 
+        prev={{ label: 'Price auto', link: 'priceauto' }} 
+        next={{ label: 'Stroy prosto', link: 'stroyprosto' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
@@ -1513,8 +1845,8 @@ The project includes 3D modeling, texturing, lighting, and timeline-based animat
 The final sequence delivers a strong, memorable visual identity suitable for promo content and brand presentations."
         video={{ src: 'https://video.f1nal.me/price_auto_intro.mp4', poster: 'work/priceauto/pa_preview.png' }}
         credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'PSO short animation', link: 'pso' }} 
-        next={{ label: 'Stroy prosto', link: 'stroyprosto' }} 
+        prev={{ label: 'LKT group', link: 'lkt' }} 
+        next={{ label: 'PSO short animation', link: 'pso' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
             {/* Секция с картинками */}
@@ -1543,30 +1875,160 @@ const Stroyprosto = ({ onOpenImage }: { onOpenImage: (src: string) => void }) =>
         desc="A promotional 3D video created for СтройПросто, a construction company specializing in countryside house development.
 The animation showcases a full 3D assembly of a modern house — from the foundation and rising structures to the completed exterior — supported by realistic materials, lighting, and smoke-based reveal effects.
 
-The project includes architectural 3D modeling, texturing, lighting, and cinematic rendering designed to highlight the company’s product: turnkey homes with modern design and accessible mortgage options.
+The project includes architectural 3D modeling, texturing, lighting, and cinematic rendering designed to highlight the company's product: turnkey homes with modern design and accessible mortgage options.
 The final video serves as a clean, informative promo piece, combining realism, clarity, and brand-focused visuals for use in advertising and social media."
         video={{ src: 'https://video.f1nal.me/StroyProsto.mp4', poster: 'work/stroyprosto/stroyprosto.jpg' }}
-        credits={['<strong>Client:</strong> Price Auto', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
-        prev={{ label: 'Price auto', link: 'priceauto' }} 
-        next={{ label: 'Elf Bar', link: 'elfbar' }} 
+        credits={['<strong>Client:</strong> СтройПросто', '<strong>Role:</strong> 3D Motion Design, SFX', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'PSO short animation', link: 'pso' }} 
+        next={{ label: 'X-particles flow', link: 'xparticles' }} 
     >
         <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
-            {/* Секция с картинками */}
-            
-            {/* Секция с картинками */}
             <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
                 <ImageBlock src="work/stroyprosto/img_1.jpg" alt="" onClick={() => onOpenImage('work/stroyprosto/img_1.jpg')} />
-				<ImageBlock src="work/stroyprosto/img_1.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_1.png')} />
-				<ImageBlock src="work/stroyprosto/img_2.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_2.png')} />
-				<ImageBlock src="work/stroyprosto/img_3.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_3.png')} />
+                <ImageBlock src="work/stroyprosto/img_1.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_1.png')} />
+                <ImageBlock src="work/stroyprosto/img_2.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_2.png')} />
+                <ImageBlock src="work/stroyprosto/img_3.png" alt="" onClick={() => onOpenImage('work/stroyprosto/img_3.png')} />
             </div>
-
-            {/* Новая анимация (Video loop) */}
             <AnimBlock src="work/stroyprosto/anim_1.mp4" />
-
         </div>
     </ProjectPage>
 );
+
+// --- X-PARTICLES FLOW ---
+const Xparticles = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="X-particles flow" 
+        meta="Personal / 2023"
+        desc="An experimental project exploring the dynamic capabilities of X-Particles plugin for Cinema 4D. The work showcases fluid simulations, particle dynamics, and organic motion design.
+
+This piece demonstrates advanced particle system control, including emitter behaviors, forces, and rendering techniques to create mesmerizing abstract visuals that flow and evolve over time."
+        video={{ src: 'work/xparticles/preview.mp4', poster: '/img/xparticles_preview.png' }}
+        credits={['<strong>Project:</strong> Personal', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, X-Particles, Redshift']}
+        prev={{ label: 'Stroy prosto', link: 'stroyprosto' }} 
+        next={{ label: 'Candy Shop', link: 'candyshop' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/xparticles/img_1.jpg" alt="" onClick={() => onOpenImage('work/xparticles/img_1.jpg')} />
+                <ImageBlock src="work/xparticles/img_2.jpg" alt="" onClick={() => onOpenImage('work/xparticles/img_2.jpg')} />
+                <ImageBlock src="work/xparticles/img_3.jpg" alt="" onClick={() => onOpenImage('work/xparticles/img_3.jpg')} />
+                <ImageBlock src="work/xparticles/img_4.jpg" alt="" onClick={() => onOpenImage('work/xparticles/img_4.jpg')} />
+            </div>
+            <AnimBlock src="work/xparticles/anim_1.mp4" />
+            <AnimBlock src="work/xparticles/anim_2.mp4" />
+        </div>
+    </ProjectPage>
+));
+
+// --- CANDY SHOP ---
+const Candyshop = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="Candy Shop" 
+        meta="Personal / 2023"
+        desc="A vibrant 3D visualization project featuring stylized candy and confectionery products. The work combines photorealistic rendering with playful, colorful aesthetics.
+
+The project showcases product visualization techniques including realistic materials for glass, plastic, and glossy surfaces, combined with creative lighting setups to achieve an appetizing, commercial-ready look."
+        video={{ src: 'https://video.f1nal.me/candyshop.mp4', poster: 'work/candyshop/preview.jpg' }}
+        credits={['<strong>Project:</strong> Personal', '<strong>Role:</strong> 3D Visualization, Motion Design', '<strong>Tools:</strong> Cinema 4d, Redshift, Adobe Suite']}
+        prev={{ label: 'X-particles flow', link: 'xparticles' }} 
+        next={{ label: 'Music clips & VFX', link: 'musicvfx' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/candyshop/img_1.jpg" alt="" onClick={() => onOpenImage('work/candyshop/img_1.jpg')} />
+                <ImageBlock src="work/candyshop/img_2.jpg" alt="" onClick={() => onOpenImage('work/candyshop/img_2.jpg')} />
+                <ImageBlock src="work/candyshop/img_3.jpg" alt="" onClick={() => onOpenImage('work/candyshop/img_3.jpg')} />
+                <ImageBlock src="work/candyshop/img_4.jpg" alt="" onClick={() => onOpenImage('work/candyshop/img_4.jpg')} />
+            </div>
+            <AnimBlock src="work/candyshop/anim_1.mp4" />
+            <AnimBlock src="work/candyshop/anim_2.mp4" />
+        </div>
+    </ProjectPage>
+));
+
+// --- MUSIC CLIPS & VFX ---
+const Musicvfx = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="Music clips & VFX" 
+        meta="Personal & Comercial / 2020-2024"
+        desc="A collection of visual effects and motion graphics created for music videos and artistic collaborations. This portfolio showcases a range of styles from abstract visuals to narrative-driven sequences.
+
+The work includes compositing, particle effects, color grading, and seamless integration of 3D elements with live footage, demonstrating versatility in creating immersive visual experiences for musical content."
+        video={{ src: 'work/musicvfx/preview.mp4', poster: 'work/musicvfx/preview.jpg' }}
+        credits={['<strong>Project:</strong> Various Artists', '<strong>Role:</strong> VFX, Motion Design, Compositing', '<strong>Tools:</strong> After Effects, Cinema 4d, DaVinci Resolve']}
+        prev={{ label: 'Candy Shop', link: 'candyshop' }} 
+        next={{ label: 'Mobile advertesments', link: 'mobileads' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/musicvfx/img_1.jpg" alt="" onClick={() => onOpenImage('work/musicvfx/img_1.jpg')} />
+                <ImageBlock src="work/musicvfx/img_2.jpg" alt="" onClick={() => onOpenImage('work/musicvfx/img_2.jpg')} />
+                <ImageBlock src="work/musicvfx/img_3.jpg" alt="" onClick={() => onOpenImage('work/musicvfx/img_3.jpg')} />
+                <ImageBlock src="work/musicvfx/img_4.jpg" alt="" onClick={() => onOpenImage('work/musicvfx/img_4.jpg')} />
+            </div>
+            <AnimBlock src="work/musicvfx/anim_1.mp4" />
+            <AnimBlock src="work/musicvfx/anim_2.mp4" />
+            <AnimBlock src="work/musicvfx/anim_3.mp4" />
+        </div>
+    </ProjectPage>
+));
+
+// --- MOBILE ADVERTISEMENTS ---
+const Mobileads = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="Mobile advertesments" 
+        meta="Comercial / 2021-2024"
+        desc="A series of engaging mobile advertisement videos designed for social media platforms and in-app placements. Each piece is optimized for vertical viewing and quick engagement.
+
+The projects feature dynamic motion graphics, eye-catching transitions, and clear call-to-actions, all crafted to maximize user engagement within the constraints of mobile advertising formats."
+        video={{ src: 'https://video.f1nal.me/mobads.mp4', poster: 'work/mobileads/preview.jpg' }}
+        credits={['<strong>Clients:</strong> Various Brands', '<strong>Role:</strong> Motion Design, Animation', '<strong>Tools:</strong> After Effects, Cinema 4d, Premiere Pro']}
+        prev={{ label: 'Music clips & VFX', link: 'musicvfx' }} 
+        next={{ label: '3D motion renders', link: '3dmotion' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/mobileads/img_1.jpg" alt="" onClick={() => onOpenImage('work/mobileads/img_1.jpg')} />
+                <ImageBlock src="work/mobileads/img_2.jpg" alt="" onClick={() => onOpenImage('work/mobileads/img_2.jpg')} />
+                <ImageBlock src="work/mobileads/img_3.jpg" alt="" onClick={() => onOpenImage('work/mobileads/img_3.jpg')} />
+                <ImageBlock src="work/mobileads/img_4.jpg" alt="" onClick={() => onOpenImage('work/mobileads/img_4.jpg')} />
+            </div>
+            <AnimBlock src="work/mobileads/anim_1.mp4" />
+            <AnimBlock src="work/mobileads/anim_2.mp4" />
+        </div>
+    </ProjectPage>
+));
+
+// --- 3D MOTION RENDERS ---
+const Motion3d = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }) => (
+    <ProjectPage 
+        title="3D motion renders" 
+        meta="Personal / 2022-2024"
+        desc="A curated collection of personal 3D motion design experiments and renders. These pieces explore various aesthetics, from abstract geometric forms to photorealistic product shots.
+
+Each render represents an exploration of lighting, materials, and motion principles, serving as both technical exercises and creative expressions of 3D artistry."
+        video={{ src: 'work/3dmotion/preview.mp4', poster: 'work/3dmotion/preview.jpg' }}
+        credits={['<strong>Project:</strong> Personal', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, Redshift, Octane']}
+        prev={{ label: 'Mobile advertesments', link: 'mobileads' }} 
+        next={{ label: 'Elf Bar', link: 'elfbar' }} 
+    >
+        <div className="flex flex-col gap-6 lg:gap-8 w-full mb-[60px]">
+            <div className="grid grid-cols-2 lg:grid-cols-2 gap-6 lg:gap-8">
+                <ImageBlock src="work/3dmotion/img_1.jpg" alt="" onClick={() => onOpenImage('work/3dmotion/img_1.jpg')} />
+                <ImageBlock src="work/3dmotion/img_2.jpg" alt="" onClick={() => onOpenImage('work/3dmotion/img_2.jpg')} />
+                <ImageBlock src="work/3dmotion/img_3.jpg" alt="" onClick={() => onOpenImage('work/3dmotion/img_3.jpg')} />
+                <ImageBlock src="work/3dmotion/img_4.jpg" alt="" onClick={() => onOpenImage('work/3dmotion/img_4.jpg')} />
+            </div>
+            <AnimBlock src="work/3dmotion/anim_1.mp4" />
+            <AnimBlock src="work/3dmotion/anim_2.mp4" />
+            <AnimBlock src="work/3dmotion/anim_3.mp4" />
+            <AnimBlock src="https://video.f1nal.me/3.mp4" />
+            <AnimBlock src="https://video.f1nal.me/4.mp4" />
+            <AnimBlock src="https://video.f1nal.me/6.mp4" />
+            <AnimBlock src="https://video.f1nal.me/9.mp4" />
+        </div>
+    </ProjectPage>
+));
 
 
 
@@ -1624,11 +2086,16 @@ export default function App() {
                     
                     {/* PROJECTS ROUTES */}
                     <Route path="/elfbar" element={<ElfBar onOpenImage={setPlayModalSrc} />} />
-					<Route path="/radiostrov" element={<Radiostrov onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/radiostrov" element={<Radiostrov onOpenImage={setPlayModalSrc} />} />
                     <Route path="/lkt" element={<Lkt onOpenImage={setPlayModalSrc} />} />
-					<Route path="/pso" element={<Pso onOpenImage={setPlayModalSrc} />} />
-					<Route path="/priceauto" element={<Priceauto onOpenImage={setPlayModalSrc} />} />
-					<Route path="/stroyprosto" element={<Stroyprosto onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/pso" element={<Pso onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/priceauto" element={<Priceauto onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/stroyprosto" element={<Stroyprosto onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/xparticles" element={<Xparticles onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/candyshop" element={<Candyshop onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/musicvfx" element={<Musicvfx onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/mobileads" element={<Mobileads onOpenImage={setPlayModalSrc} />} />
+                    <Route path="/3dmotion" element={<Motion3d onOpenImage={setPlayModalSrc} />} />
 
                     {/* Fallback */}
                     <Route path="*" element={<WorkPage />} />

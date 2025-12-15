@@ -5,7 +5,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { Document, Page, pdfjs } from 'react-pdf';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+// PDF.js worker setup - local file copied by vite-plugin-static-copy
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 // --- Styles ---
 const PDF_STYLES = `

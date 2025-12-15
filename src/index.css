@@ -191,6 +191,75 @@ input[type=range].volume-slider::-moz-range-thumb {
   cursor: pointer;
 }
 
+/* =========================================
+   LIQUID GLASS VOLUME SLIDER (VisionOS Style)
+========================================= */
+input[type=range].volume-slider-glass {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+input[type=range].volume-slider-glass::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 
+    inset 0 1px 2px rgba(0,0,0,0.1),
+    0 1px 1px rgba(255,255,255,0.1);
+}
+
+input[type=range].volume-slider-glass::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(240,240,240,1) 100%);
+  margin-top: -7px;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 4px 12px rgba(0,0,0,0.3),
+    0 0 0 1px rgba(255,255,255,0.2),
+    inset 0 1px 2px rgba(255,255,255,0.8);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+input[type=range].volume-slider-glass::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 
+    0 6px 16px rgba(0,0,0,0.35),
+    0 0 0 2px rgba(255,255,255,0.3),
+    inset 0 1px 2px rgba(255,255,255,0.8);
+}
+
+input[type=range].volume-slider-glass::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.3) 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+input[type=range].volume-slider-glass::-moz-range-thumb {
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,1) 0%, rgba(240,240,240,1) 100%);
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 4px 12px rgba(0,0,0,0.3),
+    0 0 0 1px rgba(255,255,255,0.2),
+    inset 0 1px 2px rgba(255,255,255,0.8);
+}
+
 /* iOS Safe Area */
 .ios-safearea-overlay {
     position: fixed;

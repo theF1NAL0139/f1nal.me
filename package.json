@@ -40,7 +40,8 @@
     "typescript": "^5.2.2",
     "typescript-eslint": "^8.0.0",
     "vite": "^5.1.4",
-    "vite-plugin-compression": "^0.5.1"
+    "vite-plugin-compression": "^0.5.1",
+    "vite-plugin-static-copy": "^3.1.4"
   },
   "overrides": {
     "pdfjs-dist": "3.11.174"

@@ -9,9 +9,8 @@
     <link rel="dns-prefetch" href="https://video.f1nal.me">
     <link rel="dns-prefetch" href="https://unpkg.com">
     
-    <!-- Preload критичных шрифтов (только используемые веса) -->
+    <!-- Preload критичных шрифтов (только woff2) -->
     <link rel="preload" href="/fonts/FunnelDisplay-Regular.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="/fonts/FunnelDisplay-SemiBold.ttf" as="font" type="font/ttf" crossorigin>
     
     <!-- Favicon -->
     <link rel="icon" type="image/webp" href="/img/favicon.webp" />
@@ -86,6 +85,11 @@
     </div>
     
     <div id="root"></div>
+    
+    <!-- PDF.js worker global setup -->
+    <script>
+      window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     
     <script type="module" src="/src/main.tsx"></script>
     
