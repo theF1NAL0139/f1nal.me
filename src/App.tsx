@@ -514,25 +514,31 @@ const GlassIconButton = memo(({ onClick, children, className = "", isActive = fa
     }}
     animate={{
       background: isActive 
-        ? 'rgba(255,255,255,0.35)' 
-        : 'rgba(255,255,255,0.15)',
+        ? 'rgba(255,255,255,0.4)' 
+        : 'rgba(255,255,255,0.25)',
       boxShadow: isActive
-        ? '0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 20px rgba(255,255,255,0.2)'
-        : '0 2px 12px -2px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)'
+        ? '0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5), 0 0 20px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
+        : '0 2px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4), 0 0 0 1px rgba(0,0,0,0.2)'
     }}
     transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
     className={`
       relative w-8 h-8 lg:w-9 lg:h-9 rounded-full flex items-center justify-center
-      backdrop-blur-md border border-white/25
+      backdrop-blur-md border border-white/30
       cursor-pointer
-      hover:border-white/35
+      hover:border-white/40
       ${className}
     `}
+    style={{
+      filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+    }}
   >
     <motion.div 
-      className="relative z-10 text-white drop-shadow-sm"
+      className="relative z-10 text-white"
       animate={{ scale: isActive ? 1.05 : 1 }}
       transition={{ duration: 0.15 }}
+      style={{
+        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8)) drop-shadow(0 0 4px rgba(0,0,0,0.6))'
+      }}
     >
       {children}
     </motion.div>
@@ -812,6 +818,14 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
         )}
       </AnimatePresence>
 
+      {/* Dark gradient overlay for controls visibility */}
+      <div 
+        className="absolute bottom-0 left-0 right-0 h-24 lg:h-28 z-10 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)'
+        }}
+      />
+
       {/* Controls Container - Compact Single Row */}
       <motion.div 
         className="absolute bottom-3 left-3 right-3 lg:bottom-4 lg:left-4 lg:right-4 z-20"
@@ -832,16 +846,16 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
         <motion.div 
           className="relative rounded-full"
           style={{
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.08) 100%)',
+            background: 'linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.65) 100%)',
             backdropFilter: 'blur(24px) saturate(180%)',
             WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.25)',
-            boxShadow: '0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.2)'
+            border: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3) inset, 0 1px 0 rgba(255,255,255,0.15) inset'
           }}
           animate={{
             boxShadow: uiHidden 
-              ? '0 4px 24px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
-              : '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.25)'
+              ? '0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.2) inset, 0 1px 0 rgba(255,255,255,0.1) inset'
+              : '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.4) inset, 0 1px 0 rgba(255,255,255,0.2) inset'
           }}
           transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
         >
@@ -860,7 +874,12 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
             </GlassIconButton>
 
             {/* Current Time */}
-            <span className="text-white/90 text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px]">
+            <span 
+              className="text-white text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px]"
+              style={{
+                textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)'
+              }}
+            >
               {currentTime}
             </span>
 
@@ -884,10 +903,11 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                     style={{ 
                       left: tooltipPos,
                       transform: 'translateX(-50%)',
-                      background: 'rgba(0,0,0,0.85)',
+                      background: 'rgba(0,0,0,0.9)',
                       backdropFilter: 'blur(12px)',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
                       whiteSpace: 'nowrap',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.8)'
                     }}
                   >
                     {hoverTime}
@@ -896,11 +916,27 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
               </AnimatePresence>
 
               {/* Progress Track */}
-              <div className="w-full h-1 rounded-full relative overflow-hidden bg-white/20 transition-all duration-150 group-hover/seek:h-1.5">
-                <div className="absolute inset-y-0 left-0 bg-white/25 rounded-full" style={{ width: `${buffered}%` }} />
+              <div 
+                className="w-full h-1 rounded-full relative overflow-hidden transition-all duration-150 group-hover/seek:h-1.5"
+                style={{
+                  background: 'rgba(255,255,255,0.25)',
+                  boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
+                }}
+              >
+                <div 
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ 
+                    width: `${buffered}%`,
+                    background: 'rgba(255,255,255,0.35)',
+                    boxShadow: 'inset 0 1px 1px rgba(255,255,255,0.5)'
+                  }}
+                />
                 <div 
                   className="absolute inset-y-0 left-0 rounded-full bg-white"
-                  style={{ width: `${progress}%`, boxShadow: '0 0 8px rgba(255,255,255,0.4)' }}
+                  style={{ 
+                    width: `${progress}%`, 
+                    boxShadow: '0 0 8px rgba(255,255,255,0.6), 0 0 16px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
+                  }}
                 />
               </div>
 
@@ -911,12 +947,22 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                 animate={{ scale: (isDragging || hoverTime) ? 1 : 0, y: '-50%', x: '-50%' }}
                 transition={{ duration: 0.1 }}
               >
-                <div className="w-3 h-3 rounded-full bg-white shadow-md" />
+                <div 
+                  className="w-3 h-3 rounded-full bg-white"
+                  style={{
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), 0 0 12px rgba(255,255,255,0.5)'
+                  }}
+                />
               </motion.div>
             </div>
 
             {/* Duration */}
-            <span className="text-white/50 text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px] text-right">
+            <span 
+              className="text-white/80 text-[11px] lg:text-xs font-medium tabular-nums min-w-[32px] lg:min-w-[36px] text-right"
+              style={{
+                textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.5)'
+              }}
+            >
               {duration}
             </span>
 
@@ -1935,7 +1981,7 @@ const Xparticles = memo(({ onOpenImage }: { onOpenImage: (src: string) => void }
         desc="An experimental project exploring the dynamic capabilities of X-Particles plugin for Cinema 4D. The work showcases fluid simulations, particle dynamics, and organic motion design.
 
 This piece demonstrates advanced particle system control, including emitter behaviors, forces, and rendering techniques to create mesmerizing abstract visuals that flow and evolve over time."
-        video={{ src: 'work/xparticles/preview.mp4', poster: '/img/xparticles_preview.png' }}
+        video={{ src: 'https://video.f1nal.me/X-Particles_intro.mp4', poster: '/img/xparticles_preview.png' }}
         credits={['<strong>Project:</strong> Personal', '<strong>Role:</strong> 3D Motion Design', '<strong>Tools:</strong> Cinema 4d, X-Particles, Redshift']}
         prev={{ label: 'Stroy prosto', link: 'stroyprosto' }} 
         next={{ label: 'Candy Shop', link: 'candyshop' }} 
