@@ -778,19 +778,16 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
             {/* Subtle dark overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
             
-            {/* Glass Play Button */}
+            {/* Dark Play Button */}
             <motion.button 
-              className="relative w-24 h-24 lg:w-32 lg:h-32 rounded-full flex items-center justify-center cursor-pointer"
+              className="relative w-12 h-12 lg:w-32 lg:h-32 rounded-full flex items-center justify-center cursor-pointer"
               style={{
-                background: 'linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.1) 100%)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.3)',
-                boxShadow: `
-                  0 8px 32px rgba(0,0,0,0.3),
-                  0 0 0 1px rgba(255,255,255,0.1) inset,
-                  0 32px 64px -16px rgba(0,0,0,0.5)
-                `
+                background: 'linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.65) 100%)',
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.3) inset, 0 1px 0 rgba(255,255,255,0.15) inset',
+                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
               }}
               initial={{ scale: 1, opacity: 1 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -799,13 +796,17 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
               whileTap={{ scale: 0.95 }}
               transition={{ duration: 0.15 }}
             >
-              {/* Inner glow */}
-              <div className="absolute inset-0 rounded-full overflow-hidden">
-                <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent" />
-              </div>
               {/* Play icon */}
-              <div className="relative z-10 pl-2">
-                <Play fill="white" stroke="none" size={40} className="drop-shadow-lg" />
+              <div className="relative z-10 pl-1 lg:pl-2">
+                <Play 
+                  fill="white" 
+                  stroke="none" 
+                  size={20}
+                  className="w-5 h-5 lg:w-10 lg:h-10 drop-shadow-lg"
+                  style={{
+                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8)) drop-shadow(0 0 4px rgba(0,0,0,0.6))'
+                  }}
+                />
               </div>
               {/* Pulse ring */}
               <motion.div 
@@ -819,12 +820,7 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
       </AnimatePresence>
 
       {/* Dark gradient overlay for controls visibility */}
-      <div 
-        className="absolute bottom-0 left-0 right-0 h-24 lg:h-28 z-10 pointer-events-none"
-        style={{
-          background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.4) 50%, transparent 100%)'
-        }}
-      />
+     
 
       {/* Controls Container - Compact Single Row */}
       <motion.div 
@@ -1008,11 +1004,12 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                     <div
                       className="px-2.5 py-3 rounded-2xl flex items-center justify-center"
                       style={{
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%)',
+                        background: 'linear-gradient(135deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.65) 100%)',
                         backdropFilter: 'blur(30px) saturate(180%)',
                         WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-                        border: '1px solid rgba(255,255,255,0.25)',
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.3)'
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,0,0,0.3) inset, 0 1px 0 rgba(255,255,255,0.15) inset',
+                        filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
                       }}
                     >
                       {/* Vertical Volume Slider */}
@@ -1021,6 +1018,7 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                         className="relative w-2 h-[70px] rounded-full cursor-pointer"
                         style={{ 
                           background: 'rgba(255,255,255,0.25)',
+                          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.2)',
                           position: 'relative'
                         }}
                         onMouseDown={handleVolumeMouseDown}
@@ -1031,14 +1029,14 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                           style={{ 
                             height: `${volume * 100}%`,
                             width: '100%',
-                            boxShadow: '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
+                            boxShadow: '0 0 8px rgba(255,255,255,0.6), 0 0 16px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
                           }}
                           animate={{ 
                             boxShadow: volume > 0 ? [
-                              '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)',
-                              '0 0 16px rgba(255,255,255,0.7), 0 0 32px rgba(255,255,255,0.4)',
-                              '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
-                            ] : '0 0 12px rgba(255,255,255,0.6), 0 0 24px rgba(255,255,255,0.3)'
+                              '0 0 8px rgba(255,255,255,0.6), 0 0 16px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)',
+                              '0 0 12px rgba(255,255,255,0.7), 0 0 24px rgba(255,255,255,0.4), 0 0 0 1px rgba(0,0,0,0.3)',
+                              '0 0 8px rgba(255,255,255,0.6), 0 0 16px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
+                            ] : '0 0 8px rgba(255,255,255,0.6), 0 0 16px rgba(255,255,255,0.3), 0 0 0 1px rgba(0,0,0,0.2)'
                           }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                         />
@@ -1050,12 +1048,12 @@ const VideoPlayer = memo(({ src, poster }: { src: string, poster?: string }) => 
                           }}
                         >
                           <motion.div 
-                            className="w-3.5 h-3.5 rounded-full bg-white shadow-lg"
+                            className="w-3.5 h-3.5 rounded-full bg-white"
                             animate={{ 
                               scale: isVolumeDragging ? 1.2 : 1,
                               boxShadow: isVolumeDragging 
-                                ? '0 0 16px rgba(255,255,255,0.8), 0 4px 12px rgba(0,0,0,0.3)'
-                                : '0 2px 8px rgba(0,0,0,0.2), 0 0 8px rgba(255,255,255,0.4)'
+                                ? '0 2px 8px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), 0 0 12px rgba(255,255,255,0.5)'
+                                : '0 2px 8px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.3), 0 0 12px rgba(255,255,255,0.5)'
                             }}
                             transition={{ duration: 0.15 }}
                           />
