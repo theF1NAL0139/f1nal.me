@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Preconnect для внешних ресурсов -->
+    <link rel="preconnect" href="https://video.f1nal.me" crossorigin>
+    <link rel="dns-prefetch" href="https://video.f1nal.me">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    
+    <!-- Preload критичных шрифтов (только woff2) -->
+    <link rel="preload" href="/fonts/FunnelDisplay-Regular.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/webp" href="/img/favicon.webp" />
+    <link rel="apple-touch-icon" href="/img/favicon.png" />
+    
+    <title>F1NAL EDITING - OLEG SHMAROV - 3D ARTIST</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Portfolio of Oleg Shmarov. 3D Artist and Motion Designer based in Warsaw." />
+    <meta name="keywords" content="3D Artist, Motion Designer, Oleg Shmarov, Portfolio, Cinema 4D, Redshift" />
+    <meta name="author" content="Oleg Shmarov" />
+    <meta name="theme-color" content="#F7F7F7" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://f1nal.me/" />
+    <meta property="og:title" content="Oleg Shmarov - 3D Artist" />
+    <meta property="og:description" content="Portfolio of Oleg Shmarov. 3D Artist and Motion Designer." />
+    <meta property="og:image" content="https://f1nal.me/img/me.png" />
+    <meta property="og:site_name" content="F1NAL EDITING" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://f1nal.me/" />
+    <meta name="twitter:title" content="Oleg Shmarov - 3D Artist" />
+    <meta name="twitter:description" content="Portfolio of Oleg Shmarov. 3D Artist and Motion Designer." />
+    <meta name="twitter:image" content="https://f1nal.me/img/me.png" />
+
+    <!-- Performance hints -->
+    <meta http-equiv="x-dns-prefetch-control" content="on">
+    
+    <!-- Critical CSS inline для быстрой отрисовки -->
+    <style>
+      /* Critical CSS - минимум для первого рендера */
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #F7F7F7;
+        font-family: 'Funnel Display', -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      /* Loader для начальной загрузки */
+      .initial-loader {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #F7F7F7;
+        z-index: 99999;
+        transition: opacity 0.3s ease;
+      }
+      .initial-loader.fade-out {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Начальный loader, исчезнет после загрузки React -->
+    <div id="initial-loader" class="initial-loader">
+      <svg width="40" height="40" viewBox="0 0 40 40" style="animation: spin 1s linear infinite;">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#ddd" stroke-width="3"/>
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#333" stroke-width="3" stroke-dasharray="80" stroke-dashoffset="60"/>
+      </svg>
+      <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+      </style>
+    </div>
+    
+    <div id="root"></div>
+    
+    <!-- PDF.js worker global setup -->
+    <script>
+      window.pdfjsWorkerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Удаляем loader после загрузки -->
+    <script>
+      window.addEventListener('load', function() {
+        var loader = document.getElementById('initial-loader');
+        if (loader) {
+          loader.classList.add('fade-out');
+          setTimeout(function() { loader.remove(); }, 300);
+        }
+      });
+    </script>
+    
+    <!-- GitHub Pages SPA redirect -->
+    <script>
+      // Single Page Apps for GitHub Pages
+      // https://github.com/rafgraph/spa-github-pages
+      (function(l) {
+        var segmentCount = 0;
+        var l = window.location;
+        l.replace(
+          l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          l.pathname.split('/').slice(0, 1 + segmentCount).join('/') + '/?/' +
+          l.pathname.slice(1).split('/').slice(segmentCount).join('/').replace(/&/g, '~and~') +
+          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+          l.hash
+        );
+      })();
+    </script>
+  </body>
+</html>
