@@ -1040,6 +1040,7 @@ const ProjectCard = memo(({ project }: { project: any }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const isMobile = useIsMobile();
     const navigate = useNavigate();
 
@@ -1052,14 +1053,41 @@ const ProjectCard = memo(({ project }: { project: any }) => {
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting) video.play().catch(() => {});
-                    else video.pause();
+                    if (entry.isIntersecting) {
+                        video.play().catch(() => {});
+                        setIsVideoPlaying(true);
+                    } else {
+                        video.pause();
+                        setIsVideoPlaying(false);
+                    }
                 });
             }, { threshold: 0.6 }
         );
         observer.observe(container);
         return () => observer.disconnect();
     }, [isMobile]);
+
+    // Track video play state
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handlePlay = () => setIsVideoPlaying(true);
+        const handlePause = () => setIsVideoPlaying(false);
+        const handleEnded = () => setIsVideoPlaying(false);
+
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('playing', handlePlay);
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('ended', handleEnded);
+
+        return () => {
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('playing', handlePlay);
+            video.removeEventListener('pause', handlePause);
+            video.removeEventListener('ended', handleEnded);
+        };
+    }, []);
 
     // DESKTOP: Hover Logic
     const handleMouseEnter = useCallback(() => {
@@ -1089,9 +1117,10 @@ const ProjectCard = memo(({ project }: { project: any }) => {
         }
     }, [project.isExternal, project.link, navigate]);
 
-    const videoClass = isMobile
-        ? "opacity-100 brightness-75"            
-        : (isHovered ? "opacity-100 brightness-75" : "opacity-0");
+    // Determine opacity for video and image layers
+    const shouldShowVideo = isMobile ? isVideoPlaying : isHovered;
+    const videoOpacity = shouldShowVideo ? 1 : 0;
+    const imageOpacity = shouldShowVideo ? 0 : 1;
 
     return (
         <a href={project.isExternal ? project.link : '/' + project.link} onClick={handleClick} className="block w-full h-full">
@@ -1102,14 +1131,18 @@ const ProjectCard = memo(({ project }: { project: any }) => {
                 onMouseLeave={handleMouseLeave}
             >
                 {/* Static Image (Bottom Layer) WITH SKELETON */}
-                {!isMobile && (
-                    <div className="absolute inset-0 z-0">
-                        <GlobalSmartMedia src={project.img} type="image" className="w-full h-full" />
-                    </div>
-                )}
+                <div 
+                    className="absolute inset-0 z-0 transition-opacity duration-500 ease-in-out"
+                    style={{ opacity: imageOpacity }}
+                >
+                    <GlobalSmartMedia src={project.img} type="image" className="w-full h-full" />
+                </div>
                 
                 {/* Video Layer (Top Layer) - preload="none" для экономии трафика */}
-                <div className={`absolute inset-0 z-10 transition-all duration-300 ease-in-out ${videoClass}`}>
+                <div 
+                    className="absolute inset-0 z-10 transition-opacity duration-500 ease-in-out brightness-75"
+                    style={{ opacity: videoOpacity }}
+                >
                     <video
                         poster={project.img}
                         ref={videoRef}
